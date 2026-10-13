@@ -50,8 +50,23 @@
 
 ⇒ stage2（`target=wasm32`）会**自己重编**这个 blob，走 `session,inwasm_solve,host_log` 那一支。
 
-**⚠️ 尚未验证**（关机打断了重建）：这条修补**未实测通过**。验收判据就是本工单的 `Settling:`，
-另需补 `test/node/accept-omc-simulate.mjs`（口径：跑完 + 产出 `.mat` + 头 4 字节是 MAT4/魔数）。
+**★ 修补已实测生效（2026-10-13 深夜）**：清掉 stage2 的陈旧 blob 缓存后重建，
+产出**新的运行时 blob**并验到 import 面变干净：
+
+| 检查 | 修补前 | 修补后 |
+|---|---|---|
+| `blobs/runtime_wasip1_interactive.wasm` sha256 前 16 | `1f89fef3fd1e18e1` | **`df866d92b637ae96`** |
+| `wasm-objdump -x` 数 `env.rt_host_lin_solve` **导入** | **1** | **0** |
+
+⇒ "模型模块 import 的那个宿主回调无人提供"这条**断链已断掉**。
+**仍未走完**：产物要在 stage2 收尾后重新 `--verify`，再用
+`node test/node/accept-omc-simulate.mjs` 验仿真是否真跑完并出 `.mat`（那才是需求 B 的结案判据）。
+
+**踩到的一个坑（记下来）**：光把 blob 从交接件移出**不够** —— stage2 的
+`rust-target/.../build/openmodelica_wasm_jit-*/out/` 与 `Compiler/wasm-blobs/` 里
+**还留着上一次的拷贝**，`prebuilt_in`/缓存都不看上游目录了，注释里说"missing ⇒ build as usual"
+也救不了已经落盘的旧件。⇒ 必须**连 stage2 的旧 blob 一起清**（本次做法：
+`rm -rf stage2/.../openmodelica_wasm_jit-*/out` 与 `stage2/.../Compiler/wasm-blobs`）。
 
 ## 顺带查清的两件事（存档）
 
