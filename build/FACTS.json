@@ -1,13 +1,13 @@
 {
  "schema": 1,
- "generated": "2026-10-13T19:22:57+0800",
+ "generated": "2026-10-13T19:28:22+0800",
  "_why": "事实台账：每条 = 一个**测出来**的值 + 复跑命令 + 出处。别手改，跑 zreflect/facts.py。",
  "facts": {
   "lane_branches_present": {
-   "value": 0,
+   "value": 3,
    "cmd": "git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-13T19:22:57+0800",
+   "measured_at": "2026-10-13T19:28:22+0800",
    "first_seen": "2026-10-13",
    "note": "三线分支齐备数（一线一架构：master=wasm64 / wasm32 / IllegalPerformance）"
   },
@@ -15,7 +15,7 @@
    "value": 48,
    "cmd": "grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-13T19:22:57+0800",
+   "measured_at": "2026-10-13T19:28:22+0800",
    "first_seen": "2026-10-13",
    "note": "白名单放行规则数（新增文件必须同步加白线，否则 pre-commit 拒）"
   },
@@ -23,7 +23,7 @@
    "value": 3,
    "cmd": "ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-13T19:22:57+0800",
+   "measured_at": "2026-10-13T19:28:22+0800",
    "first_seen": "2026-10-13",
    "note": "三份经验文档齐备数（用户点令）"
   },
@@ -31,7 +31,7 @@
    "value": 0,
    "cmd": "python3 -c \"import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))\"",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-13T19:22:57+0800",
+   "measured_at": "2026-10-13T19:28:22+0800",
    "first_seen": "2026-10-13",
    "note": "上游 pin 条数（0 = 尚未接入；接入后 OM/3rdParty/OMBootstrapping 三条）"
   }
