@@ -150,3 +150,34 @@
 - **教训（通用）**：**判据的"适用面"本身要过真产物**。三条 bug 都不是逻辑错，是
   "判据假设了别的格式"（ELF 的 Arch 头 / 非 dylink 的 wasm / 有 tag 的构建树）
   —— 只有**喂真产物**才会暴露。这正是本仓"能编过 ≠ 能用了"的又一次实证。
+
+## 5.z 需求 B 攻关（2026-10-13 深夜，**未结案** —— 关机打断了重建）
+
+**目标**：浏览器/Node 里跑通一个 Modelica 模型并出 `.mat`（需求 B）。
+
+- **进展（实测，都是真跑出来的）**：`loadFile` → **true**、`getClassNames()` → **{BouncingBall}**、
+  `translateModel` → **true** 且真的写了 `/tmp/BouncingBall.wasm`（`wasi_path_open` 返回有效 fd）
+  ⇒ **编译器前端在 wasm 里全通**（词法/语法/语义/代码生成/写模块）。
+- **卡点（报文逐字）**：`omc_simulate(...)` 与 `omc_sim_start(...)` 两条路都报同一个 Trap：
+  `WebAssembly.Instance(): Import #0 "env" "rt_host_lin_solve": function import requires a callable`
+  ⇒ **实例化模型模块时缺一个宿主函数**。
+- **★ 根因（逐字证据链，已定位）**：
+  · 上游 `openmodelica_wasm_jit/build.rs:1768-1775` 按"宿主是不是 wasm32"决定运行时 blobs 的**特征集**：
+    native 那一支带 **`host_lin_solve`**（稀疏求解甩给宿主原生求解器），
+    web 那一支带 **`inwasm_solve`**（rsparse 在 wasm 内解）。
+  · 本仓两步链里，交接件 `blobs/runtime_wasip1_interactive.wasm` 是 **stage1（native 宿主）**编的，
+    而 stage2 **按文件名直接复用**（`build.rs:1983 prebuilt_in`；stage2 stamp 实测 = `prebuilt:<该文件>`）。
+  · 实测指纹三层一致：stage1 stamp = `…:host_lin_solve,host_log,primme`；
+    交接件与 web 包里那份 **sha256 相同**（`1f89fef3…`）；
+    `wasm-objdump -x` 数 `env.rt_host_lin_solve` 导入 = **1**（对照：按 web 特征单独编的 = **0**）。
+  · 而 Node/浏览器宿主**没有原生求解器** ⇒ 那个 import 无人填 ⇒ Trap。
+- **修补（已写进 `build/113/build-omc-wasm.sh`，但★未验证）**：stage1 结束后把该 blob
+  **移出交接件**（改非 `.wasm` 后缀，避开 `publish_prebuilt` 的扩展名挑选）⇒ stage2 会自己重编
+  web 版。依据是上游自己的原文（`build.rs:1978-1979`）："Missing from the directory,
+  a blob is built as usual."
+- **顺带查清**：`omc_set_inwasm_driver(1)` 只切驱动、**不换**运行时特征集；
+  cmake 的 `RUST_OMC_WASM_INWASM_DRIVER` 只 append 到 **native omc 的 codegen** 分支
+  （`rust_omc.cmake:1278-1281`），对 stage1 这条链不起作用（实测 stamp 未变）。
+  `omc_simulate` 是**六参**签名。
+- **★ 纪律（这一条最重要）**：本批**没有**把需求 B 说成"做完了"——修补未经实测，
+  悬案 03 的状态是 `needs-info`，STATE 里也按"未结案"写。

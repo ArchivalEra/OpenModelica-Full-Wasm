@@ -37,6 +37,7 @@ MODE="${MODE:-node-release}"
 JOBS="${JOBS:-$(nproc)}"
 # 单测期可覆写成小值（--selftest 不跑真构建）
 STAGE1_TARGETS="${STAGE1_TARGETS:-rust_codegen rust_wasm_runtime rust_wasm_artifacts}"
+# ★ 需求 B 的关键修补：**别让 stage2 复用 stage1 的 runtime blob**（见 stage1 完成处那段注释）。
 # wasm-opt（binaryen -Oz 体积优化）：**默认 OFF**，理由是本机实测：
 #   · 上游 rust_omc.cmake:829 的旗标清单（--enable-bulk-memory …）与唯一可用的
 #     binaryen 133（emsdk 版）**不兼容** —— 旧 feature 名在新版被改名
@@ -146,6 +147,25 @@ do_build() {
     > "$OUT/stage1.build.log" 2>&1 || { err "FATAL: stage1 build 失败（tail $OUT/stage1.build.log）"; tail -30 "$OUT/stage1.build.log" >&2; return 1; }
   log "   ① stage1 完成"
   [ -d "$ART/wasi-pic-sysroot" ] || { err "FATAL: 交接件缺 wasi-pic-sysroot（stage2 会缺 libc）"; return 1; }
+
+  # ★★ 需求 B 的关键修补（2026-10-13 实测，逐字证据）：
+  #   交接件里的 `blobs/runtime_wasip1_interactive.wasm` 是 **stage1（native 宿主）**编的：
+  #   build.rs 判据 `native = CARGO_CFG_TARGET_ARCH != wasm32` 命中 ⇒ 带 **host_lin_solve**
+  #   （把稀疏求解甩给宿主）⇒ 该 blobs **import** `env.rt_host_lin_solve`；
+  #   而浏览器/Node 宿主**没有**原生求解器 ⇒ 模型实例化时报
+  #   `Import #0 "env" "rt_host_lin_solve": function import requires a callable`。
+  #   实测指纹：stage1 stamp = `host_lin_solve,host_log,primme`；stage2 报
+  #   `prebuilt:<该文件>`（build.rs:1983 `prebuilt_in` **只按文件名**取件 ⇒ 直接复用）。
+  #   上游 build.rs:1978-1979 原文："Missing from the directory, a blob is built as usual"
+  #   ⇒ 把这个 blob **移出交接件**，stage2（target=wasm32 ⇒ 走 `session,inwasm_solve,host_log`
+  #   那一支，build.rs:1774）会自己重编，得到的才是浏览器/Node 能用的在 wasm 内求解版。
+  #   ⚠️ 只剔这一个（其余 blobs 与宿主无关，留着省时间）。
+  if [ -f "$ART/blobs/runtime_wasip1_interactive.wasm" ]; then
+    # 换个**不以 .wasm 结尾**的名字：publish_prebuilt 按扩展名挑件（build.rs:2008），
+    # 留着 .wasm 后缀会被消费者当成交接件又捡回去。
+    mv "$ART/blobs/runtime_wasip1_interactive.wasm" "$ART/blobs/runtime_wasip1_interactive.stage1-host-delegating"
+    log "   ① 宿主委派版 runtime blob 已移出交接件（stage2 自编 web 版）"
+  fi
 
   log "== ② stage2：wasm 包（OM_OMC_WASM=ON / RUST_OMC_WASM_MODE=$MODE / 吃交接件）"
   cmake -S "$UPSTREAM" -B "$S2" -G Ninja \

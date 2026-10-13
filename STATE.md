@@ -118,3 +118,15 @@
 14 道闸门（发现式名录派生 —— 手写清单会漂，加闸门 = 落一个声明行，这里自动长出来）。
 <!-- /AUTO:GATES -->
 
+
+## 需求 B 的现状（2026-10-13 深夜，**未结案**）
+
+- **编译器前端在 wasm 里全通**（实测）：`loadFile` true、`getClassNames()` `{BouncingBall}`、
+  `translateModel` true（并真的写出模型 wasm）。
+- **卡在仿真实例化**：`Import #0 "env" "rt_host_lin_solve": function import requires a callable`
+  —— 根因是**交接件里的运行时 blob 是宿主委派版**（stage1 native 编的，带 `host_lin_solve`），
+  stage2 按文件名复用了它。证据链与修补见悬案
+  `.scratch/open-questions/issues/03-simulate-needs-host-solver.md`。
+- **修补已写进构建脚本，但未实测**（关机打断了重建）⇒ 下次开工第一件事：
+  跑 `bash build/113/build-omc-wasm.sh build` 重建，再按悬案 03 的 `Settling:` 验收。
+  **别把这条当好消息读** —— 它是"更接近了"，不是"通过了"。

@@ -87,9 +87,12 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 **上游 pin**：`upstream/openmodelica` = `cbff5eb7…`、`OMCompiler/3rdParty` = `ae7e482a…`。
 
 **还没做的**（别混）：浏览器端到端跑模型（需求 B）与 `.mat` 握手（需求 D）。
-**下一步 = 需求 B**，已知断点（首批实测）：Node 侧 `loadFile`/`getClassNames` 已通
-（编译器前端全通），`simulate()` 停在"要宿主注入 JS 回调"（`rt_host_lin_solve`）
-—— 那正是 B 要接的胶水。
+**下一步 = 需求 B**（未结案，悬案 03）：Node 侧 `loadFile`/`getClassNames`/`translateModel`
+已通（编译器前端全通、模型 wasm 真被写出）；`simulate()` 卡在
+`Import #0 "env" "rt_host_lin_solve": function import requires a callable`
+—— **根因已定位**：交接件里的运行时 blob 是**宿主委派版**（stage1 native 编的，
+带 `host_lin_solve`），stage2 按文件名复用了它；**修补已进构建脚本但未实测**
+（关机打断重建）。复跑判据：`node test/node/accept-omc-simulate.mjs`。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是

@@ -96,10 +96,15 @@ Build-Pfad = direkt auf dem Host (Docker ist hier nicht nutzbar).
 
 **Noch nicht gemacht** (nicht verwechseln): Modell Ende-zu-Ende im Browser (Anforderung B)
 und `.mat`-Handshake (Anforderung D).
-**Nächster Schritt = Anforderung B**, mit bekanntem Haltepunkt (aus dem ersten Build):
-Node-seitig sind `loadFile`/`getClassNames` grün (Compiler-Frontend vollständig),
-`simulate()` stoppt erst, wenn der Host JS-Callbacks injizieren muss (`rt_host_lin_solve`)
-— genau das ist die Klebung, die B braucht.
+**Nächster Schritt = Anforderung B** (offen, Ticket 03): Node-seitig sind
+`loadFile`/`getClassNames`/`translateModel` grün (Compiler-Frontend vollständig, das
+Modul-wasm wird wirklich geschrieben); `simulate()` hängt an
+`Import #0 "env" "rt_host_lin_solve": function import requires a callable`.
+**Ursache gefunden**: der Runtime-Blob im Hand-over ist die **host-delegierende** Variante
+(von stage1 nativ gebaut, mit `host_lin_solve`), und stage2 verwendet ihn per Dateiname
+wieder. **Der Fix steckt im Build-Skript, ist aber noch nicht verifiziert**
+(Neubau wurde vom Herunterfahren unterbrochen). Prüfbefehl:
+`node test/node/accept-omc-simulate.mjs`.
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend
