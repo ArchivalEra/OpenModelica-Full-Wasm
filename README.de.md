@@ -95,9 +95,11 @@ Build-Pfad = direkt auf dem Host (Docker ist hier nicht nutzbar).
 **Upstream-Pins**: `upstream/openmodelica` = `cbff5eb7…`, `OMCompiler/3rdParty` = `ae7e482a…`.
 
 **Noch nicht gemacht** (nicht verwechseln): Modell Ende-zu-Ende im Browser (Anforderung B)
-und `.mat`-Handshake (Anforderung D). Node-seitig sind `loadFile`/`getClassNames` grün
-(Compiler-Frontend vollständig); `simulate` stoppt erst, wenn der Host JS-Callbacks
-injizieren muss — das ist B.
+und `.mat`-Handshake (Anforderung D).
+**Nächster Schritt = Anforderung B**, mit bekanntem Haltepunkt (aus dem ersten Build):
+Node-seitig sind `loadFile`/`getClassNames` grün (Compiler-Frontend vollständig),
+`simulate()` stoppt erst, wenn der Host JS-Callbacks injizieren muss (`rt_host_lin_solve`)
+— genau das ist die Klebung, die B braucht.
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend

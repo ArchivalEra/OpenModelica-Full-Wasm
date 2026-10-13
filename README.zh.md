@@ -87,8 +87,9 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 **上游 pin**：`upstream/openmodelica` = `cbff5eb7…`、`OMCompiler/3rdParty` = `ae7e482a…`。
 
 **还没做的**（别混）：浏览器端到端跑模型（需求 B）与 `.mat` 握手（需求 D）。
-Node 侧 `loadFile`/`getClassNames` 已通（编译器前端全通）；`simulate` 停在"要宿主注入
-JS 回调"，那是 B 的活。
+**下一步 = 需求 B**，已知断点（首批实测）：Node 侧 `loadFile`/`getClassNames` 已通
+（编译器前端全通），`simulate()` 停在"要宿主注入 JS 回调"（`rt_host_lin_solve`）
+—— 那正是 B 要接的胶水。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
