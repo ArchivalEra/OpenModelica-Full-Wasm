@@ -56,6 +56,9 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
+**All three lines are already in place** (`master` / `wasm32` / `IllegalPerformance`, same baseline commit) — see `git branch -a`.
+
+
 ## 事实系统（Einfacht，反幻觉）
 
 数字的**唯一产地**是 `build/FACTS.json`；文档正文**不手抄数字**，写 `[[键名]]`；
@@ -103,7 +106,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `HISTORY.md` (2936 bytes)
 - `LICENSE` (34523 bytes)
 - `README.de.md` (4625 bytes)
-- `README.zh.md` (4150 bytes)
+- `README.zh.md` (4273 bytes)
 - `STATE.md` (6374 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `build/113/check-lane-purity.py` (9035 bytes)

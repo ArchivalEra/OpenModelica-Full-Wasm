@@ -56,6 +56,9 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
+**三条线已在位**（`master` / `wasm32` / `IllegalPerformance`，同一基线提交）—— 见 `git branch -a`。
+
+
 ## 事实系统（Einfacht，反幻觉）
 
 数字的**唯一产地**是 `build/FACTS.json`；文档正文**不手抄数字**，写 `[[键名]]`；
