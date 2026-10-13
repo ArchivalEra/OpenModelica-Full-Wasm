@@ -104,7 +104,10 @@ Modul-wasm wird wirklich geschrieben); `simulate()` hängt an
 (von stage1 nativ gebaut, mit `host_lin_solve`), und stage2 verwendet ihn per Dateiname
 wieder. **Der Fix steckt im Build-Skript, ist aber noch nicht verifiziert**
 (Neubau wurde vom Herunterfahren unterbrochen). Prüfbefehl:
-`node test/node/accept-omc-simulate.mjs`.
+`node test/node/accept-omc-simulate.mjs` (aktuell 6 PASS / 3 FAIL).
+**Der Fix ist verifiziert wirksam** (neuer Runtime-Blob `df866d92…`,
+`env.rt_host_lin_solve`-Import **1 → 0**), aber das Artefakt muss nach dem Ende von
+stage2 erneut `--verify` durchlaufen.
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend

@@ -92,7 +92,9 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 `Import #0 "env" "rt_host_lin_solve": function import requires a callable`
 —— **根因已定位**：交接件里的运行时 blob 是**宿主委派版**（stage1 native 编的，
 带 `host_lin_solve`），stage2 按文件名复用了它；**修补已进构建脚本但未实测**
-（关机打断重建）。复跑判据：`node test/node/accept-omc-simulate.mjs`。
+（关机打断重建）。复跑判据：`node test/node/accept-omc-simulate.mjs`（当前 6 PASS / 3 FAIL）。
+**修补已实测生效**（新 runtime blob `df866d92…`，`env.rt_host_lin_solve` 导入 **1 → 0**），
+但产物要在 stage2 收尾后重新 `--verify` 才算数。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
@@ -124,8 +126,8 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (14985 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (6283 bytes)
-- `README.zh.md` (5589 bytes)
+- `README.de.md` (6504 bytes)
+- `README.zh.md` (5790 bytes)
 - `STATE.md` (13512 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
