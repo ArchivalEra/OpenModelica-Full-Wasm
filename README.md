@@ -105,7 +105,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (2936 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (4625 bytes)
+- `README.de.md` (4766 bytes)
 - `README.zh.md` (4273 bytes)
 - `STATE.md` (6374 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
