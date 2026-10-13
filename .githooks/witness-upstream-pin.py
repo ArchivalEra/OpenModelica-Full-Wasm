@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-# Octave-Full-Wasm — **上游 pin 见证**（仓库架构批 B4；Einfacht #5 witness 档的同族落地）
+# OpenModelica-Full-Wasm — **上游 pin 见证**（fork 管线 §1 身份层；Einfacht #5 witness 档同族）
 # Copyright (C) 2026 ArchivalEra · SPDX-License-Identifier: AGPL-3.0-or-later
+# 从姊妹仓 Octave-Full-Wasm 移植（2026-10-13），**加宿主模式**：
+#   · kind=tree  条目可带 `stamp_read`（shell 命令读供给树 stamp），缺省回退 docker exec cat；
+#   · kind=toolchain 条目可带 `probe`（shell 命令读版本串），缺省回退 docker exec emcc。
+#   为什么加：本机 2026-10-13 起 docker 不可用（用户不在 docker 组、sudo 被 no_new_privs 挡），
+#   若只认 docker，这条闸门对本仓就**恒 SKIP** —— "读不到"看起来像"没问题"。
+#   宿主模式让它在没有 docker 的机器上仍是**真断言**（stamp 与 submodule gitlink 对读）。
 #
-# 断言：「容器里的上游树 == build/upstream-pins.json 登记的 fork/分支/commit」。
-# 为什么：submodule 指针 bump 了、容器还在用旧 tarball 树——这种漂移不进任何 git 视图，
-# 只能靠"每提交把容器树戳一次章"来抓（对偶于 witness-build-inputs 的"配方文件"面）。
+# 断言：「供给树（另一份拷贝）== build/upstream-pins.json 登记的 commit」。
+# 为什么：submodule 指针 bump 了、供给树还是老拷贝——这种漂移不进任何 git 视图，
+# 只能靠"每提交把供给树戳一次章"来抓。
 #
 # 判据（stdout 裸值契约）：`ok` / `DRIFT: …`；退出码恒 0（同 witness-build-inputs）。
-# 站点读不到（docker 不在/容器停）⇒ `SKIP: …`（同 check-facts 规则 D："换机器不是错"）。
+# 读不到（docker 不在/树未供给）⇒ `SKIP: …`（"换机器不是错"，但**不是通过**）。
 # 未启用（无 build/upstream-pins.json）⇒ 明说未启用退 0。
 # 用法：python3 .githooks/witness-upstream-pin.py ／ --selftest
 import json
@@ -81,6 +87,16 @@ def check(spec, run=_run):
     drifts, skips = [], []
     for p in pins:
         if p["kind"] == "toolchain":
+            if p.get("probe"):
+                # 宿主模式：直接跑探针命令（本仓 2026-10-13 加，docker 不可用时的真断言路径）
+                rc, out = run(["sh", "-c", p["probe"]])
+                if rc != 0 or not out:
+                    skips.append("%s: 版本探针读不到（%s）" % (p["name"], p["probe"][:60]))
+                    continue
+                if p.get("expect_version") and p["expect_version"] not in out.splitlines()[0]:
+                    drifts.append("%s: 版本漂移（期望 %s，实测 %s）"
+                                  % (p["name"], p["expect_version"], out.splitlines()[0][:60]))
+                continue
             rc, out = run(["sudo", "-E", "docker", "exec", "o113", "emcc", "--version"])
             if rc != 0 or not out:
                 skips.append("%s: 读不到容器 emcc" % p["name"])
@@ -89,11 +105,19 @@ def check(spec, run=_run):
                 drifts.append("%s: emcc 版本漂移（期望 %s，容器 %s）"
                               % (p["name"], p["expect_version"], out.splitlines()[0][:40]))
         else:
-            rc, out = run(["sudo", "-E", "docker", "exec", "o113",
-                           "cat", os.path.join(p["container_path"], ".upstream-pin")])
-            if rc != 0 or not out:
-                skips.append("%s: 读不到容器树 stamp（未供给？）" % p["name"])
-                continue
+            if p.get("stamp_read"):
+                # 宿主模式：直接读供给树 stamp（路径写在 pins 里，跑完命令逐字复跑）
+                rc, out = run(["sh", "-c", p["stamp_read"]])
+                if rc != 0 or not out:
+                    skips.append("%s: 读不到供给树 stamp（未供给？%s）"
+                                 % (p["name"], p["stamp_read"][:60]))
+                    continue
+            else:
+                rc, out = run(["sudo", "-E", "docker", "exec", "o113",
+                               "cat", os.path.join(p["container_path"], ".upstream-pin")])
+                if rc != 0 or not out:
+                    skips.append("%s: 读不到容器树 stamp（未供给？）" % p["name"])
+                    continue
             parts = out.split()
             want_commit = (run(["git", "-C", os.path.join(REPO, p["submodule_path"]),
                                 "rev-parse", "HEAD"])[1] or "?")
@@ -146,6 +170,20 @@ def selftest():
          "submodule_path": "upstream/octave", "container_path": "/x/oct"},
         {"name": "emsdk", "kind": "toolchain", "provisioned": True, "expect_version": "5.0.7"}]}
     empty = {"pins": []}
+    # ★ 宿主模式（本仓 2026-10-13 加）：stamp_read / probe 直接跑命令
+    host_spec = {"pins": [
+        {"name": "openmodelica", "kind": "tree", "provisioned": True,
+         "submodule_path": "upstream/openmodelica",
+         "container_path": "/x/om", "stamp_read": "cat /x/om/.upstream-pin"},
+        {"name": "rust-nightly", "kind": "toolchain", "provisioned": True,
+         "expect_version": "1.98.0-nightly", "probe": "echo 1.98.0-nightly (x)"}]}
+    host_drift = {"pins": [
+        {"name": "openmodelica", "kind": "tree", "provisioned": True,
+         "submodule_path": "upstream/openmodelica",
+         "container_path": "/x/om", "stamp_read": "echo openmodelica master DEADBEEF 0"},
+        {"name": "rust-nightly", "kind": "toolchain", "provisioned": True,
+         "expect_version": "1.98.0-nightly", "probe": "echo 1.97.0-nightly (x)"}]}
+
     def runner(stamp, emcc):
         """夹具 runner：cat 类调用回 stamp，emcc 类调用回版本串。"""
         def _r(cmd):
@@ -156,6 +194,26 @@ def selftest():
                 return 0, emcc
             return 0, "abc123"                           # git rev-parse = submodule 真实 pin
         return _r
+
+    def host_runner(stamp, probe):
+        """宿主模式夹具：stamp_read → stamp；probe → probe 输出；rev-parse → abc123。"""
+        def _r(cmd):
+            joined = " ".join(cmd)
+            if "cat /x/om/.upstream-pin" in joined:
+                return 0, stamp
+            if "echo 1.98.0-nightly" in joined or "echo 1.97.0-nightly" in joined:
+                return 0, probe
+            return 0, "abc123"
+        return _r
+
+    def host_unread(cmd):
+        """供给树读不到：stamp 命令失败（rc=1），版本探针照常 ⇒ 必须 SKIP 不是 ok。"""
+        joined = " ".join(cmd)
+        if "cat /x/om/.upstream-pin" in joined:
+            return 1, ""
+        if "echo 1.98.0-nightly" in joined:
+            return 0, "1.98.0-nightly (x)"
+        return 0, "abc123"
 
     good = runner("octave wasm/11.3.0 abc123 0",
                   "emcc (Emscripten gcc/clang-like replacement) 5.0.7 (x)")
@@ -184,6 +242,18 @@ def selftest():
          lambda: check(ok_spec, run=unread).startswith("SKIP")),
         ("★ pins 为空 ⇒ 必须 DRIFT（零值守卫）",
          lambda: check(empty).startswith("DRIFT")),
+        # ── ★ 宿主模式（docker 不可用时的真断言路径；本仓 2026-10-13 加）──────
+        ("正常（宿主）：stamp 与 probe 都对 ⇒ ok",
+         lambda: check(host_spec, run=host_runner("openmodelica master abc123 0",
+                                                  "1.98.0-nightly (x)")) == "ok（2 个 pin 全部一致）"),
+        ("★ 宿主模式：stamp commit ≠ pin ⇒ 必须 DRIFT（供给树是另一份拷贝）",
+         lambda: check(host_drift, run=host_runner("openmodelica master DEADBEEF 0",
+                                                   "1.98.0-nightly (x)")).startswith("DRIFT")),
+        ("★ 宿主模式：probe 版本漂移 ⇒ 必须 DRIFT",
+         lambda: check(host_drift, run=host_runner("openmodelica master abc123 0",
+                                                   "1.97.0-nightly (x)")).startswith("DRIFT")),
+        ("★ 宿主模式：stamp 读不到 ⇒ SKIP（明说未核对，不是通过）",
+         lambda: check(host_spec, run=host_unread).startswith("SKIP")),
     ]
     cases = cases + CROSS_CASES
     bad = 0

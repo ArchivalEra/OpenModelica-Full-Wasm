@@ -48,9 +48,23 @@
 !build/pins.json
 !build/plugins.json
 
+# ── upstream/ submodule（fork 管线 §1 身份层：gitlink 条目，内容不入本仓）────
+!.gitmodules
+!upstream/
+!upstream/*
+
 # ── 闸门（本仓专属 + 自证台）───────────────────────────────────────────────
 !gates-selftest.sh
 !.githooks/check-whitelist.py
+# ⚠️ 2026-10-13 补漏：build/lib/gate.py 被 .githooks/ 四个检查器 import 却从未提交
+#    （`!build/*.py` 的 fnmatch 不跨 `/`）⇒ 克隆即坏。这是 check-whitelist.py 的已知盲区
+#    （它只看已跟踪文件）第一次在本仓咬人——被本批的 clone 实测抓到。
+# ⚠️ __pycache__ 不许进仓（编译产物；白名单会把 `!build/lib/**` 一放行就把它也带进来
+#    —— 2026-10-13 实测：`build/lib/__pycache__/gate.cpython-315.pyc` 被暂存）
+!build/lib/*
+!build/lib/**
+__pycache__/
+*.pyc
 !.githooks/check-state.py
 !.githooks/state_facts.py
 !.githooks/update-state.py
@@ -72,3 +86,8 @@
 !test/browser/*.mjs
 !test/browser/manifest.json
 !test/browser/run.sh
+
+# ── Node 侧验收（需求 A 的判据：Node 里 getVersion() 出串；无浏览器）──────────
+!test/node/*.mjs
+!test/node/manifest.json
+!test/node/run.sh

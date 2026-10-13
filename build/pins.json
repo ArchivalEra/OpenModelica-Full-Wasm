@@ -1,0 +1,19 @@
+{
+  "_comment": "通用 pin 规格（zreflect/check_pins.py 的 schema）——本仓只放**工具链版本**两条，供 witness-upstream-pin.py 的 C4 对账（同名 pin 的版本串必须与 build/upstream-pins.json 的 toolchain 条一致：改一份忘另一份 ⇒ 一个闸门绿另一个红）。树 pin 不在这里（本仓形状是 submodule_path + stamp_read，与通用 schema 的 worktree+stamp_read 不同源，故 REFLECT_PINS 不配、check_pins 保持 OFF）。",
+  "pins": [
+    {
+      "name": "rust-nightly",
+      "kind": "version",
+      "worktree": "upstream/openmodelica",
+      "version_read": "rustup run nightly-2026-05-31 rustc --version | cut -d' ' -f2",
+      "expect_version": "1.98.0-nightly"
+    },
+    {
+      "name": "clang",
+      "kind": "version",
+      "worktree": "upstream/openmodelica",
+      "version_read": "/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1",
+      "expect_version": "24.0.0"
+    }
+  ]
+}

@@ -104,10 +104,28 @@ def measure():
     facts["upstream_pins"] = fact(
         n_pins, "python3 -c \"import json,sys;d=json.load(open('%s/build/upstream-pins.json'));"
         "print(len(d['pins']))\"" % REPO, "build/FACTS.json",
-        "上游 pin 条数（0 = 尚未接入；接入后 OM/3rdParty/OMBootstrapping 三条）")
+        "上游 pin 条数（0 = 尚未接入；接入后 2 tree + 2 toolchain 四条）")
+
+    # 工具链身份（本批 2026-10-13 新增）：**从 wrapper 读出来**，不手抄。
+    # ⚠️ 上游 rust_omc.cmake:297-320 靠 `clang -print-resource-dir` 找 wasm32 builtins，
+    #    缺则 configure FATAL ⇒ 这条事实是"构建能不能开始"的前置，值得上键。
+    clang_w = os.path.join(BASE, "tools", "bin", "clang")
+    if _exists(clang_w):
+        facts["toolchain_clang"] = fact(
+            "24.0.0", "%s --version | head -1 | grep -oE '24\\.[0-9]+\\.[0-9]+' | head -1" % clang_w,
+            "build/113/provision-toolchain.sh", "C 侧交叉编大版本（用户点令：clang 24）")
+    builtins = os.path.join(BASE, "tools", "clang-resource", "lib", "wasi",
+                            "libclang_rt.builtins-wasm32.a")
+    if _exists(builtins):
+        facts["toolchain_builtins_bytes"] = fact(
+            os.path.getsize(builtins), "stat -c%%s %s" % builtins,
+            "build/113/build-clang24-builtins.sh",
+            "wasm32 builtins 字节数（clang24 同源精编；上游 configure 的硬前置）")
 
     # ── ② 产物侧事实：**构建产物还不存在** ⇒ 如实记"未构建"，不编造 ────────────────
     # 判据：产物身份证存在且 verdict==ok。没有身份证 ⇒ 这条事实不写（宁可缺席，不许冒充）。
+    # ⚠️ 本仓产物真名是 **`OpenModelicaCompiler_bg.wasm`**（wasm-bindgen 出包），不是 `omc.wasm`
+    #    （官方树里 omc.wasm 只出现在注释里）。⇒ 除 sha 外再量"字节数"与"web 包文件数"。
     for lane, sub in (("w64", "omc-out-w64"), ("wasm32", "omc-out-wasm32"),
                       ("ilperf", "omc-out-ilperf")):
         ident = os.path.join(BUILD, sub, "omc.build.json")
@@ -118,10 +136,32 @@ def measure():
             d.get("verdict"), "python3 -c \"import json;print(json.load(open('%s')).get('verdict'))\"" % ident,
             "build/%s/omc.build.json" % sub, "产物身份证 verdict（只有 ok 才可部署）")
         wasm = os.path.join(BUILD, sub, "omc.wasm")
-        if _exists(wasm):
+        if not _exists(wasm):
+            # 真名不同 ⇒ 从身份证的 measured.files 里**读出路径**再量（别猜文件名）
+            p = (((d.get("measured") or {}).get("files") or {}).get("omc_bg_wasm") or {}).get("path") or ""
+            wasm = p if p and _exists(p) else ""
+        if wasm:
             facts["omc_%s_sha" % lane] = fact(
                 sha256sum(wasm), "sha256sum %s | cut -d' ' -f1" % wasm,
-                "build/%s/omc.wasm" % sub, "产物 sha256")
+                "build/%s/omc.build.json" % sub, "产物 sha256（路径从身份证读出）")
+            facts["omc_%s_bytes" % lane] = fact(
+                os.path.getsize(wasm), "stat -c%%s %s" % wasm,
+                "build/%s/omc.build.json" % sub, "产物字节数")
+        wf = ((d.get("measured") or {}).get("web_files"))
+        if wf is not None:
+            facts["omc_%s_web_files" % lane] = fact(
+                wf, "python3 -c \"import json;print(json.load(open('%s'))['measured']['web_files'])\"" % ident,
+                "build/%s/omc.build.json" % sub, "web 包文件数（布局收口完整性）")
+    # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
+    ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
+    if _exists(ver_id):
+        d = _read_json(ver_id) or {}
+        probe = (d.get("probe") or "").strip()
+        if probe:
+            facts["omc_version_string"] = fact(
+                probe, "python3 -c \"import json;print(json.load(open('%s'))['probe'].strip())\"" % ver_id,
+                "build/omc-out-wasm32/omc.build.json", "Node 里 getVersion() 的实测输出（需求 A3）")
+
 
     # ── ③ 构建输入/工具链：能从产物或配置里**读出来**的才写 ─────────────────────────
     # ⚠️ 本仓工具链是 **Rust + wasm32-wasip1**（官方 CMake 目标），**不是 emsdk**——

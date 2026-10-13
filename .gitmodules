@@ -1,0 +1,3 @@
+[submodule "upstream/openmodelica"]
+	path = upstream/openmodelica
+	url = https://github.com/OpenModelica/OpenModelica.git

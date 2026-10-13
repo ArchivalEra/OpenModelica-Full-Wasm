@@ -80,8 +80,20 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 ## 现行状态
 
-**骨架期**（2026-10-13 建仓）：三线分支就位、事实系统已接入并通过自证；
-**还没有任何构建产物**（`omc.wasm` 尚未 build）。下一步见需求书 **需求 A**。
+**★ 需求 A 已结案**（2026-10-13）：官方 wasm 目标** build 出了产物，且 Node 里跑得动** ——
+产物 `OpenModelicaCompiler_bg.wasm`（`omc.build.json` **verdict=ok**），
+`node omc-cli.js 'getVersion()'` 出串。工具链 = **clang 24** + 同源精编 wasm32 builtins
++ Rust `nightly-2026-05-31`；构建路径 = 宿主直跑（本机 docker 不可用）。
+**上游 pin**：`upstream/openmodelica` = `cbff5eb7…`、`OMCompiler/3rdParty` = `ae7e482a…`。
+
+**还没做的**（别混）：浏览器端到端跑模型（需求 B）与 `.mat` 握手（需求 D）。
+Node 侧 `loadFile`/`getClassNames` 已通（编译器前端全通）；`simulate` 停在"要宿主注入
+JS 回调"，那是 B 的活。
+
+⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
+`master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
+**`OpenModelicaCompiler_bg.wasm`**（不是 `omc.wasm`）；一步式配方缺
+`RuntimeSources.mo` ⇒ 走两步链；wasm 路径不需要 OMBootstrapping。
 
 ## 许可
 
@@ -98,33 +110,43 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `.githooks/state_facts.py` (11428 bytes)
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
-- `.githooks/witness-upstream-pin.py` (11252 bytes)
-- `.gitignore` (3093 bytes)
-- `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (1451 bytes)
+- `.githooks/witness-upstream-pin.py` (15708 bytes)
+- `.gitignore` (3984 bytes)
+- `.gitmodules` (122 bytes)
+- `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
+- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (1646 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (2936 bytes)
+- `HISTORY.md` (12371 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (4766 bytes)
-- `README.zh.md` (4273 bytes)
-- `STATE.md` (6374 bytes)
+- `README.de.md` (5791 bytes)
+- `README.zh.md` (5167 bytes)
+- `STATE.md` (11460 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
-- `build/113/check-lane-purity.py` (9035 bytes)
-- `build/FACTS.json` (1855 bytes)
-- `build/gates-selftest.sh` (3438 bytes)
-- `build/provision-upstream.sh` (2434 bytes)
+- `build/113/build-clang24-builtins.sh` (6408 bytes)
+- `build/113/build-omc-wasm.sh` (18322 bytes)
+- `build/113/check-lane-purity.py` (20889 bytes)
+- `build/113/check-wasm64-upstream.sh` (4054 bytes)
+- `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
+- `build/113/provision-toolchain.sh` (13684 bytes)
+- `build/FACTS.json` (4974 bytes)
+- `build/gates-selftest.sh` (3700 bytes)
+- `build/lib/gate.py` (7246 bytes)
+- `build/pins.json` (971 bytes)
+- `build/provision-upstream.sh` (5930 bytes)
 - `build/retractions.json` (30 bytes)
-- `build/upstream-lock.json` (1249 bytes)
-- `build/upstream-pins.json` (584 bytes)
+- `build/upstream-lock.json` (2909 bytes)
+- `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
-- `docs/REQUIREMENTS.md` (10529 bytes)
+- `docs/REQUIREMENTS.md` (14581 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
 - `docs/agents/issue-tracker.md` (3217 bytes)
 - `docs/agents/memory.md` (3919 bytes)
 - `docs/agents/triage-labels.md` (1606 bytes)
 - `docs/agents/upstream-issues.md` (12882 bytes)
+- `doctor.json` (645 bytes)
 - `gates-selftest.sh` (13572 bytes)
 - `maintaince.md` (3532 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
@@ -133,6 +155,10 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `reflect-hooks/install.sh` (575 bytes)
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
+- `test/node/accept-omc-getversion.mjs` (4653 bytes)
+- `test/node/manifest.json` (1279 bytes)
+- `test/node/run.sh` (1019 bytes)
+- `upstream/openmodelica` (4096 bytes)
 - `zreflect/__init__.py` (112 bytes)
 - `zreflect/check_ab.py` (8423 bytes)
 - `zreflect/check_envfile.py` (15627 bytes)
@@ -156,7 +182,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (8725 bytes)
+- `zreflect/measure_openmodelica.py` (11402 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

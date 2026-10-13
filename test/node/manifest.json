@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "note": [
+    "Node 侧验收清单（本仓 2026-10-13 首批）。与 test/browser/ 的分工：那边要真浏览器（playwright），",
+    "这边只用 node 内建模块 ⇒ 零依赖、秒级、可在任何机器上跑（不需要 harness/node_modules）。",
+    "★ 每条探针必须带**反向断言**（'该报的必须报'）：判据不能是恒真的。",
+    "★ 探针**只读产物**，不读仓库源码树（产物才是'能不能用'的判据）。"
+  ],
+  "categories": {
+    "accept": {
+      "desc": "验收探针：红绿判据（需求书的验收判据物）",
+      "default": true,
+      "summary": true,
+      "timeout": 420
+    }
+  },
+  "probes": [
+    {
+      "file": "accept-omc-getversion.mjs",
+      "category": "accept",
+      "covers": "需求 A3：Node 里 omc_eval 面 getVersion() 返回版本串",
+      "inputs": [
+        {
+          "kind": "path",
+          "env": "OMC_WEB_DIR",
+          "value": "/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web",
+          "why": "产物 web 包（omc-cli.js + pkg-nodejs/ + wasm-blobs/），由 build/113/build-omc-wasm.sh 产出（仓库外）"
+        }
+      ],
+      "reverse": "★④：喂坏产物目录 ⇒ 必须非 0（判据不是恒真）"
+    }
+  ]
+}

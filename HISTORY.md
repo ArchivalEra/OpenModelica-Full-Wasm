@@ -40,3 +40,113 @@
   但**官方路线**是第一方 CMake wasm 目标（`rust_omc.cmake` 的 `RUST_OMC_WASM_RUNTIME`），
   本仓走官方。详细实测在姊妹仓
   `Octave-Full-Wasm/build/113/NOTES-experiment-omc-wasm.md`（§1–§11）。
+
+## 5.y 首批构建管道（需求 A，2026-10-13）
+
+**起因**：用户点令"无人值守出 wasm32 最终产物，紧贴 Einfacht 行动"。执行中用户追加
+"改 clang 24"。
+
+- **上游 pin 落地**：`upstream/openmodelica` submodule = **`cbff5eb7…`**（clone 时 master HEAD；
+  侦察日查到的 `ffe6ff58` 已被上游推进两个提交 —— 正好实证"pin 的是 commit，跑的是别处的树"）；
+  递归 init 其 `OMCompiler/3rdParty` = **`ae7e482a…`**（sundials/SuiteSparse 随 gitlink 固定）。
+- **需求书四处原文被实测推翻，全部记进 `docs/REQUIREMENTS.md` §7**（不静默改原文）：
+  · **R1 wasm64**：上游零支持（`rust_omc.cmake` 2312 行 0 命中 `wasm64` + 5 处显式
+    `memory64: false`；全仓 code search 0）⇒ 首批出 **wasm32**。悬案 02 挂可跑结算件。
+  · **R2 产物真名**：`OpenModelicaCompiler_bg.wasm`（wasm-bindgen 出包），不是 `omc.wasm`。
+  · **R3 隐藏前置**：一步式配方缺 `SimulationRuntime/c/RuntimeSources.mo`（wasm 模式跳过
+    整个 SimulationRuntime，而 mmtorust 源表引用它；官方 CI 专门 stash/unstash 搬运）
+    ⇒ 本仓改用**官方两步链**（stage1 native configure 生成该文件 + wasm 交接件 → stage2 wasm 包）。
+  · **R4 不需要 OMBootstrapping**：Rust 模式在 `Compiler/CMakeLists.txt:66-71` 直接 `return()`
+    ⇒ pin 表 = 2 tree + 2 toolchain（不是三件）。
+- **工具链（用户点令 clang 24）**：
+  · **clang 24** = LLVM-wasm 仓 emsdk 内置的 `clang-24`（24.0.0git @55ea1f4e），实测自包含
+    ⇒ 复制进 `tools/bin24/`（不动源仓）；
+  · **wasm32 builtins 同源精编**：上游 configure 要 `<clang -print-resource-dir>/lib/wasi/
+    libclang_rt.builtins-wasm32.a`，系统缺、无 root 装不了 apt（llvm-24 在 Debian experimental
+    且直连 404 实测）⇒ 用 clang 24 编 llvm-project@55ea1f4e 的 compiler-rt（**146/146 对象**）
+    → `tools/clang-resource/lib/wasi/`（117704 字节）；overlay 由 wrapper 注入 `-resource-dir`；
+  · **Rust** = 上游 `rust-toolchain.toml` 钉的 `nightly-2026-05-31`（+ `wasm32-unknown-unknown`
+    / `wasm32-wasip1` / `rust-src`）。
+- **新增闸门 5 个，全部带三类用例自证并登记进 `build/gates-selftest.sh`**：
+  `provision-toolchain.sh`（8 PASS）、`build-clang24-builtins.sh`（5）、`build-omc-wasm.sh`（9）、
+  `check-wasm64-upstream.sh`（4，悬案 02 结算件）、`provision-upstream.sh --selftest`（5）。
+  ⇒ 本仓专属闸门自证台现 **10 个闸门全绿**。
+- **自证抓到 3 个真 bug（都是我自己写的）**，逐个修掉：
+  ① `verdict_of` 空期望时 `case *""*` 匹配一切 ⇒ **静默返回 ok**（零值守卫用例抓到）；
+  ② 源表抽取器对空表 `print("")` 吐空行 ⇒ 冒充"抽到了东西"；
+  ③ `sources_of` 的 `wc -l` 在无尾换行时报 1（改用 `grep -c ''`）。
+- **witness 闸门加宿主模式**：本机 docker 不可用（不在 docker 组 + `sudo` 被 `no_new_privs` 挡）
+  ⇒ 加 `stamp_read`/`probe` 字段，让这条闸门在无 docker 机器上仍是**真断言**（不是恒 SKIP）。
+  自证从 12 条加到 **15 条**（3 条宿主模式反向用例）。
+- **补了一处历史漏洞**：`build/lib/gate.py` 被 `.githooks/` 四个检查器 import 却**从未提交**
+  （`!build/*.py` 的 fnmatch 不跨 `/`）⇒ 克隆即坏。白名单已补（这是 `check-whitelist.py`
+  的已知盲区第一次在本仓咬人，被本批实测抓到）。
+- **★ 一个差点静默失效的坑（记下来）**：`facts.py` 的 `REFLECT_MEASURE_MODULE` 未被加载时
+  静默回落到上游占位实现（数 md/py 文件的通用事实）**并且把台账写"成功"**（打印"已写出 4 条事实"，
+  实际值被 guard 拦下不写）。⇒ 教训：**跑 facts 必须用钩子语境**（`. reflect-hooks/einfacht-env.sh`），
+  否则量到的是假事实。已改用钩子同款语境 + 改口守卫逐条核对（`upstream_pins 0→4`、
+  `whitelist_rules 48→56` 两条经核对后 `--accept-changes` 放行）。
+
+### 5.y.1 构建期踩到的四个坑（全部实测，逐条带根因）
+
+1. **stage1 不能是 native configure**：试了两次（① 缺 Fortran 编译器 → ② 关掉 MOO/优化后
+   又缺 minizip）⇒ native 路径要一堆本机没有的 native 依赖（无 root 装不了）。
+   **正解**：stage1 也开 `OM_OMC_WASM=ON`（要它产的只是 wasm 交接件，那三样 wasm 模式一样产），
+   `RuntimeSources.mo` 用**单独生成器**产（官方 CI 也是 stash 出来的）。
+2. **`stddef.h`/`stdarg.h` not found**（在 wasi-libc 交叉编时才炸，离根因很远）：
+   overlay 的 `include` 是用 `bin24/clang-24 -print-resource-dir` 铺的，而**二进制复制后**
+   它按自身位置推 → 返回不存在的 `<tools>/lib/clang/24` ⇒ overlay 里是**断链** ⇒
+   clang 的内建头全丢。**正解**：用**源** resource-dir（emsdk 那份）铺 overlay；
+   并在 `provision-toolchain.sh status` 加一条"内建头找得到"的断言把它拉到眼前。
+3. **`function(f) endfunction()` 单行**在 CMake 3.20 报 parse error（写生成器时）。
+4. **两次并发 rustup** 抢同一 toolchain 目录 ⇒ `missing manifest`（半装）。
+   **教训**：安装类重活**一次只起一个**；已后台化的不重跑。
+
+### 5.y.2 一个网络事实（值得记：它差点让本批"看着像卡死"）
+
+`static.rust-lang.org` **直连 19 KB/s、经 `127.0.0.1:2080` 代理 7.5 MB/s**（实测，快 380×）。
+按直连装 Rust nightly 需要数小时。⇒ `provision-toolchain.sh` 已把"探测代理可达性、
+可达就走代理"写进代码（不是靠人记得 export）。
+
+### 5.y.3 ★ **需求 A 结案：产物 build 出来了，且 Node 里跑得动**（2026-10-13 22:31）
+
+- **产物**：`/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/`
+  · `web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` = **88,701,756 字节**
+    （sha256 前 16：`eb1f63c66832eb6f`）
+  · 同目录 `OpenModelicaCompiler.js`（wasm-bindgen glue）+ `omc-cli.js`（官方 launcher）
+    + `wasm-blobs/`（liblapack / libc_pic / ModelicaUtilities）+ `fmu-loaders/`
+  · 产物身份证 `omc.build.json` **verdict=ok**（`--verify` 实核后写入）
+- **A3 判据实跑**（工单 01 的 Settling）：
+  · `bash build/113/build-omc-wasm.sh --verify` → **rc=0**、写 `verdict=ok`；
+  · `node web/omc-cli.js 'getVersion()'` → **`"-rust"`**（Rust 版 omc 的版本串；
+    无 git tag 的构建树走上游 `SOURCE_REVISION=unknown` 降级路径 ⇒ 不是空串）；
+  · `test/node/accept-omc-getversion.mjs` → **9 PASS / 0 FAIL**（含反向断言）；
+  · `check-lane-purity.py --lane wasm32 --host … --mod ×3` → **OK**（宿主 3 个 side module 全同档）。
+- **★ 跑得动的旁证（超出 A3 的部分，如实记但不吹）**：把 `BouncingBall.mo` 用
+  `wasi_write_file` 写进 VFS 后：
+  · `loadFile(...)` → **true**；`getClassNames()` → **{BouncingBall}** ⇒ **前端全通**
+    （词法/语法/语义 + 类装载）；
+  · `simulate(...)` 到**运行期**才停下（`rt_host_lin_solve` 是宿主注入的 JS 回调，
+    Node CLI 没接）⇒ **需求 B 的活**（浏览器/宿主胶水），不是 A 的判据。
+    注意：**别把它说成"仿真失败"** —— omc 编译前端通过、错误发生在 wasm-jit 引擎要宿主回调时。
+- **关卡一路踩过的（全部已修，见 5.y.1 与下面 5.y.4）**：4 个 stage1 配置错、
+  1 个 overlay 断链（stddef.h）、1 个 wasm-opt 旗标不兼容、3 个闸门自身的判据 bug。
+
+### 5.y.4 ★ 闸门自己有三个判据 bug（都靠**真产物**暴露，已修 + 加自证）
+
+1. **`check-lane-purity.py` 对 wasm 恒读不到架构 ⇒ 假红**：wasm 格式**没有** `Arch:` 头
+   （实测：`llvm-objdump -h` 与 wabt `wasm-objdump -h` 对 .wasm 都不吐那行）。
+   ⇒ 加 `_wasm_arch()`：解析 memory 段（id=5）的 limits flags 位 0x4（= memory64 标志）。
+   **修的过程中又踩第二个坑**：主模块也有 import 段（函数 import），在那里早 return 会让
+   宿主都读不到 ⇒ 必须继续走到 memory 段。
+2. **side module 无法从字节流判档**（实测：`wasm-blobs/*.wasm` 是 `--experimental-pic --shared`
+   产的 dylink.0 模块，**无 memory 段、无 import memory**，内存由加载器按 `mem_size` 分配）
+   ⇒ 新增 `SIDE` 标记 + 判据改成**"必须与宿主同档"**（这才是纯度闸门的本意），
+   并在报告里**记明**这条是靠宿主档推的（别假装直接读出来了）。
+   **反向用例**：宿主自己也是 side module ⇒ 判据退化，**必须报**。
+3. **`build-omc-wasm.sh --verify` 的版本串判据太窄**（只认 `OpenModelica|1.x`）⇒ 把合法的
+   `"-rust"` 判红。改成"非空 + 单 token + 不含错误字样"，**并保留**"该报的必须报"
+   （错误字样/空产物仍然红）。同类修正也落到 `test/node/accept-omc-getversion.mjs`。
+- **教训（通用）**：**判据的"适用面"本身要过真产物**。三条 bug 都不是逻辑错，是
+  "判据假设了别的格式"（ELF 的 Arch 头 / 非 dylink 的 wasm / 有 tag 的构建树）
+  —— 只有**喂真产物**才会暴露。这正是本仓"能编过 ≠ 能用了"的又一次实证。

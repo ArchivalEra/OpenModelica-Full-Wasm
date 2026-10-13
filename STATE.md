@@ -6,8 +6,32 @@
 
 ## 现在是什么（2026-10-13）
 
-- **本仓刚建起来（骨架期，2026-10-13）。** private 仓；三线分支就位；事实系统（Einfacht）
-  已接入并通过自证。**还没有任何构建产物** —— `omc.wasm` 尚未 build 过。
+- **★ 需求 A 已结案：官方 wasm 目标 build 出了产物，且 Node 里跑得动。**
+  产物 = `/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/`
+  （`pkg-nodejs/OpenModelicaCompiler_bg.wasm` + `omc-cli.js` + `wasm-blobs/`），
+  身份证 **verdict=ok**；`getVersion()` 出串（实测值见台账
+  `[[omc_wasm32_verdict]]` / `[[omc_wasm32_bytes]]` / `[[omc_version_string]]`）。
+  结案判据（工单 01 的 `Settling:`）= `build/113/build-omc-wasm.sh --verify` rc=0 —— 已实跑。
+  **未做的**（别混）：浏览器端到端跑模型（需求 B）与 `.mat`（需求 D）都**还没做**；
+  Node 侧 `loadFile`/`getClassNames` 已通（前端全通），`simulate` 停在"要宿主注入 JS 回调"
+  （那是 B 的活）。
+
+- **构建路径 = 宿主直跑**（本机 docker 不可用：当前用户不在 docker 组、`sudo` 被 `no_new_privs`
+  挡 ⇒ 姊妹仓那种"容器内构建"在本机走不通；容器化另立批次）。
+  **工具链**：clang 24（用户点令；LLVM-wasm 仓 emsdk 内置件，自包含）
+  + 同源精编的 wasm32 builtins + Rust `nightly-2026-05-31`（上游 `rust-toolchain.toml` 钉的）。
+  **上游 pin**：`upstream/openmodelica` = `cbff5eb7…`、`OMCompiler/3rdParty` = `ae7e482a…`
+  （2 tree + 2 toolchain，见 `build/upstream-pins.json`）。
+
+- **需求书四处原文被实测推翻（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）**：
+  · **R1**：`master` 线要的 **wasm64 上游零支持**（`rust_omc.cmake` 0 命中 + 5 处显式
+    `memory64: false`）⇒ 首批产物出 **wasm32**；悬案 02 挂可跑结算件
+    `build/113/check-wasm64-upstream.sh`（上游加支持即翻面）。旁证：本仓 clang 24 实测
+    `--target=wasm64-unknown-unknown -c` **通过** ⇒ 不是我们缺工具。
+  · **R2**：产物真名不是 `omc.wasm`，是 **`OpenModelicaCompiler_bg.wasm`**（wasm-bindgen 出包）。
+  · **R3**：一步式配方缺 `SimulationRuntime/c/RuntimeSources.mo`（wasm 模式跳过它的唯一
+    生成点，缺了 mmtorust **静默半缺**）⇒ 单独生成器 + 两步链（`gen-runtime-sources-mo.sh`）。
+  · **R4**：wasm 路径不需要 OMBootstrapping（Rust 模式直接 `return()`）⇒ pin 表 2 tree + 2 toolchain。
 
 - **动机（实测支撑，来自姊妹仓的查证）**：MATLAB 生态有三根轴 —— ① 语言（`Octave-Full-Wasm`
   已覆盖）、② Simulink 因果块图、③ **Simscape 非因果物理建模（本仓要补的）**。
@@ -20,9 +44,7 @@
 
 - **可行性已证（第三方演示实测）**：`BouncingBall.mo` 在真浏览器里跑通
   `parse(381ms) → 生成 C(28ms) → 浏览器内编译(49.57s) → 仿真(50ms) → 出图`。
-
-- **下一步（见 `docs/REQUIREMENTS.md`）**：需求 A = 用官方 CMake 目标 build 出 `omc.wasm`。
-  这是唯一还有工程未知的一步。**结案判据**：Node 里 `omc_eval('getVersion()')` 返回版本串。
+  **本仓路线**（官方 CMake）走的是另一条：产物 88.7 MB、前端实测全通。
 
 - **本仓对上游 Einfacht 的一处改进**：`zreflect/facts.py` 的数据层模块名从写死改成
   旋钮 `REFLECT_MEASURE_MODULE` ⇒ 「换仓库只换一个文件」这条承诺才真成立。
@@ -30,9 +52,25 @@
 
 ## 关键约定（别混）
 
-- **与姊妹仓平级、互不引用**：工具链不同（emsdk vs **Rust + wasm32-wasip1**）⇒ 不互相 submodule；
+- **与姊妹仓平级、互不引用**：工具链不同（emsdk vs **clang 24 + Rust wasm32-wasip1**）⇒ 不互相 submodule；
 - **集成点在上游层的 `Octave-UI`**（第三个引擎档），中间用 `.mat`；
 - **纯客户端**：不引入任何服务端执行代码的端点。
+- **本仓工具链四条硬约束**（首批实测得出，别再踩）：
+  · 上游 configure 要 `<clang -print-resource-dir>/lib/wasi/libclang_rt.builtins-wasm32.a`
+    —— 系统缺且无 root 装不了 ⇒ **clang24 同源精编 + resource-dir overlay + wrapper**
+    （`build/113/provision-toolchain.sh` / `build-clang24-builtins.sh`）；
+    ⚠️ overlay 必须用**源** resource-dir 铺（复制过的 clang 会按自身位置推出**不存在的**
+    路径 ⇒ include 断链 ⇒ 编译期 `stddef.h file not found`，离根因很远才炸）；
+  · Rust 用上游 `rust-toolchain.toml` 钉的 **nightly-2026-05-31**（cargo `codegen-backend`
+    与 cranelift-preview 都要 nightly）——**别用别的 nightly**；
+  · **`-DRUST_OMC_WASM_OPT=OFF`**（本机 binaryen 是 emsdk 版 133，与上游 `rust_omc.cmake:829`
+    的旧 feature 名不兼容 ⇒ 上游自己的 build.rs:801 会 panic；上游原文就给了这个开关）。
+    代价**只**是产物偏大（官方 CI 也是 PR 关、发布开）；
+  · **构建期下载走代理** `http://127.0.0.1:2080`（实测：`static.rust-lang.org` 直连 19 KB/s、
+    代理 7.5 MB/s，快 380×；git 已全局配，cmake 的 `file(DOWNLOAD)` 与 rustup 吃 env 代理）。
+- **跑 facts 必须用钩子语境**（`. reflect-hooks/einfacht-env.sh`）：直接跑 `python3 zreflect/facts.py`
+  会因 `REFLECT_MEASURE_MODULE` 未加载而**静默回落到上游占位实现**（数 md/py 文件），
+  并且把台账写"成功"（值被改口守卫拦下不写）。实测踩过一次。
 
 <!-- AUTO:FACTS -->
 > 本区块由 `zreflect/facts.py --render-doc` 从 `FACTS.json` 渲染，**不要手改**（pre-commit 会重算并 `git add`）。
@@ -40,12 +78,20 @@
 
 | 键 | 值 | 测于 | 复跑命令 |
 |---|---|---|---|
-| `docs_present` | **3** | 2026-10-13T19:28:22+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
-| `lane_branches_present` | **3** | 2026-10-13T19:28:22+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
-| `upstream_pins` | **0** | 2026-10-13T19:28:22+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
-| `whitelist_rules` | **48** | 2026-10-13T19:28:22+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
+| `docs_present` | **3** | 2026-10-13T22:37:48+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
+| `lane_branches_present` | **3** | 2026-10-13T22:37:48+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
+| `omc_version_string` | **"-rust"** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
+| `omc_wasm32_bytes` | **88701756** | 2026-10-13T22:37:48+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
+| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
+| `omc_wasm32_sha` | `eb1f63c66832eb6f…` | 2026-10-13T22:37:48+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
+| `omc_wasm32_verdict` | **ok** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
+| `omc_wasm32_web_files` | **11** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
+| `toolchain_builtins_bytes` | **117704** | 2026-10-13T22:37:48+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
+| `toolchain_clang` | **24.0.0** | 2026-10-13T22:37:48+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
+| `upstream_pins` | **4** | 2026-10-13T22:37:48+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
+| `whitelist_rules` | **56** | 2026-10-13T22:37:48+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
 
-4 条事实。
+12 条事实。
 <!-- /AUTO:FACTS -->
 
 <!-- AUTO:GATES -->

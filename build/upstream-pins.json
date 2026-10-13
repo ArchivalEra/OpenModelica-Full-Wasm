@@ -1,4 +1,41 @@
 {
-  "_comment": "上游 pin 断言面（fork 管线 §1.1）。kind=tree 的条目由 build/provision-upstream.sh 供给（容器树 + .upstream-pin stamp），.githooks/witness-upstream-pin.py 每提交核对「容器树 == 这里登记的 fork/分支/commit」——容器死版本继续被用而指针已 bump ⇒ DRIFT。kind=toolchain 的只断言版本串。⚠️ 本仓当前为**骨架期**（2026-10-13 建仓）：三条 OM 上游 pin 的 commit 待首次 provision 时填入（见 docs/REQUIREMENTS.md §4 与 docs/FORK-PIPELINE-AND-LESSONS.md §10）。",
-  "pins": []
+  "_comment": "上游 pin 断言面（fork 管线 §1.1）。kind=tree 的条目由 build/provision-upstream.sh 供给（树副本 + .upstream-pin stamp），.githooks/witness-upstream-pin.py 每提交核对「供给树 == 这里登记的 commit」——供给树是**另一份拷贝**（FORK-PIPELINE §2：容器里的树是另一份），所以只认 stamp 与 submodule gitlink 对读。kind=toolchain 的只断言版本串（probe 命令；无 probe 时回退 docker 老行为）。stamp_read/probe 是本仓 2026-10-13 加的**宿主模式**字段（本机 docker 不可用时的合法路径，见 STATE）。",
+  "pins": [
+    {
+      "name": "openmodelica",
+      "kind": "tree",
+      "provisioned": true,
+      "submodule_path": "upstream/openmodelica",
+      "container_path": "/mnt/hdd/openmodelica-wasm-build/build/upstream/openmodelica",
+      "branch": "master",
+      "stamp_read": "cat /mnt/hdd/openmodelica-wasm-build/build/upstream/openmodelica/.upstream-pin",
+      "why": "官方主仓（Rust omc + OMCompiler/Compiler/.cmake/rust_omc.cmake 的 wasm 目标）。需求 A 的唯一真未知。wasm 路径不需要 OMBootstrapping/bomc（Rust 模式在 Compiler/CMakeLists.txt 直接跳过整条 C 引导链）"
+    },
+    {
+      "name": "omcompiler-3rdparty",
+      "kind": "tree",
+      "provisioned": true,
+      "submodule_path": "upstream/openmodelica/OMCompiler/3rdParty",
+      "container_path": "/mnt/hdd/openmodelica-wasm-build/build/upstream/omcompiler-3rdparty",
+      "branch": "master",
+      "stamp_read": "cat /mnt/hdd/openmodelica-wasm-build/build/upstream/omcompiler-3rdparty/.upstream-pin",
+      "why": "SUNDIALS/KLU/UMFPACK/Lis/PRIMME 源（rust_omc.cmake 默认 RUST_OMC_ENABLE_SUNDIALS=ON，交叉编到 wasm32-wasip1）；嵌套 sundials/SuiteSparse 随其 gitlink 固定——commit 不动则内容不动"
+    },
+    {
+      "name": "rust-nightly",
+      "kind": "toolchain",
+      "provisioned": true,
+      "expect_version": "1.98.0-nightly",
+      "probe": "rustup run nightly-2026-05-31 rustc --version | cut -d' ' -f2",
+      "why": "上游 OpenModelica.rs/rust-toolchain.toml 钉死 channel=nightly-2026-05-31（cargo codegen-backend + cranelift-preview 都要 nightly）；断言通道解析出的实际版本串"
+    },
+    {
+      "name": "clang",
+      "kind": "toolchain",
+      "provisioned": true,
+      "expect_version": "24.0.0",
+      "probe": "/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1",
+      "why": "C 侧交叉编工具（wasm32-wasip1 / wasm32-unknown-unknown）。rust_omc.cmake 注释明说需要 clang + wasi-libc + wasm-ld；用户点令用 **clang 24**（LLVM-wasm 仓 emsdk 内置 clang-24，24.0.0git @55ea1f4e，自包含可执行）。wrapper 注入带 builtins 的 resource-dir（系统无 root 装不了 libclang-rt-*-dev-wasm32；builtins 用该 clang 24 同源精编，见 build/113/provision-toolchain.sh / build-clang24-builtins.sh）"
+    }
+  ]
 }

@@ -1,0 +1,10 @@
+{
+  "_comment": "doctor.json —— 开工预检（zreflect/doctor.py）。本仓 2026-10-13 首批（需求 A：官方 wasm 目标）启用。活性是瞬时事实（不进台账 replay，每次开工真跑）；不挂 pre-commit（查的是会死的东西，提交钩子里频率错）。字段：kind 必填（http / docker / port-free），why 必填（没理由的检查项没人敢删）。",
+  "checks": [
+    {
+      "kind": "port-free",
+      "port": 8765,
+      "why": "本仓开发站点独占端口（需求 B 起用它起 COOP/COEP 服务）——被占 ⇒ 探针连上别人的页面，误判「新产物起不来」"
+    }
+  ]
+}

@@ -111,7 +111,7 @@ index-3 → index-1 的**指标约简是符号处理**（Pantelides），**正�
 ### 需求 C · 三线（wasm32 / wasm64 / IllegalPerformance）
 
 **C1 线划分 = 一线一架构**（沿用 `Octave-Full-Wasm` 的用户点令，2026-10-12）：
-- `master` 线 → 产物 **wasm64**，只编 wasm64；
+- `master` 线 → 产物 **wasm64**，只编 wasm64；⚠️ **2026-10-13 实测：上游不支持**（见 §7 修正记录 R1）；
 - `wasm32` 线 → 产物 **wasm32**，只编 wasm32；
 - `IllegalPerformance` 线 → 性能线（SIMD / 多线程 / 优化 BLAS 之类）。
 **C2 判据可执行**：照 `Octave-Full-Wasm/build/113/check-lane-purity.py` 的形状写本仓的
@@ -195,3 +195,55 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
 # Octave 侧的 DAE 互补性 / .mat 互通：见 Octave-Full-Wasm 的
 #   build/113/NOTES-experiment-omc-wasm.md §8（逐条实测）
 ```
+
+---
+
+## §7 修正记录（实测推翻**需求书原文**的地方，append-only）
+
+> 为什么有这一节：需求书 §1 的 1.2 引用的是**侦察性查证**（读上游文档/CMake）；真正上手构建时
+> 会撞上文档里没写的东西。**改需求书原文会掩盖"我们曾经这么以为"**，所以只在此追加。
+
+### R1（2026-10-13）· C1 的「master 线 → wasm64」今天不可达：**上游零支持**
+
+- **原文**：C1「`master` 线 → 产物 wasm64，只编 wasm64」。
+- **实测**：上游 `OMCompiler/Compiler/.cmake/rust_omc.cmake`（2312 行）grep `wasm64` = **0 命中**
+  （同期 `wasm` 469 命中）；全仓 code search `wasm64 repo:OpenModelica/OpenModelica` = **0**；
+  `memory64` 5 处命中**全是 `memory64: false`** 的显式关闭；上游 `rust-toolchain.toml` targets
+  只有 `wasm32-unknown-unknown` + `wasm32-wasip1`。
+- **旁证（不是我们不行）**：本仓 clang 24 实测 `--target=wasm64-unknown-unknown -c` **通过**
+  ⇒ 工具链能编，缺的是**上游的 CMake 目标与 Rust target 面**。
+- **处置**：master 线暂出 **wasm32** 产物（官方唯一支持档）；C1 原文保留 + 就地标注；
+  悬案 `.scratch/open-questions/issues/02-wasm64-unsupported.md`（结算件
+  `build/113/check-wasm64-upstream.sh`，上游加支持即翻面成 rc=0）。
+- **复跑**：`bash build/113/check-wasm64-upstream.sh` → 现在 `NOT-YET: …（0 处命中）` rc=1。
+
+### R2（2026-10-13）· 产物真名不是 `omc.wasm`，是 `OpenModelicaCompiler_bg.wasm`
+
+- **原文**：§1.2 表格与需求 A2 写「产出 `omc.wasm`」。
+- **实测**：`rust_omc.cmake:1973` `set(_wasm_name OpenModelicaCompiler)`；`:2255-2259` wasm-bindgen
+  `--out-dir <web>/pkg-nodejs --target <host>` ⇒ 产物 `OpenModelicaCompiler_bg.wasm` +
+  `OpenModelicaCompiler.js`（glue）。`omc.wasm` 在整棵树里**只出现在注释**（4 处）。
+- **处置**：事实键与身份证按**真名**记（`omc_build.json.measured.files.omc_bg_wasm`），
+  文档写"omc 包（wasm-bindgen 出包）"。**A3 判据不变**：Node 里 `getVersion()` 出串。
+
+### R3（2026-10-13）· 一步式官方配方有隐藏前置：`RuntimeSources.mo` 必须由别处生成
+
+- **原文**：README:358-369 的「Web bundle only」给了一步式命令，读起来是自洽的。
+- **实测**：`OM_OMC_WASM=ON` 会跳过**整个** `OMCompiler/SimulationRuntime`（`OMCompiler/CMakeLists.txt:224-226`），
+  而 mmtorust 的源表引用 `SimulationRuntime/c/RuntimeSources.mo`（`meta_modelica_source_list.cmake:527`）——
+  那个文件由 **SimulationRuntime 的 CMake 生成**（`SimulationRuntime/c/CMakeLists.txt:191-192`），
+  且被 gitignore（`OMCompiler/.gitignore:140`）⇒ **clean checkout 的一步式构建缺这个文件**。
+  官方 CI 为此专门 `stash 'runtime-sources-mo'` / `unstash`（`.CI/common.groovy:554-556,652`）；
+  缺失时 mmtorust **静默跳过**（`mmtorust/src/main.rs:492-520` 记 failures 但不 exit(1)），
+  于是产出半缺的 `lib.rs`（`Compiler/CMakeLists.txt:47-52` 有官方描述）。
+- **处置**：本仓采用**官方两步链**（stage1 native configure 生成该文件 → stage2 wasm 包），
+  见 `build/113/build-omc-wasm.sh` 头注。
+
+### R4（2026-10-13）· wasm 路径**不需要** OMBootstrapping（§4 pin 表要改）
+
+- **原文**：§4 pin 表列 `OMBootstrapping`（"预生成 MetaModelica→C"）为三件之一。
+- **实测**：Rust 模式（`OM_OMC_WASM=ON` 强制）下 `OMCompiler/Compiler/CMakeLists.txt:66-71`
+  在 `if(OM_OMC_ENABLE_RUST) … return()` 处直接退出 ⇒ `boot/`（含 bomc）**根本不 add_subdirectory**；
+  官方 CMake 注释原文："bomc/omc are never compiled from C"。
+- **处置**：本仓 pin 表 = **2 tree**（`openmodelica` + `OMCompiler/3rdParty`）+ **2 toolchain**
+  （`rust-nightly` + `clang`）；OMBootstrapping 不 pin（省一棵 ~百 MB 的树，且是**错的依赖**）。

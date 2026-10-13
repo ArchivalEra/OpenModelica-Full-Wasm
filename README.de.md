@@ -87,9 +87,23 @@ bei jedem Commit wörtlich ausführen. Jedes Gate muss **beweisen können, dass 
 
 ## Aktueller Stand
 
-**Gerüstphase** (angelegt 2026-10-13): drei Linien vorhanden, Fakten-System integriert und
-selbstverifiziert; **noch kein Build-Artefakt** (`omc.wasm` noch nicht gebaut).
-Nächster Schritt: **Anforderung A** im Anforderungsdokument.
+**★ Anforderung A ist abgeschlossen** (2026-10-13): Das offizielle wasm-Ziel hat ein Artefakt
+gebaut, das unter Node läuft — `OpenModelicaCompiler_bg.wasm` (`omc.build.json`
+**verdict=ok**), `node omc-cli.js 'getVersion()'` liefert eine Versionskette.
+Toolchain = **clang 24** + quellgleich kompilierte wasm32-builtins + Rust `nightly-2026-05-31`;
+Build-Pfad = direkt auf dem Host (Docker ist hier nicht nutzbar).
+**Upstream-Pins**: `upstream/openmodelica` = `cbff5eb7…`, `OMCompiler/3rdParty` = `ae7e482a…`.
+
+**Noch nicht gemacht** (nicht verwechseln): Modell Ende-zu-Ende im Browser (Anforderung B)
+und `.mat`-Handshake (Anforderung D). Node-seitig sind `loadFile`/`getClassNames` grün
+(Compiler-Frontend vollständig); `simulate` stoppt erst, wenn der Host JS-Callbacks
+injizieren muss — das ist B.
+
+⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
+(dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend
+geändert): Die von der `master`-Linie geforderte **wasm64-Unterstützung existiert upstream
+nicht** ⇒ das erste Artefakt ist **wasm32** (die einzige offiziell unterstützte Variante);
+der echte Artefaktname ist **`OpenModelicaCompiler_bg.wasm`** (nicht `omc.wasm`).
 
 ## Lizenz
 

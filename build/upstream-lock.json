@@ -1,26 +1,36 @@
 {
-  "_comment": "上游 lock 清单（fork 管线 §1.2）——无官方 GitHub git 的库以 URL+sha256 钉版；有官方 git 的在 .gitmodules（upstream/ submodule）。⚠️ 本仓骨架期（2026-10-13）：条目待首次 provision 时填入。候选见下方 _planned。",
-  "locked": [],
+  "_comment": "上游 lock 清单（fork 管线 §1.2）——**没有官方 git 树**的字节以 URL+sha256 钉版；有官方 git 的在 .gitmodules（upstream/ submodule，见 build/upstream-pins.json）。字段：name/url/file 必填（check_locks.py 判据），optional=true 表示跨机器可缺席（缺席 ⇒ SKIP 明说，不是通过）。",
+  "locked": [
+    {
+      "name": "wasi-libc-src",
+      "version": "wasi-sdk-32",
+      "url": "https://github.com/WebAssembly/wasi-libc/archive/refs/tags/wasi-sdk-32.tar.gz",
+      "file": "/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/stage1/downloads/wasi-libc-wasi-sdk-32.tar.gz",
+      "form": "文件",
+      "sha256": "ea9827495c0f35bca3b3d0a953e854cac112c43bea3196b5a4f7f8fc4704b9a4",
+      "optional": true,
+      "note": "上游 rust_omc.cmake:344-352 在 configure 期自己下（EXPECTED_HASH 就是上面这个 sha256，**出处是上游源码不是我们算的**）。用它编出 PIC wasi-libc sysroot（omc 自己的 side module 要 -fPIC libc）。首次构建后落盘 ⇒ 现在 optional。"
+    },
+    {
+      "name": "wasmtime-wasi-reactor",
+      "version": "wasmtime v27.0.0",
+      "url": "https://github.com/bytecodealliance/wasmtime/releases/download/v27.0.0/wasi_snapshot_preview1.reactor.wasm",
+      "file": "/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/stage1/downloads/wasi_snapshot_preview1.reactor.wasm",
+      "form": "文件",
+      "sha256": "cf26d826c3b1b81faa86c5b6352a725fcf55c50a8806fdf58ba658f675971ff2",
+      "optional": true,
+      "note": "上游 rust_omc.cmake:689-695 configure 期下（sha256 同上，出处上游源码）。wasm-jit 侧模块的 reactor 垫片。首次构建后落盘 ⇒ 现在 optional。"
+    }
+  ],
   "_planned": [
     {
       "name": "modelica-standard-library",
       "version": "4.0.0",
       "url": "https://github.com/modelica/ModelicaStandardLibrary",
       "form": "文件",
-      "note": "MSL 标准库（跨域物理域：Electrical/Fluid/Thermal/Mechanics/Magnetic…）。omc-web 的 versions.lock 用的是 4.0.0（sha 6626538a…）—— 官方路线要重新核版本。",
-      "optional": true
-    },
-    {
-      "name": "wasi-libc",
-      "form": "目录",
-      "note": "WASI sysroot（官方 rust_omc.cmake 明说需要 clang + wasi-libc + wasm-ld）。版本随后填，或走 rustup target add wasm32-wasip1。",
-      "optional": true
-    },
-    {
-      "name": "sundials-wasm",
-      "form": "目录",
-      "note": "官方 RUST_OMC_ENABLE_SUNDIALS 会把 SUNDIALS/KLU/UMFPACK/Lis 交叉编到 wasm32-wasip1；产物布局 <dir>/sundials-wasm/。由官方 CMake 产出，不外部取。",
+      "note": "MSL 标准库（跨域物理域：Electrical/Fluid/Thermal/Mechanics/Magnetic…）。⚠️ **现状没用到**：官方 wasm 构建把内建 Modelica 环境**嵌进 wasm**（openmodelica_wasi 的 builtin env），Node/浏览器里 getVersion() 不需要 MSL。等需求 B（跑真模型）时再定：是 installPackage 下载还是嵌进包。",
       "optional": true
     }
-  ]
+  ],
+  "_host_toolchain_note": "clang 24 本体与 builtins 的**来源不是 URL 下载**，所以不在这份 lock 里（lock 只管'没有官方 git 的字节'）：clang-24 从姊妹项目 LLVM-wasm 仓的 emsdk 内置件复制（自包含可执行，实测 ldd 干净），builtins 用该 clang 24 现场精编 LLVM-wasm 仓的 llvm-project@55ea1f4e 源码（同 commit，最忠实）。两条都由 build/113/provision-toolchain.sh 供给、build/113/build-clang24-builtins.sh 自证，身份记在 build/upstream-pins.json 的 clang toolchain 条（expect_version=24.0.0）。"
 }
