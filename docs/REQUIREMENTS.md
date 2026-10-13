@@ -1,0 +1,197 @@
+# 需求书 · OpenModelica-Full-Wasm（2026-10-13）
+
+> **性质**：需求书（不是实现、不是设计稿）。每条需求带**实测现状**与**可复跑的验收判据**；
+> 写不出验收判据的条目不进本单（本仓事实纪律）。
+> **读者**：不需要本仓上下文——每条自带背景。
+
+---
+
+## §0 这个仓要干什么
+
+**在浏览器里跑 OpenModelica**（Modelica 编译器 + 仿真运行时），纯客户端、零服务端，
+作为 `Octave-Full-Wasm`（MATLAB 语言那一侧）**平级的第二个引擎**。
+
+**为什么需要它**（一句话）：MATLAB 生态有三根轴 —— **① 语言**（Octave 已覆盖）、
+**② Simulink 因果块图**、**③ Simscape 非因果物理建模**。第 ③ 轴本仓零覆盖，而
+OpenModelica 是那块的现实解（它自带跨域物理库 MSL，且有**官方 wasm 构建目标**）。
+
+**两个引擎的分工**（不是重复，是接力）：
+```
+OM 档：方程级物理建模（符号化 + 指标约简 + MSL）→ 仿真 → .mat
+                                                      ↓
+Octave 档：读 .mat → 数值求解 + 控制/信号/统计 + 矩阵语言 → 分析/画图
+```
+这与 MATLAB 里 "Simscape 建模、MATLAB 分析" 是**同一个分工**，只是用两个 wasm 引擎实现，
+中间用 `.mat` 握手。
+
+---
+
+## §1 现状（全部实测，复跑方式见 §6）
+
+### 1.1 可行性：**已证**（第三方演示实测，2026-10-13）
+
+真浏览器里，`EthanJamesLew/omc-web` 的在线演示把 `BouncingBall.mo` 跑通全链路：
+
+| 阶段 | 耗时 | 产物 | 大小 |
+|---|---|---|---|
+| parse modelica | 381 ms | `BouncingBall.mo` | 425 B |
+| generate C | 28 ms | `BouncingBall_c.zip` | 57.7 KB |
+| **compile to wasm** | **49.57 s** | `BouncingBall.wasm` | **1.18 MB** |
+| simulate | 50 ms | `BouncingBall_res.mat` | 14.3 KB |
+
+4/4 complete，350 samples / 13 events / 3 vars，出三条真曲线。
+**证据**：`docs/evidence/omc-web-demo.png`（在 `Octave-Full-Wasm` 仓里，
+路径 `build/113/evidence-omc-web-demo.png`）。
+
+⚠️ 那条是**第三方路线**（浏览器内再跑一次 clang，用 emception）。**官方路线见 1.2。**
+
+### 1.2 官方路线：**存在，且是 CMake 原生**（本仓要走的路）
+
+OpenModelica 官方主仓的 `OMCompiler/Compiler/.cmake/rust_omc.cmake`（2313 行）里：
+
+| 事实 | 证据 |
+|---|---|
+| 官方有 wasm 构建目标 | `RUST_OMC_WASM_RUNTIME`（13 处）、`omc.wasm`、`RUST_OMC_WASM_ARTIFACTS_OUT` / `RUST_OMC_PREBUILT_WASM_DIR`（产物交接） |
+| WASI 交叉编是一等公民 | `wasm32-wasip1` **27 处**；写 `CMAKE_C_COMPILER_TARGET wasm32-wasip1` 工具链文件 |
+| 求解器也交叉编 | `option(RUST_OMC_ENABLE_SUNDIALS "...for wasm32-wasip1")`（SUNDIALS/KLU/UMFPACK/Lis） |
+| wasm-jit 运行时 | `wasm32-unknown-unknown` + `openmodelica_codegen_wasm_jit_runtime.wasm` |
+| 注释明说需要 | "clang + wasi-libc + wasm-ld" |
+| 官方 wasm 页面在树里 | `wasm/{index.html, omc-cli.js, omc-terminal/, simulator/, fmi-simulator/, omplot/, anim/}` |
+
+⇒ **本仓走官方 CMake 目标**（照本仓"来时路"：上游 submodule + 自己交叉编 + 同源托管），
+**不抄第三方 emception 配方**。
+
+### 1.3 与 Octave 引擎的互补性（实测，决定"同页"成立）
+
+| DAE 类型 | 例子 | Octave 引擎实测 |
+|---|---|---|
+| index-1（Mass 矩阵） | `ode15s` + `odeset('Mass',M)` | **✓** |
+| index-1（全隐式） | `ode15i`：RC 电路 | **✓ V(5)=0.9931**（理论 0.9933） |
+| index-1（多节点） | `ode15i`：双节点 RC 网络 | **✓ V2(5)=0.9593** |
+| **index-3（约束系统）** | `ode15i`：约束摆 | **✗ `IDASolve failed`** |
+
+index-3 → index-1 的**指标约简是符号处理**（Pantelides），**正是 OM 编译器的核心工作**
+⇒ 两引擎互补，不是重复。
+
+### 1.4 交换格式：`.mat`（两边现成）
+
+- Octave 引擎能读写 `.mat`（`-v7` / `-v4` / 默认，实测全通）；
+- omc-web 的仿真输出就是 `.mat`（"dump MAT4 trace"）。
+⇒ **一次 `.mat` 握手** = 语义互通。
+
+### 1.5 上游脚本协议：`sendExpression` ↔ `omc_eval`（MATLAB 语义桥已存在）
+
+- 官方 `OpenModelica/OMMatlab`（MATLAB 客户端）用 `omc.sendExpression(src)` 经 **ZeroMQ**
+  连本地 omc 进程；
+- **浏览器官方 OM wasm 暴露同一族命令**：`omc_eval(src)`（实测 `omc-cli.js` 的导出面：
+  `omc_init` / `omc_eval` / `omc_set_env` / `omc_enable_wasm_blobs` / `omc_take_pending_downloads`）。
+
+⇒ **同一协议，两个传输层**。要做的是 Octave 侧的 `omc_*` 桥函数族（拼脚本 → 调 `omc_eval`
+→ 读回 `.mat`）。⚠️ **不移植 OMMatlab 本体**（它要本地进程 socket，浏览器没有）。
+⚠️ `sendExpression` **不是** MATLAB 语言翻译器（是命令字符串，不是把 `.m` 变 `.mo`）。
+
+---
+
+## §2 需求（按"能不能上"排序，每条带验收判据）
+
+### 需求 A · 官方 wasm 目标构建出 `omc.wasm`（**第一步，唯一真未知**）
+
+**A1 工具链**：Rust + `wasm32-wasip1` target + wasi-libc + wasm-ld（官方 CMake 注释明说）。
+**A2 构建**：照 `rust_omc.cmake` 的 `RUST_OMC_WASM_RUNTIME` 目标，产出 `omc.wasm`。
+**A3 验收**：产物存在且能在 Node 里 `omc_eval('getVersion()')` 返回版本串。
+**A4 反向断言**：坏产物（缺 wasi sysroot / 缺 sundials-wasm）**必须**在构建期报错，
+不许产出静默可加载但运行期炸的件。
+
+### 需求 B · 浏览器内跑通一个 Modelica 模型（端到端）
+
+**B1** 页面里 `omc_eval('loadFile("BouncingBall.mo"); simulate(BouncingBall)')` 产出 `.mat`。
+**B2 验收**：`.mat` 文件头正确（MAT4 魔数）、变量数/采样数与参考一致。
+**B3 反向断言**：语法错误的 `.mo` ⇒ `getErrorString()` 给出可读错误（不许静默）。
+
+### 需求 C · 三线（wasm32 / wasm64 / IllegalPerformance）
+
+**C1 线划分 = 一线一架构**（沿用 `Octave-Full-Wasm` 的用户点令，2026-10-12）：
+- `master` 线 → 产物 **wasm64**，只编 wasm64；
+- `wasm32` 线 → 产物 **wasm32**，只编 wasm32；
+- `IllegalPerformance` 线 → 性能线（SIMD / 多线程 / 优化 BLAS 之类）。
+**C2 判据可执行**：照 `Octave-Full-Wasm/build/113/check-lane-purity.py` 的形状写本仓的
+**架构纯度闸门**（宿主 / `.oct` 等价物 / 站点本档专属目录三处同档；错档逐条点名、rc=1）。
+**C3 反向断言**：喂错档产物 ⇒ **必须红**。
+
+### 需求 D · 与 Octave 引擎的 `.mat` 握手（同页集成）
+
+**D1** OM 档产出 `.mat` ⇒ Octave 档 `load` 进来做后处理（画图 / 控制设计 / 统计）。
+**D2 验收**：端到端 —— OM 的 `BouncingBall_res.mat` 喂进 Octave，`load` 成功且数值合理。
+**D3 反向断言**：非 `.mat` 文件喂进去 ⇒ Octave 明确报错（不许静默）。
+**D4（未决，如实记）**：两引擎**同页**的内存/体积成本**未测**（OM ~21 MB + Octave ~29.6 MB）。
+
+### 需求 E · MATLAB 语义桥（`omc_*` 函数族）
+
+**E1** Octave 侧实现 `omc_load` / `omc_simulate` / `omc_getVersion` 之类，内部拼 OM 脚本、
+调 `omc_eval`、读回 `.mat`。
+**E2 验收**：在 Octave 里 `omc_simulate('BouncingBall')` ⇒ 返回数据矩阵。
+**E3 边界**：只做"命令驱动"，**不做**"`.m` 自动翻译成 Modelica"（那需要符号翻译，不在本单）。
+
+### 需求 F · 与 `Octave-UI` 的集成（第二档）
+
+**F1** OM 作为**与 Octave 平级的第二个引擎档**（**不是** UI 的 `PluginRegistry` 插件）。
+**F2 集成点在 UI 层**（`.mat` 握手在 UI 编排），**Octave-Full-Wasm 仓保持绝对只读**。
+**F3 供货方式**：产物**同源托管**（COEP `require-corp` 拦跨域，与 Forge 包同族约束）。
+
+---
+
+## §3 明确不做（本单范围外）
+
+- **不做通用块图环境**：MSL `Blocks` 已提供因果块图库、OMEdit 已有 Qt-for-WebAssembly
+  图形编辑器 ⇒ 自研是重复造轮子（见 `Octave-Full-Wasm` 的 `NOTES-experiment-omc-wasm.md` §9）。
+- **不移植 OMMatlab 本体**（ZeroMQ + 本地进程 socket，浏览器没有）。
+- **不做"任意 Modelica 模型都能跑"的承诺**：官方 wasm-jit 求解器覆盖窄
+  （README 原文："only 1 dense linear solver, a Newton non-linear solver, Euler, and dassl"）。
+- **不引入服务端**（纯客户端铁律）。
+
+---
+
+## §4 上游 pin 形状（紧贴 fork 管线）
+
+| 件 | 形状 | 载体 |
+|---|---|---|
+| OpenModelica 主仓 | git submodule，钉 nightly SHA | `build/upstream-pins.json` |
+| OMCompiler-3rdParty | 同上（与 OM SHA **同动**） | 同上 |
+| OMBootstrapping（预生成 MetaModelica→C） | 同上（必须与 OM SHA 同动） | 同上 |
+| Modelica 标准库（MSL） | 版本 + sha256 | `build/upstream-lock.json` |
+| wasi-libc / wasm-ld 工具链 | 版本断言 | 同上 |
+
+**见证**：`witness-upstream-pin.py` 每提交核"容器/工作树 == pin"，漂移即红。
+**双重对账**：产物自证（`omc.build.json`，只记量到的事实）+ 台账 `FACTS.json`。
+
+---
+
+## §5 与 `Octave-Full-Wasm` 的关系（**别混**）
+
+| | Octave-Full-Wasm | OpenModelica-Full-Wasm（本仓） |
+|---|---|---|
+| 语言 | Octave（= MATLAB 语法） | Modelica（**另一门语言**） |
+| 角色 | 轴 ① + ② 的引擎 | 轴 ③（非因果物理建模）的引擎 |
+| 工具链 | **emsdk 6.0.12** | **Rust + wasm32-wasip1**（官方 CMake） |
+| 许可 | GPL/AGPL 重 | **AGPLv3 / OSMC-PL 双选** |
+| 关系 | **平级，互不引用**（集成点在上游层的 `Octave-UI`） | 同左 |
+
+⚠️ **两仓不互相 submodule**：工具链不同（emsdk vs Rust/wasi），混编是本仓明文禁止的失败模式。
+
+---
+
+## §6 复跑命令（本单每个数字的出处）
+
+```bash
+# 官方 wasm 目标
+gh api "repos/OpenModelica/OpenModelica/contents/OMCompiler/Compiler/.cmake/rust_omc.cmake" \
+  --jq .content | base64 -d | grep -nE 'RUST_OMC_WASM|wasm32-wasip1|omc\.wasm|wasm-jit' | head -30
+# 官方 wasm 页面
+gh api "repos/OpenModelica/OpenModelica/contents/OMCompiler/Compiler/OpenModelica.rs/wasm" --jq '.[].name'
+# OMMatlab 接口
+gh api "repos/OpenModelica/OMMatlab/contents/README.md" --jq .content | base64 -d | head -40
+# MSL 的物理域
+gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|select(.type=="dir")|.name'
+# Octave 侧的 DAE 互补性 / .mat 互通：见 Octave-Full-Wasm 的
+#   build/113/NOTES-experiment-omc-wasm.md §8（逐条实测）
+```

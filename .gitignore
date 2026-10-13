@@ -1,0 +1,74 @@
+# 白名单 .gitignore：默认拒绝一切，逐项放行。
+# 目录先放行（只为能走进去），文件逐个点名。新增文件必须同步加白名单，
+# 否则 check-whitelist.py 在 pre-commit 直接拦下。
+#
+# 为什么白名单（而不是黑名单）：黑名单是"忘了就提交"（敏感文件/大产物悄悄进仓），
+# 白名单是"忘了就报错"（.githooks/check-whitelist.py 在 pre-commit 拦下未登记文件）。
+# 本仓是 private，但仍照 OpenModelica-Full-Wasm 的来时路（Octave-Full-Wasm）用白名单。
+*
+!*/
+
+# ── 仓根文档 ────────────────────────────────────────────────────────────────
+!.gitignore
+!README.md
+!README.zh.md
+!README.de.md
+!LICENSE
+!THIRD-PARTY-NOTICES.md
+!AGENTS.md
+!maintaince.md
+!STATE.md
+!CONTEXT.md
+!HISTORY.md
+!DEPLOY.md
+!doctor.json
+
+# ── 需求书与三份经验文档（用户点令：需求书 / Einfacht 接入 / fork 管线与经验）──
+!docs/REQUIREMENTS.md
+!docs/EINFACHT-INTEGRATION.md
+!docs/FORK-PIPELINE-AND-LESSONS.md
+!docs/agents/*
+!docs/agents/**
+
+# ── 事实系统（vendored Einfacht 机制层 + 本仓数据层）──────────────────────────
+!reflect-hooks/*
+!zreflect/*.py
+!zreflect/measure_openmodelica.py
+!zreflect/doctor.json.example
+!build/FACTS.json
+!build/retractions.json
+!questions/*
+!.scratch/open-questions/issues/*
+!.scratch/open-questions/issues/**
+
+# ── 上游 pin / lock / 供给（fork 管线）──────────────────────────────────────
+!build/upstream-pins.json
+!build/upstream-lock.json
+!build/provision-upstream.sh
+!build/pins.json
+!build/plugins.json
+
+# ── 闸门（本仓专属 + 自证台）───────────────────────────────────────────────
+!gates-selftest.sh
+!.githooks/check-whitelist.py
+!.githooks/check-state.py
+!.githooks/state_facts.py
+!.githooks/update-state.py
+!.githooks/update-readme.py
+!.githooks/check-wants.py
+!.githooks/witness-upstream-pin.py
+# ⚠️ .githooks/check-consistency.py **故意不在此列**：它查的是 Octave 特有的挂载根常量
+#    （build/assets.py 的 OCTAVE_M ↔ bridge/assets-loader.js），本仓没有那些文件 ⇒
+#    在本仓跑它恒红且无意义。等本仓有了"资产挂载"概念再照写一份自己的并放行。
+#    （这条就是"白名单为什么短"的答案 —— 别照抄姊妹仓。）
+
+# ── 构建脚本（照 OpenModelica 官方 CMake wasm 目标；三线一份配方）───────────
+!build/*.sh
+!build/*.py
+!build/113/*
+!build/README.md
+
+# ── 测试与探针（浏览器侧验收）───────────────────────────────────────────────
+!test/browser/*.mjs
+!test/browser/manifest.json
+!test/browser/run.sh

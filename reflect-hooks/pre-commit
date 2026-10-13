@@ -1,0 +1,65 @@
+#!/bin/sh
+# pre-commit：Einfacht 平台（重构版）+ 本仓专属闸门 —— 合流。
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# 两个原则（Einfacht 上游 + 姊妹仓实践）：
+#   · 机器块是**机器维护**的：提交前重渲染并 `git add`，人不手改数字；
+#   · 提交时刻是**检查活状态断言**的最后一道闸（过了这一刻，过时断言就进了历史）。
+#
+# 结构 = **平台层**（zreflect/check_*.py，发现式名录 —— 别手写清单）
+#      + **本仓层**（.githooks/ 里平台没有对应件的那些）+ 本仓构建侧闸门。
+set -e
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# 可拔插件（Einfacht issue #8）：repo-local REFLECT_* 载体 = Einfacht.env。
+[ -f "$HERE/einfacht-env.sh" ] && . "$HERE/einfacht-env.sh"
+REPO=$(CDPATH= cd -- "$HERE/.." && pwd)
+cd "$REPO"
+GH="$REPO/.githooks"
+
+# ── ⓪ README 的 AUTO:FILES（git 跟踪文件清单 + 字节数）—— 平台不管这块 ─────────
+# ⚠️ 本仓**暂不接** `update-state.py`（部署态机器块）：它读站点/回归/交付包三类事实，
+#   而本仓**骨架期还没有部署件** ⇒ 接了它只会得到一个"读不到"三连 + `check-state.py`
+#   的零值守卫（"闸门空转"）。按本仓一贯做法：**输入不存在的闸门不接**（与 locks/pins
+#   同款）—— 等第一个可部署产物出来再接，那时 `check-state.py` 也才有东西可断言。
+python3 "$GH/update-readme.py"
+git add README.md
+
+# ── ① 平台机器块重渲染（AUTO:FACTS + AUTO:GATES）───────────────────────────────
+#    ⚠️ 这里**只渲染，不重测**：重测由人负责 —— python3 zreflect/facts.py
+#    （改口逐条 --accept-changes=k1,k2 放行）。
+DOC=${REFLECT_DOC:-STATE.md}
+if [ -f "$DOC" ]; then
+  python3 zreflect/facts.py --render-doc "$DOC"
+  git add "$DOC"
+fi
+
+# ── ② 平台闸门：**执行面唯一产地**（上游 C1）──────────────────────────────────
+#    `registry --run commit` 跑所有 `runs_at="commit"` 的闸门，聚合 ran/off/failed。
+#    ⚠️ **别 glob `check_*.py`**：执行面只认声明。
+#    off 态被单列（上游 C2）：`ran N / off M / failed K` —— **off 不是通过**。
+python3 zreflect/registry.py --run commit || exit 1
+
+# ── ③ 本仓专属闸门（平台无对应件；来源与理由见各自文件头）──────────────────────
+# ⚠️ 本仓**暂不接** `check-state.py`：它断言"活状态正文里的 sha/套件数 == 当前产物事实"，
+#   而本仓还没有产物事实链 ⇒ 它的零值守卫 2（"两条事实链都读不到 ⇒ 闸门空转"）会红。
+#   那是**正确的红**（该闸门此刻确实零覆盖），所以本仓不发这个假绿也不装样子——
+#   等有部署件时一起接（见 docs/EINFACHT-INTEGRATION.md §6）。
+# ⚠️ 同样**暂不接** `check-wants.py`：它查"验收套件断言的可证伪性"，而本仓
+#   `test/browser/accept-*.mjs` **一个都还没有** ⇒ 它的零值守卫会红（"收集到 0 项"）。
+#   那也是正确的红 —— 等第一批验收套件写出来再接。
+python3 "$GH/check-whitelist.py"        # 白名单覆盖
+# ★ 上游 pin 见证：容器/工作树 == pin；读不到 ⇒ SKIP 明说。
+python3 "$GH/witness-upstream-pin.py"
+# ★ 架构纯度（一线一架构，用户点令）—— 建仓期产物还没有，闸门自身自证仍要过。
+python3 "$REPO/build/113/check-lane-purity.py" --selftest
+
+# ── ④ 闸门自证（F1）：闸门不能证明自己会红，就不许提交 ─────────────────────────
+sh "$REPO/gates-selftest.sh"
+sh "$REPO/build/gates-selftest.sh"
+
+# ⚠️ 本仓**故意不调用**的几道（与姊妹仓的差异，别照抄它的 pre-commit）：
+#   · `.githooks/check-consistency.py` —— 查 Octave 特有的挂载根常量，本仓没有那些文件；
+#   · 平台 `check_locks` / `check_pins` / `check_instruments` —— 它们的规格文件
+#     （LOCK 清单 / pins.json / instruments.json）**本仓还没有**。按设计：**不配就不跑**
+#     （配置了就必须存在）。等有真清单时**内联传 env** 启用，别在这里预先配空文件
+#     （空清单会被零值守卫判红，而那是"配置了但没东西"的假红）。

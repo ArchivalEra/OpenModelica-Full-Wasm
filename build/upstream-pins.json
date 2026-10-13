@@ -1,0 +1,4 @@
+{
+  "_comment": "上游 pin 断言面（fork 管线 §1.1）。kind=tree 的条目由 build/provision-upstream.sh 供给（容器树 + .upstream-pin stamp），.githooks/witness-upstream-pin.py 每提交核对「容器树 == 这里登记的 fork/分支/commit」——容器死版本继续被用而指针已 bump ⇒ DRIFT。kind=toolchain 的只断言版本串。⚠️ 本仓当前为**骨架期**（2026-10-13 建仓）：三条 OM 上游 pin 的 commit 待首次 provision 时填入（见 docs/REQUIREMENTS.md §4 与 docs/FORK-PIPELINE-AND-LESSONS.md §10）。",
+  "pins": []
+}

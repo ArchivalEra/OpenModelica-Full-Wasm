@@ -1,0 +1,26 @@
+{
+  "_comment": "上游 lock 清单（fork 管线 §1.2）——无官方 GitHub git 的库以 URL+sha256 钉版；有官方 git 的在 .gitmodules（upstream/ submodule）。⚠️ 本仓骨架期（2026-10-13）：条目待首次 provision 时填入。候选见下方 _planned。",
+  "locked": [],
+  "_planned": [
+    {
+      "name": "modelica-standard-library",
+      "version": "4.0.0",
+      "url": "https://github.com/modelica/ModelicaStandardLibrary",
+      "form": "文件",
+      "note": "MSL 标准库（跨域物理域：Electrical/Fluid/Thermal/Mechanics/Magnetic…）。omc-web 的 versions.lock 用的是 4.0.0（sha 6626538a…）—— 官方路线要重新核版本。",
+      "optional": true
+    },
+    {
+      "name": "wasi-libc",
+      "form": "目录",
+      "note": "WASI sysroot（官方 rust_omc.cmake 明说需要 clang + wasi-libc + wasm-ld）。版本随后填，或走 rustup target add wasm32-wasip1。",
+      "optional": true
+    },
+    {
+      "name": "sundials-wasm",
+      "form": "目录",
+      "note": "官方 RUST_OMC_ENABLE_SUNDIALS 会把 SUNDIALS/KLU/UMFPACK/Lis 交叉编到 wasm32-wasip1；产物布局 <dir>/sundials-wasm/。由官方 CMake 产出，不外部取。",
+      "optional": true
+    }
+  ]
+}
