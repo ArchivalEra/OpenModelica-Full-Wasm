@@ -130,3 +130,17 @@
 - **修补已写进构建脚本，但未实测**（关机打断了重建）⇒ 下次开工第一件事：
   跑 `bash build/113/build-omc-wasm.sh build` 重建，再按悬案 03 的 `Settling:` 验收。
   **别把这条当好消息读** —— 它是"更接近了"，不是"通过了"。
+
+## ★ 下次开工第一件事（2026-10-13 关机前留）
+
+1. **重建**：`bash build/113/build-omc-wasm.sh build`（`--verify` 之后）。
+   需求 B 的根因修补**已实测生效**（新 runtime blob `df866d92…`，`env.rt_host_lin_solve`
+   导入 **1 → 0**），但产物要在 stage2 收尾后重新 `--verify`。
+2. **验收**：`node test/node/accept-omc-simulate.mjs`（现在实测 6 PASS / 3 FAIL —— ③④ 是仿真那几条）。
+3. ⚠️ **踩过的坑（别重犯）**：清 stage2 陈旧 blob 时**只删** `rust-target/.../openmodelica_wasm_jit-*/out`
+   里那个 `runtime_wasip1_interactive.wasm`，**别 `rm -rf` 整个 `Compiler/wasm-blobs/`** ——
+   那目录同时是 liblapack/libc_pic/ModelicaUtilities 的**生产出口**，删了会撞上
+   ninja 的复制竞态（`Error copying file …: No such file or directory`）。
+4. ⚠️ **用户点令（2026-10-13）**：构建**必须用 ccache**（上游默认也是 ON：`CMakeLists.txt:172`），
+   **优先 LLVM 工具**。本批曾图快写 `OM_USE_CCACHE=OFF` —— 已改回 `ON` 并显式
+   `-DOM_COMPILER_CACHE=ccache`；下次用 `ccache -s` 验命中率。
