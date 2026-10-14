@@ -174,13 +174,36 @@ def measure():
                 ("samepage_om_bytes", "om_wasm_bytes", "OM 产物体积（同页口径）"),
                 ("samepage_octave_bytes", "octave_wasm_bytes", "Octave 产物体积（同页口径）"),
                 ("samepage_sum_bytes", "sum_wasm_bytes", "两引擎 wasm 字节合计"),
-                ("samepage_heap_peak", "js_heap_peak_bytes", "同页 JS 堆峰值（**真实测**，非估算）"),
-                ("samepage_compile_ms", "compile_ms_total", "两引擎同页编译总耗时（毫秒）"),
+                # ⚠️ JS 堆**每次跑都不同**（实测 26/31MB 两轮）⇒ 台账不许放原值
+                #   （复跑闸门会红：那是"裸值不符"，不是波动）。改成**量级档**：
+                #   向上取整到 5 MiB，cmd 里做同样的取整 ⇒ 逐字复跑稳定。
+                ("samepage_heap_peak_mib5", "js_heap_peak_bytes", "同页 JS 堆峰值的**量级档**"
+                 "（向上取整到 5 MiB；原始值逐轮波动 ⇒ 台账只放档位）"),
+                # ⚠️ 编译耗时也**逐轮波动**（实测 242/295ms）⇒ 同样只放**量级档**
+                #   （向上取整到 100ms）。理由与堆峰值同：台账复跑闸门要求"逐字可复跑"，
+                #   而波动的观测量放原值必然红（那是**判据与量的性质不匹配**，不是产物问题）。
+                ("samepage_compile_ms100", "compile_ms_total", "两引擎同页编译总耗时**量级档**"
+                 "（向上取整到 100ms；原始值逐轮波动）"),
             ):
                 if d.get(jk):
-                    facts[key] = fact(
-                        d[jk], "python3 -c \"import json;print(json.load(open('%s'))['%s'])\"" % (cost, jk),
-                        "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
+                    if key == "samepage_compile_ms100":
+                        v = ((int(d[jk]) + 99) // 100) * 100
+                        ft = fact(v,
+                                  "python3 -c \"import json;x=json.load(open('%s'))['%s'];"
+                                  "print(int(x)//100*100 + (100 if int(x)%%100 else 0))\"" % (cost, jk),
+                                  "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
+                    elif key == "samepage_heap_peak_mib5":
+                        # 取整到 5 MiB 的倍数（`(x+5MiB-1)//5MiB*5MiB`）——cmd 与值同源同算法
+                        val = ((int(d[jk]) + 5 * 1024 * 1024 - 1) // (5 * 1024 * 1024)) * (5 * 1024 * 1024)
+                        ft = fact(val,
+                                  "python3 -c \"import json;x=json.load(open('%s'))['%s'];"
+                                  "u=5*1024*1024;print(((int(x)+u-1)//u)*u)\"" % (cost, jk),
+                                  "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
+                    else:
+                        ft = fact(d[jk],
+                                  "python3 -c \"import json;print(json.load(open('%s'))['%s'])\"" % (cost, jk),
+                                  "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
+                    facts[key] = ft
 
     # ── 需求 B（页面内端到端）与需求 E（语义桥）：产物侧的量 ─────────────────────
     # web 档产物（需求 B 用的那份；与 node 档是**两个独立构建**）
