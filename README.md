@@ -56,7 +56,10 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
-**All three lines are already in place** (`master` / `wasm32` / `IllegalPerformance`, same baseline commit) — see `git branch -a`.
+**All three lines are in place and content-synchronized** (`master` / `wasm32` / `IllegalPerformance`) —
+`git diff master <line> --stat` must be empty (`wasm32` is the very same commit as `master`;
+`IllegalPerformance` is content-identical with a few cherry-pick copies in its history —
+**force-push is forbidden, so they stay**).
 
 
 ## 事实系统（Einfacht，反幻觉）
@@ -160,14 +163,14 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3818 bytes)
 - `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (6171 bytes)
-- `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
+- `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3672 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (38136 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (10353 bytes)
-- `README.zh.md` (8972 bytes)
-- `STATE.md` (23072 bytes)
+- `README.de.md` (10571 bytes)
+- `README.zh.md` (9265 bytes)
+- `STATE.md` (14672 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -190,7 +193,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/113/ilperf-baseline.sh` (5003 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (10079 bytes)
+- `build/FACTS.json` (10081 bytes)
 - `build/gates-selftest.sh` (3859 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
@@ -259,7 +262,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (17877 bytes)
+- `zreflect/measure_openmodelica.py` (18022 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

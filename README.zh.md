@@ -56,7 +56,10 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
-**三条线已在位**（`master` / `wasm32` / `IllegalPerformance`，同一基线提交）—— 见 `git branch -a`。
+**三条线已在位**（`master` / `wasm32` / `IllegalPerformance`），且**内容已同步** ——
+`git diff master <线> --stat` 应为空（`wasm32` 与 master **同一提交**；
+`IllegalPerformance` 内容一致、历史上有几个 cherry-pick 副本，**不许 force-push ⇒ 保留**）。
+判据 = `python3 build/113/check-lane-purity.py`（宿主 / 附属模块 / 站点专属目录三处同档）。
 
 
 ## 事实系统（Einfacht，反幻觉）

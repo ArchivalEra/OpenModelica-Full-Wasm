@@ -62,7 +62,10 @@ Kriterium = `python3 build/113/check-lane-purity.py` (Host / Module / linienspez
 Site-Verzeichnis — alle drei gleich; falsche Linie wird namentlich gemeldet, rc=1;
 Gegenprobe: falsches Artefakt muss rot werden).
 
-**Alle drei Linien sind bereits vorhanden** (`master` / `wasm32` / `IllegalPerformance`, gleicher Basis-Commit) — siehe `git branch -a`.
+**Alle drei Linien sind vorhanden und inhaltlich synchronisiert** (`master` / `wasm32` /
+`IllegalPerformance`) — `git diff master <Linie> --stat` muss leer sein (`wasm32` ist derselbe
+Commit wie `master`; `IllegalPerformance` ist inhaltlich identisch, hat aber einige
+Cherry-pick-Kopien in der Historie — **kein force-push erlaubt, also bleiben sie**).
 
 
 ## Fakten-System (Einfacht, Antihalluzination)
