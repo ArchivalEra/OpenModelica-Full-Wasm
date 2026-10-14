@@ -18,7 +18,7 @@ set -eu
 REPO="${OMC_REPO:-/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm}"
 H="${HARNESS:-/mnt/hdd/octave-wasm-build/harness}"
 URL="${1:-http://127.0.0.1:8761/}"
-MAT="${2:-/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat}"
+MAT="${2:-/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat}"
 
 [ -d "$H/node_modules/playwright-core" ] || { echo "FATAL: harness 缺 playwright-core（$H）" >&2; exit 2; }
 [ -f "$REPO/test/browser/accept-mat-handshake.mjs" ] || { echo "FATAL: 套件不在" >&2; exit 2; }

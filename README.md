@@ -172,7 +172,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
 - `test/browser/accept-mat-handshake.mjs` (9671 bytes)
-- `test/browser/run-mat-handshake.sh` (1893 bytes)
+- `test/browser/run-mat-handshake.sh` (1889 bytes)
 - `test/browser/selftest-mat-bridge.sh` (6685 bytes)
 - `test/node/accept-omc-getversion.mjs` (4653 bytes)
 - `test/node/accept-omc-simulate.mjs` (7828 bytes)
