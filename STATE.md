@@ -2,75 +2,91 @@
 
 正文只写「现在是什么」，**数字一律引用 `build/FACTS.json` 的键**（或看文末机器块）。
 方向与地图在 `maintaince.md`；硬规矩在 `AGENTS.md`；要做什么在 `docs/REQUIREMENTS.md`；
-历史在 `HISTORY.md`（append-only）。
+历史在 `HISTORY.md`（append-only）。**按日期倒读 HISTORY 能复盘每一步实测。**
 
-## 现在是什么（2026-10-13）
+## 现在是什么（2026-10-14）
 
-- **★ 需求 A 已结案：官方 wasm 目标 build 出了产物，且 Node 里跑得动。**
-  产物 = `/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/`
-  （`pkg-nodejs/OpenModelicaCompiler_bg.wasm` + `omc-cli.js` + `wasm-blobs/`），
-  身份证 **verdict=ok**；`getVersion()` 出串（实测值见台账
-  `[[omc_wasm32_verdict]]` / `[[omc_wasm32_bytes]]` / `[[omc_version_string]]`）。
-  结案判据（工单 01 的 `Settling:`）= `build/113/build-omc-wasm.sh --verify` rc=0 —— 已实跑。
-  **未做的**（别混）：浏览器端到端跑模型（需求 B）与 `.mat`（需求 D）都**还没做**；
-  Node 侧 `loadFile`/`getClassNames` 已通（前端全通），`simulate` 停在"要宿主注入 JS 回调"
-  （那是 B 的活）。
+**一句话**：本仓把 **OpenModelica 编成了浏览器内跑的 wasm**（MATLAB 生态**轴 ③**
+非因果物理建模的引擎），并已与姊妹仓的 Octave 引擎**在同一页面**完成 `.mat` 握手。
+纯客户端（零服务端计算），产物三份都 **verdict=ok**。
 
-- **构建路径 = 宿主直跑**（本机 docker 不可用：当前用户不在 docker 组、`sudo` 被 `no_new_privs`
-  挡 ⇒ 姊妹仓那种"容器内构建"在本机走不通；容器化另立批次）。
-  **工具链**：clang 24（用户点令；LLVM-wasm 仓 emsdk 内置件，自包含）
-  + 同源精编的 wasm32 builtins + Rust `nightly-2026-05-31`（上游 `rust-toolchain.toml` 钉的）。
-  **上游 pin**：`upstream/openmodelica` = `cbff5eb7…`、`OMCompiler/3rdParty` = `ae7e482a…`
-  （2 tree + 2 toolchain，见 `build/upstream-pins.json`）。
+### 六条需求（`docs/REQUIREMENTS.md` §2）
 
-- **需求书四处原文被实测推翻（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）**：
-  · **R1**：`master` 线要的 **wasm64 上游零支持**（`rust_omc.cmake` 0 命中 + 5 处显式
-    `memory64: false`）⇒ 首批产物出 **wasm32**；悬案 02 挂可跑结算件
-    `build/113/check-wasm64-upstream.sh`（上游加支持即翻面）。旁证：本仓 clang 24 实测
-    `--target=wasm64-unknown-unknown -c` **通过** ⇒ 不是我们缺工具。
-  · **R2**：产物真名不是 `omc.wasm`，是 **`OpenModelicaCompiler_bg.wasm`**（wasm-bindgen 出包）。
-  · **R3**：一步式配方缺 `SimulationRuntime/c/RuntimeSources.mo`（wasm 模式跳过它的唯一
-    生成点，缺了 mmtorust **静默半缺**）⇒ 单独生成器 + 两步链（`gen-runtime-sources-mo.sh`）。
-  · **R4**：wasm 路径不需要 OMBootstrapping（Rust 模式直接 `return()`）⇒ pin 表 2 tree + 2 toolchain。
+| 需求 | 状态 | 判据（可复跑） |
+|---|---|---|
+| **A** 官方 wasm 目标出产物 | ✅ 结案 | `bash build/113/build-omc-wasm.sh --verify` → rc=0 |
+| **B** 浏览器内跑通模型 | ✅ 结案 | `sh test/browser/run-omc-page.sh` → 10 PASS/0 |
+| **C** 三线 + 架构纯度 | ⚠️ 部分 | 纯度闸门 20 条自证；**wasm64 缺上游 CMake 路径**（悬案 02，工具链侧已证可做） |
+| **D** 与 Octave 的 `.mat` 握手 | ✅ 结案 | `sh test/browser/run-mat-handshake.sh` → 14 PASS/0 |
+| **E** MATLAB 语义桥 `omc_*` | ✅ 结案 | `sh test/browser/run-omc-bridge.sh` → 11 PASS/0 |
+| **F** `Octave-UI` 集成（第二档） | ⬜ 未做 | 在**另一个仓**做（本仓只出接口与产物） |
 
-- **动机（实测支撑，来自姊妹仓的查证）**：MATLAB 生态有三根轴 —— ① 语言（`Octave-Full-Wasm`
-  已覆盖）、② Simulink 因果块图、③ **Simscape 非因果物理建模（本仓要补的）**。
-  实测证据（见 `Octave-Full-Wasm/build/113/NOTES-experiment-omc-wasm.md` §8/§10/§11）：
-  · Octave 引擎能解 **index-1 DAE**（RC 电路 V(5)=0.9931 vs 理论 0.9933），
-    **不能**解 **index-3**（约束摆 `IDASolve failed`）——而指标约简正是 OM 编译器的活；
-  · 两引擎都读写 `.mat`（omc-web 仿真输出就是 MAT4）⇒ **握手格式现成**；
-  · OM 官方有**第一方 wasm CMake 目标**（`RUST_OMC_WASM_RUNTIME`、`wasm32-wasip1`、
-    `omc.wasm`、产物交接）⇒ 走官方路线，不抄第三方配方。
+### 用户点令的三步（2026-10-14）
 
-- **可行性已证（第三方演示实测）**：`BouncingBall.mo` 在真浏览器里跑通
-  `parse(381ms) → 生成 C(28ms) → 浏览器内编译(49.57s) → 仿真(50ms) → 出图`。
-  **本仓路线**（官方 CMake）走的是另一条：产物 88.7 MB、前端实测全通。
+1. **wasm32 同页实现** ✅：`site/samepage.html` —— 两引擎同页，页内 `.mat` 握手闭环
+   （判据 `sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**；同页内存/编译耗时见台账
+   `[[samepage_heap_peak_mib32]]` / `[[samepage_compile_ms500]]`）。
+2. **产物压缩** ✅：`-Oz` 把 web 档 omc **91.4MB → 74.6MB（−18.4%）**，导出/导入面逐名不变，
+   两条浏览器验收仍全绿（`WASM_OPT=ON` 生效；构建脚本自带此步并记账）。
+3. **`IllegalPerformance` 线** ✅ 已开线（基线件 `build/113/ilperf-baseline.sh`）；
+   **wasm64 工具链侧可做**（`build/113/build-w64-spike.sh`：`-Zbuild-std` 8.8s 编成、
+   纯度闸门认档、反向断言正确红）——**唯一缺的是上游 CMake 路径**。
 
-- **本仓对上游 Einfacht 的一处改进**：`zreflect/facts.py` 的数据层模块名从写死改成
-  旋钮 `REFLECT_MEASURE_MODULE` ⇒ 「换仓库只换一个文件」这条承诺才真成立。
-  （改进过程中被 C4「名录对账」抓到一次**幻影旋钮** —— 已修，见 `docs/EINFACHT-INTEGRATION.md` §4。）
+### 产物与位置（仓外）
+
+| 产物 | 位置 | 台账键 |
+|---|---|---|
+| node 档（需求 A/E 用） | `…/build/omc-out-wasm32/web/` | `[[omc_wasm32_verdict]]` `[[omc_wasm32_bytes]]` |
+| web 档（需求 B/同页用，已压缩） | `…/build/omc-out-web/web/` | `[[omc_web_verdict]]` `[[omc_web_wasm_bytes]]` |
+| 站点（本仓发布，带头 COOP/COEP） | `…/site-omc/`（含 `oct/` = 姊妹仓运行时**只读拷贝**） | `bash build/promote-site.sh --verify` |
+| 结果 `.mat`（需求 D 输入件） | `…/artifacts/BouncingBall_res.mat` | `[[om_result_mat_bytes]]` |
+
+### 三条线
+
+| 线 | 内容 |
+|---|---|
+| `master` | 全量成果（A–E + 同页 + 压缩）；HEAD 见 `git log -1 --oneline` |
+| `wasm32` | 同步 master（线名对应产物档）；**已同步**（同一基线） |
+| `IllegalPerformance` | 性能线：基线 + wasm64 可行件；**不动默认档**（发运是产品决定） |
+
+### 悬案（`.scratch/open-questions/issues/`）
+
+- **02 wasm64**：上游 CMake 无路径（结算件 `check-wasm64-upstream.sh` → `NOT-YET`）；
+  ⚠️ **工具链侧已证可做**（见上）⇒ 结案条件收窄为"上游接路径"。
+- **04 同页成本**：**已结案**（同页可行且已实现，早期"不可行"结论已翻案）。
+- **翻案台账（`build/retractions.json`）两条**：`R-R6-1`（同页"不可行"是测量方法错）、
+  `R-02-1`（"Rust 无 wasm64"是查错了表）。**这两条都别再当结论用。**
+
+## 还差什么（如实列，别只读上面那段好消息）
+
+1. **需求 F 未做**：`Octave-UI` 集成在**另一个仓**；本仓能做的只是产物 + 接口约定。
+2. **wasm64 卡上游**：工具链侧已证可做（可行件在），缺**上游 CMake 路径**；
+   或本仓自建一条路径（**另立工单**，不是顺手能做）。
+3. **性能候选一条都还没验**（`IllegalPerformance` 线只有**基线**）：
+   换分配器 / 换 BLAS / libm（姊妹仓负判决）/ 热点定位 —— 每条都要 **A/B 差分门**。
+4. **同页只在桌面 chromium 验过**：移动端内存更紧（未测）；站点只在本机 `127.0.0.1` 跑过。
+5. **docker 不可用**（不在 docker 组 + `sudo` 被 `no_new_privs` 挡）⇒ 构建走宿主直跑；
+   容器化另立批次。
 
 ## 关键约定（别混）
 
-- **与姊妹仓平级、互不引用**：工具链不同（emsdk vs **clang 24 + Rust wasm32-wasip1**）⇒ 不互相 submodule；
-- **集成点在上游层的 `Octave-UI`**（第三个引擎档），中间用 `.mat`；
-- **纯客户端**：不引入任何服务端执行代码的端点。
-- **本仓工具链四条硬约束**（首批实测得出，别再踩）：
+- **与姊妹仓平级、互不引用**：工具链不同（emsdk vs **clang 24 + Rust wasm32-wasip1**）
+  ⇒ 不互相 submodule；**对姊妹仓零写入**（只借 harness 的 playwright-core 与站点只读访问）。
+- **集成点在上游层的 `Octave-UI`**（第三个引擎档），中间用 `.mat`；**纯客户端**（零服务端计算）。
+- **本仓工具链硬约束**（首批实测，别再踩）：
   · 上游 configure 要 `<clang -print-resource-dir>/lib/wasi/libclang_rt.builtins-wasm32.a`
-    —— 系统缺且无 root 装不了 ⇒ **clang24 同源精编 + resource-dir overlay + wrapper**
+    —— 系统缺且无 root ⇒ **clang24 同源精编 + resource-dir overlay + wrapper**
     （`build/113/provision-toolchain.sh` / `build-clang24-builtins.sh`）；
-    ⚠️ overlay 必须用**源** resource-dir 铺（复制过的 clang 会按自身位置推出**不存在的**
-    路径 ⇒ include 断链 ⇒ 编译期 `stddef.h file not found`，离根因很远才炸）；
-  · Rust 用上游 `rust-toolchain.toml` 钉的 **nightly-2026-05-31**（cargo `codegen-backend`
-    与 cranelift-preview 都要 nightly）——**别用别的 nightly**；
-  · **`-DRUST_OMC_WASM_OPT=OFF`**（本机 binaryen 是 emsdk 版 133，与上游 `rust_omc.cmake:829`
-    的旧 feature 名不兼容 ⇒ 上游自己的 build.rs:801 会 panic；上游原文就给了这个开关）。
-    代价**只**是产物偏大（官方 CI 也是 PR 关、发布开）；
-  · **构建期下载走代理** `http://127.0.0.1:2080`（实测：`static.rust-lang.org` 直连 19 KB/s、
-    代理 7.5 MB/s，快 380×；git 已全局配，cmake 的 `file(DOWNLOAD)` 与 rustup 吃 env 代理）。
-- **跑 facts 必须用钩子语境**（`. reflect-hooks/einfacht-env.sh`）：直接跑 `python3 zreflect/facts.py`
-  会因 `REFLECT_MEASURE_MODULE` 未加载而**静默回落到上游占位实现**（数 md/py 文件），
-  并且把台账写"成功"（值被改口守卫拦下不写）。实测踩过一次。
+    ⚠️ overlay 必须用**源** resource-dir 铺（否则 include 断链 ⇒ `stddef.h not found`）；
+  · Rust 用上游钉的 **`nightly-2026-05-31`**（`-Zbuild-std` 要 `rust-src`）——别换通道；
+  · 构建期下载走代理 `http://127.0.0.1:2080`（实测 `static.rust-lang.org` 直连 19 KB/s、
+    代理 7.5 MB/s）；**ccache 必须开**（用户点令；`-DOM_USE_CCACHE=ON -DOM_COMPILER_CACHE=ccache`）。
+- **`-DRUST_OMC_WASM_OPT` 那条旧说法已作废**（见 HISTORY 5.u.3）：binaryen 133 **认**上游旗标，
+  早先失败是**漏给整套旗标**；本仓压缩用自己的步骤（`WASM_OPT=ON`）。
+- **跑 facts 必须用钩子语境**（`. reflect-hooks/einfacht-env.sh`）：直接跑会因
+  `REFLECT_MEASURE_MODULE` 未加载而**静默回落到占位实现**（实测踩过）。
+- **波动的量只上档位**（复跑闸门抓到的两课）：JS 堆/耗时这类逐轮变的量，
+  台账只放**粗于噪声**的档（`[[samepage_heap_peak_mib32]]` / `[[samepage_compile_ms500]]`）。
 
 <!-- AUTO:FACTS -->
 > 本区块由 `zreflect/facts.py --render-doc` 从 `FACTS.json` 渲染，**不要手改**（pre-commit 会重算并 `git add`）。
@@ -78,30 +94,32 @@
 
 | 键 | 值 | 测于 | 复跑命令 |
 |---|---|---|---|
-| `docs_present` | **3** | 2026-10-14T16:45:16+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
-| `lane_branches_present` | **3** | 2026-10-14T16:45:16+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
-| `om_result_mat_bytes` | **25729** | 2026-10-14T16:45:16+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat` |
-| `om_result_mat_sha` | `f13495579741d616…` | 2026-10-14T16:45:16+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat | cut -d' ' -f1` |
-| `omc_version_string` | **"-rust"** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
-| `omc_wasm32_bytes` | **91152188** | 2026-10-14T16:45:16+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
-| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
-| `omc_wasm32_sha` | `0d9866928e02b2e8…` | 2026-10-14T16:45:16+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
-| `omc_wasm32_verdict` | **ok** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
-| `omc_wasm32_web_files` | **11** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
-| `omc_web_verdict` | **ok** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-web/omc.build.json'))['verdict'])"` |
-| `omc_web_wasm_bytes` | **74579521** | 2026-10-14T16:45:16+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm` |
-| `omc_web_wasm_sha` | `ea0a9f4f4f4bfe3d…` | 2026-10-14T16:45:16+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
-| `samepage_compile_ms500` | **500** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['compile_ms_total'];u=500;print(((int(x)+u-1)//u)*u)"` |
-| `samepage_heap_peak_mib5` | **31457280** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['js_heap_peak_bytes'];u=5*1024*1024;print(((int(x)+u-1)//u)*u)"` |
-| `samepage_octave_bytes` | **29632229** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['octave_wasm_bytes'])"` |
-| `samepage_om_bytes` | **74579521** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['om_wasm_bytes'])"` |
-| `samepage_sum_bytes` | **104211750** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['sum_wasm_bytes'])"` |
-| `toolchain_builtins_bytes` | **117704** | 2026-10-14T16:45:16+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
-| `toolchain_clang` | **24.0.0** | 2026-10-14T16:45:16+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
-| `upstream_pins` | **4** | 2026-10-14T16:45:16+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
-| `w64_spike_bytes` | **353** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['bytes'])"` |
-| `w64_spike_gate_rc` | **0** | 2026-10-14T16:45:16+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['gate_rc'])"` |
-| `whitelist_rules` | **75** | 2026-10-14T16:45:16+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
+| `docs_present` | **3** | 2026-10-14T16:53:20+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
+| `lane_branches_present` | **3** | 2026-10-14T16:53:20+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
+| `om_result_mat_bytes` | **25729** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat` |
+| `om_result_mat_sha` | `f13495579741d616…` | 2026-10-14T16:53:20+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat | cut -d' ' -f1` |
+| `omc_version_string` | **"-rust"** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
+| `omc_wasm32_bytes` | **91152188** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
+| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
+| `omc_wasm32_sha` | `0d9866928e02b2e8…` | 2026-10-14T16:53:20+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
+| `omc_wasm32_verdict` | **ok** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
+| `omc_wasm32_web_files` | **11** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
+| `omc_web_verdict` | **ok** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-web/omc.build.json'))['verdict'])"` |
+| `omc_web_wasm_bytes` | **74579521** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm` |
+| `omc_web_wasm_sha` | `ea0a9f4f4f4bfe3d…` | 2026-10-14T16:53:20+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
+| `samepage_compile_ms500` | **500** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['compile_ms_total'];u=500;print(((int(x)+u-1)//u)*u)"` |
+| `samepage_heap_peak_mib32` | **33554432** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['js_heap_peak_bytes'];u=16*1024*1024
+while u < int(x): u *= 2
+print(u)"` |
+| `samepage_octave_bytes` | **29632229** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['octave_wasm_bytes'])"` |
+| `samepage_om_bytes` | **74579521** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['om_wasm_bytes'])"` |
+| `samepage_sum_bytes` | **104211750** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['sum_wasm_bytes'])"` |
+| `toolchain_builtins_bytes` | **117704** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
+| `toolchain_clang` | **24.0.0** | 2026-10-14T16:53:20+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
+| `upstream_pins` | **4** | 2026-10-14T16:53:20+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
+| `w64_spike_bytes` | **353** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['bytes'])"` |
+| `w64_spike_gate_rc` | **0** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['gate_rc'])"` |
+| `whitelist_rules` | **75** | 2026-10-14T16:53:20+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
 
 24 条事实。
 <!-- /AUTO:FACTS -->
@@ -129,118 +147,3 @@
 
 14 道闸门（发现式名录派生 —— 手写清单会漂，加闸门 = 落一个声明行，这里自动长出来）。
 <!-- /AUTO:GATES -->
-
-
-## 需求 B：**已结案**（2026-10-14）
-
-**判据**：`node test/node/accept-omc-simulate.mjs` → 见台账（`[[omc_wasm32_verdict]]` 与
-`[[omc_version_string]]` 同批更新）。实跑 = **10 PASS / 0 FAIL**。
-
-- 模型在 wasm 里**跑完**：`LOG_SUCCESS | The initialization finished successfully`，
-  `resultFile=/tmp/BouncingBall_res.mat`。
-- 结果 **25,729 字节 MAT4**，从 wasm VFS 取出并落盘宿主（`/tmp/omc-BouncingBall_res.mat`；
-  供需求 D 的 Octave 握手）。
-- **数据是真物理**（深验）：`h` 从 1.0 按 `der(v)=-g, der(h)=v` 衰减，采样点齐全（见 `[[om_result_mat_bytes]]` 那条的抽样数）
-  （min −0.9556 / max 1.0000，含 `when h<=0 reinit` 弹跳）。
-- 根因与修补全过程：悬案 `.scratch/open-questions/issues/03-simulate-needs-host-solver.md`
-  （状态 `resolved`）。
-
-**下一步 = 需求 D**（`.mat` 与 Octave 引擎握手）：结果文件已能落盘，
-缺的是"喂进 Octave 引擎 `load` 通 + 数值合理"的端到端与反向断言。
-
-## ★ 下次开工第一件事（2026-10-13 关机前留）
-
-1. **重建**：`bash build/113/build-omc-wasm.sh build`（`--verify` 之后）。
-   需求 B 的根因修补**已实测生效**（新 runtime blob `df866d92…`，`env.rt_host_lin_solve`
-   导入 **1 → 0**），但产物要在 stage2 收尾后重新 `--verify`。
-2. **验收**：`node test/node/accept-omc-simulate.mjs`（现在实测 6 PASS / 3 FAIL —— ③④ 是仿真那几条）。
-3. ⚠️ **踩过的坑（别重犯）**：清 stage2 陈旧 blob 时**只删** `rust-target/.../openmodelica_wasm_jit-*/out`
-   里那个 `runtime_wasip1_interactive.wasm`，**别 `rm -rf` 整个 `Compiler/wasm-blobs/`** ——
-   那目录同时是 liblapack/libc_pic/ModelicaUtilities 的**生产出口**，删了会撞上
-   ninja 的复制竞态（`Error copying file …: No such file or directory`）。
-4. ⚠️ **用户点令（2026-10-13）**：构建**必须用 ccache**（上游默认也是 ON：`CMakeLists.txt:172`），
-   **优先 LLVM 工具**。本批曾图快写 `OM_USE_CCACHE=OFF` —— 已改回 `ON` 并显式
-   `-DOM_COMPILER_CACHE=ccache`；下次用 `ccache -s` 验命中率。
-
-## `IllegalPerformance` 线开工（2026-10-14，用户点令第三步）
-
-- **★ wasm64 工具链侧**可做**（同日更正，见翻案 `R-02-1`）**：新件
-  `build/113/build-w64-spike.sh`（5 条自证）实测 ——
-  `cargo build --target wasm64-unknown-unknown -Zbuild-std=core,alloc` **8.8 秒编成**，
-  Node 实例化成功（`add64(2n,3n)=5`，**BigInt 是 64 位地址空间的特征**），
-  **本仓纯度闸门认档 = wasm64**，且 wasm32 产物喂 wasm64 档**正确地红**（反向断言）。
-  ⚠️ 我此前写"Rust 侧没有 wasm64"是**查错了表**（`rustup target list` 是"可安装"列表，
-  不是 `rustc --print target-list` 的编译器内置目标表）。
-- **唯一仍缺的是上游 CMake 路径**：`rust_omc.cmake` 0 命中 wasm64（悬案 02 的结算件
-  `check-wasm64-upstream.sh` → `NOT-YET`）⇒ **"上游还没接进构建系统"，不是"编不出来"**。
-  结案条件因此收窄为这一条。
-- **本线先把基线与判据立起来**（新件 `build/113/ilperf-baseline.sh`，4 条自证，只读）：
-  产物 74,579,521 字节 / **SIMD 5876 处 + post-MVP 23,451 处**（**已在**，不是待做项）/
-  features 九项 / memory 导入导出 0/1。
-- **性能候选按姊妹仓 §5 纪律推进**（A/B 差分门 + 变异自证；负判决也是资产；
-  **不许改默认档**）：换分配器（有效）/ 换 BLAS（有效，配 IEEE 红线）/
-  libm（负判决）/ 热点定位（仪器，不猜）。
-
-## 同页集成（wasm32）+ 产物压缩（2026-10-14，用户点令）
-
-- **★ 同页已实现**：`site/samepage.html` —— 两个 wasm 引擎（omc + Octave）在**同一页面**里跑，
-  页内完成 `.mat` 握手（omc 产出 → Octave 读出 `VARS time_2,h,v,der_h_,der_v_,e_2,g` /
-  `N 628` / `HMAX 1.0000`）。判据 `sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**；
-  同页 JS 堆峰值见台账 `[[samepage_heap_peak_mib5]]`，两引擎 wasm 合计 `[[samepage_sum_bytes]]`。
-- **★ R6 翻案**（`build/retractions.json` 的 `R-R6-1`）：早先"同页当前不可行"是**测量方法的错**
-  （base64 把 91MB 放大成 ~122MB JS 字符串）——改用 `WebAssembly.compileStreaming` 后，
-  91.4MB 模块 **219ms** 编译完、堆峰值 23–28MB。
-- **★ 产物压缩**：`-Oz` 把 web 档 omc **91,423,608 → 74,579,521 字节（−18.4%）**，约 69s，
-  导出/导入面逐名不变，两条浏览器验收仍全绿。已接进 `build-omc-wasm.sh`（`WASM_OPT=ON` 时跑）。
-  ⚠️ 另一处误判已更正：binaryen 133 **认**上游旗标，早先的失败是我**漏给整套旗标**。
-- **wasm64 边界加硬**：不仅上游 CMake 无路径（悬案 02），**Rust 侧也没有 `wasm64-unknown-unknown`
-  target** ⇒ 编译器主体编不成 wasm64；姊妹仓的 `-sMEMORY64=1` 是 C/C++ 路径，**不能照搬**。
-
-## 需求 B / E：**均已结案**（2026-10-14）
-
-- **B（页面内端到端）**：判据 `sh test/browser/run-omc-page.sh` → **10 PASS / 0 FAIL**。
-  用 **web 档产物**（`MODE=web-release` 构建，见台账 `[[omc_web_wasm_bytes]]` / `[[omc_web_verdict]]`）
-  + 本仓站点（`build/promote-site.sh` 受管辖入口发布、`build/serve-coi.py` 带 COOP/COEP 服务）。
-  实测：页面内 `loadFile → true`、`simulate` 出 MAT4；判据是**把字节搬到 Node 侧再解析**
-  （6 矩阵 / `data_2` 5×628 / `name` 7 列），不是页面自报。B3 反向（语法错模型）给可读错误。
-- **E（MATLAB 语义桥）**：判据 `sh test/browser/run-omc-bridge.sh` → **11 PASS / 0 FAIL**（真 Octave 引擎）。
-  实测：`omc_simulate_model('BouncingBall')` ⇒ **628×7 数据矩阵**（数值对）；
-  未知模型 / 未支持命令**都明确报错**。
-- **★ 两处形态与需求书原文不同（都实测逼出来的，记进 §7）**：
-  · **R7**（B）：web 档是 wasm-bindgen **ESM** —— `omc_*` 是具名导出，`default` 是**初始化函数**
-    （不是模块对象）；且 web 档**没有** `omc-cli.js`（那是 node 档的）⇒ `--verify` 已档位感知。
-  · **R8**（E）：桥必须**两段式**（`.m` 提交即返回、宿主驱动）——
-    `.m` 侧忙等会与宿主**互等死锁**（实测 Octave 忙 3s 时宿主 evaluate 阻塞 2701ms）；
-    `pause()` 在本 build 里更会把 evaluate 挂死。另：两个 wasm 的 FS **互不可见**（桥搬字节）；
-    Octave 必须跑站点 **worker 模式**（主线程留给桥）；worker 的 `eval` 返回值**不含结果**
-    （取值走 DOM `#output`，大块内容 base64 分块）。
-
-## 需求 D：**已结案**（2026-10-14）—— `.mat` 握手打通
-
-**判据**（三条实跑）：`sh test/browser/run-mat-handshake.sh` → **14 PASS / 0 FAIL**；
-`sh test/browser/selftest-mat-bridge.sh` → **8 PASS / 0 FAIL**；
-`bash build/113/measure-samepage-cost.sh` → rc=0（D4 的量）。
-
-- **握手点不是 `load`，是语义映射**（实测）：Octave 的 `load` **认** OM 的 MAT4
-  （返回 struct：`Aclass`/`name`/`description`/`dataInfo`/`data_1`/`data_2`）但**不产生** `h`/`v` ——
-  变量名在 `name` 矩阵的列里、时间序列在 `data_2` 的行里。⇒ 本仓 `bridge/omc_mat_load.m`
-  做这层映射（读取 + 名字消毒 + 元信息），并**主动处理**两类真语义：
-  `dataInfo` channel 0 = 独立变量 `time`；参数走 `data_1`（channel 1）。
-- **输入端可复跑**：`node test/node/produce-result-mat.mjs` 跑真仿真 →
-  从 wasm VFS 取件 → 落 `artifacts/BouncingBall_res.mat`（见台账 `[[om_result_mat_bytes]]`）。
-- **D4（同页成本）实测 = 当前不可行**（如实记）：wasm 合计
-  `[[samepage_sum_bytes]]` 字节；Octave 模块可编（堆 `[[samepage_heap_peak_mib5]]`），
-  **OM 模块一编译整页崩**。⇒ 悬案 04 `ready-for-human`（惰性/缩产物/分 Worker 三选一，
-  留给决策；本仓只做了"量"）。
-- **只读纪律**：对姊妹仓**零写入**（只借 harness 的 node_modules 与 8761 站点只读访问）。
-
-## ★ 本次开工修掉的两个坑（2026-10-14，已闭环，留档免得重犯）
-
-1. **stage2 的 `--target install` 曾没落盘**：昨天 `web/` 一包是旧字节、
-   `stage2/…/web/pkg-nodejs/` 是新字节（两份"真相"）。今天续建到 install 完成后
-   **已验证同步**（产物 sha 与身份证一致，见台账 `[[omc_wasm32_sha]]`）。
-2. **漏 blob（我昨天 `rm -rf Compiler/wasm-blobs/` 的后果）**：`libc_pic.wasm` /
-   `ModelicaUtilities.wasm` 是 `openmodelica_wasi_libc` 的 build.rs 经 `OMC_WASM_BLOB_OUT`
-   汇出的，而 cargo 判定"无需重跑" ⇒ 副本没回来（`Error copying file …: No such file or directory`）。
-   **救法**：从该 crate 的 `OUT_DIR` 取回（cargo 缓存还在）。
-   **教训**：清产物**只删要删的那个文件**，别删共享输出目录。
