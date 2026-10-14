@@ -179,18 +179,19 @@ def measure():
                 #   向上取整到 5 MiB，cmd 里做同样的取整 ⇒ 逐字复跑稳定。
                 ("samepage_heap_peak_mib5", "js_heap_peak_bytes", "同页 JS 堆峰值的**量级档**"
                  "（向上取整到 5 MiB；原始值逐轮波动 ⇒ 台账只放档位）"),
-                # ⚠️ 编译耗时也**逐轮波动**（实测 242/295ms）⇒ 同样只放**量级档**
-                #   （向上取整到 100ms）。理由与堆峰值同：台账复跑闸门要求"逐字可复跑"，
-                #   而波动的观测量放原值必然红（那是**判据与量的性质不匹配**，不是产物问题）。
-                ("samepage_compile_ms100", "compile_ms_total", "两引擎同页编译总耗时**量级档**"
-                 "（向上取整到 100ms；原始值逐轮波动）"),
+                # ⚠️ 编译耗时**逐轮波动**（实测 242/295/306ms）⇒ 只放**粗档**
+                #   （向上取整到 **500ms**）。100ms 档实测仍会翻（295→300 vs 306→400），
+                #   ⇒ 档要**粗于噪声**才有意义（这是"波动的量只上档位"的第 2 课：
+                #   档位本身要选得比抖动大）。
+                ("samepage_compile_ms500", "compile_ms_total", "两引擎同页编译总耗时**粗档**"
+                 "（向上取整到 500ms；原始值逐轮波动 242–306ms）"),
             ):
                 if d.get(jk):
-                    if key == "samepage_compile_ms100":
-                        v = ((int(d[jk]) + 99) // 100) * 100
+                    if key == "samepage_compile_ms500":
+                        v = ((int(d[jk]) + 499) // 500) * 500
                         ft = fact(v,
                                   "python3 -c \"import json;x=json.load(open('%s'))['%s'];"
-                                  "print(int(x)//100*100 + (100 if int(x)%%100 else 0))\"" % (cost, jk),
+                                  "u=500;print(((int(x)+u-1)//u)*u)\"" % (cost, jk),
                                   "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
                     elif key == "samepage_heap_peak_mib5":
                         # 取整到 5 MiB 的倍数（`(x+5MiB-1)//5MiB*5MiB`）——cmd 与值同源同算法

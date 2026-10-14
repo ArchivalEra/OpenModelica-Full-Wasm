@@ -63,8 +63,9 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 **★ 一条实战教训（2026-10-14，被复跑闸门抓到）**：**波动的观测量不能以原值进台账**。
 JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复跑闸门红（那不是产物问题，
-是**判据与量的性质不匹配**）⇒ 本仓改成**量级档**（堆峰值取整到 5 MiB、编译耗时取整到
-100ms，`cmd` 里做同样的取整，⇒ 逐字复跑稳定）。
+是**判据与量的性质不匹配**）⇒ 本仓改成**量级档**（堆峰值取整到 5 MiB、编译耗时取整到 **500ms**，
+`cmd` 里做同样的取整，⇒ 逐字复跑稳定）。
+**第 2 课：档要粗于噪声** —— 100ms 档实测仍会翻（295→300 vs 306→400），档位跨过噪声才有意义。
 
 
 数字的**唯一产地**是 `build/FACTS.json`；文档正文**不手抄数字**，写 `[[键名]]`；
@@ -162,11 +163,11 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (37546 bytes)
+- `HISTORY.md` (38136 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (10219 bytes)
-- `README.zh.md` (8836 bytes)
-- `STATE.md` (23035 bytes)
+- `README.de.md` (10353 bytes)
+- `README.zh.md` (8972 bytes)
+- `STATE.md` (23072 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -189,7 +190,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/113/ilperf-baseline.sh` (5003 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (10089 bytes)
+- `build/FACTS.json` (10079 bytes)
 - `build/gates-selftest.sh` (3859 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
@@ -258,7 +259,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (17865 bytes)
+- `zreflect/measure_openmodelica.py` (17877 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)
