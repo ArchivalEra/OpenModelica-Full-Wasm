@@ -90,7 +90,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `AGENTS.md` | 给 agent 的硬规矩 |
 | `CONTEXT.md` | 术语表（每词一条定义 + 一行复跑证据） |
 | `HISTORY.md` | 历史（append-only） |
-| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信，规矩见 `mail/README.md` |
+| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。已回 `Octave-Extra-Content` 的 content-list 端口推广信（`mail/002`）：本仓是**生产者**（首个 import MSL 的模型落地时出表；工具链件不进表） |
 
 ## 现行状态
 

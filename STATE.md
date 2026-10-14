@@ -95,6 +95,10 @@
   `REFLECT_MEASURE_MODULE` 未加载而**静默回落到占位实现**（实测踩过）。
 - **波动的量只上档位**（复跑闸门抓到的两课）：JS 堆/耗时这类逐轮变的量，
   台账只放**粗于噪声**的档（`[[samepage_heap_peak_mib32]]` / `[[samepage_compile_ms500]]`）。
+- **content-list 端口（`Octave-Extra-Content` 的推广信，已回 `mail/002`）**：本仓是
+  **生产者**（自出表，不从 lock 派生）—— **首个 import MSL 的模型落地时**才出表
+  （今天运行期不取任何外部内容：产物里嵌的是语言内建，不是 MSL）；**工具链件不进表**
+  （clang/rust 是构建期依赖，站点里零 clang/rust 文件，运行期永不拉）。
 
 <!-- AUTO:FACTS -->
 > 本区块由 `zreflect/facts.py --render-doc` 从 `FACTS.json` 渲染，**不要手改**（pre-commit 会重算并 `git add`）。
