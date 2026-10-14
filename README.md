@@ -56,7 +56,10 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
-**All three lines are already in place** (`master` / `wasm32` / `IllegalPerformance`, same baseline commit) — see `git branch -a`.
+**All three lines are in place and content-synchronized** (`master` / `wasm32` / `IllegalPerformance`) —
+`git diff master <line> --stat` must be empty (`wasm32` is the very same commit as `master`;
+`IllegalPerformance` is content-identical with a few cherry-pick copies in its history —
+**force-push is forbidden, so they stay**).
 
 
 ## 事实系统（Einfacht，反幻觉）
@@ -165,9 +168,9 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (38136 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (10353 bytes)
-- `README.zh.md` (8972 bytes)
-- `STATE.md` (14379 bytes)
+- `README.de.md` (10571 bytes)
+- `README.zh.md` (9265 bytes)
+- `STATE.md` (14672 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)

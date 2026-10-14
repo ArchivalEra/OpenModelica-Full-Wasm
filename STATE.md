@@ -46,8 +46,12 @@
 | 线 | 内容 |
 |---|---|
 | `master` | 全量成果（A–E + 同页 + 压缩）；HEAD 见 `git log -1 --oneline` |
-| `wasm32` | 同步 master（线名对应产物档）；**已同步**（同一基线） |
-| `IllegalPerformance` | 性能线：基线 + wasm64 可行件；**不动默认档**（发运是产品决定） |
+| `wasm32` | **与 master 同一提交**（已同步；线名对应产物档 = wasm32） |
+| `IllegalPerformance` | 内容与 master 一致（有 6 个 cherry-pick 的历史副本；**不许 force-push** ⇒ 保留）；
+性能线：基线 + wasm64 可行件；**不动默认档**（发运是产品决定） |
+
+> 三线**内容**一致性用 `git diff master <line> --stat` 查（应空）；**历史**是否分叉不重要
+> （一线一架构约束的是**产物档**，不是提交图谱）。
 
 ### 悬案（`.scratch/open-questions/issues/`）
 
