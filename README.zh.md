@@ -102,7 +102,13 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 本仓 `bridge/omc_mat_load.m` 补这一层。**D4 同页成本实测 = 当前不可行**
 （OM 91.2MB 模块一编译整页崩），悬案 04 交决策。
 
-**下一步 = 需求 E**（`omc_*` 语义桥）。
+**需求 B 已结案**（2026-10-14）：页面内 `loadFile` + `simulate` 出 **MAT4**
+（web 档产物 + 本仓站点；判据 `sh test/browser/run-omc-page.sh` → **10 PASS / 0 FAIL**）。
+**需求 E 已结案**：`omc_simulate_model('BouncingBall')` 在**真 Octave 引擎**里返回
+**628×7 数据矩阵**（判据 `sh test/browser/run-omc-bridge.sh` → **11 PASS / 0 FAIL**）。
+桥是**两段式**（`.m` 提交即返回、宿主驱动）—— `.m` 侧忙等会与宿主互等死锁（实测）。
+
+**下一步 = 需求 C 的性能线**（`IllegalPerformance`）/ **需求 F**（`Octave-UI` 集成）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是

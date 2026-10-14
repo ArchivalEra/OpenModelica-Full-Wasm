@@ -178,6 +178,25 @@ def measure():
                     d[jk], "python3 -c \"import json;print(json.load(open('%s'))['%s'])\"" % (cost, jk),
                     "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
 
+    # ── 需求 B（页面内端到端）与需求 E（语义桥）：产物侧的量 ─────────────────────
+    # web 档产物（需求 B 用的那份；与 node 档是**两个独立构建**）
+    web_wasm = os.path.join(BUILD, "omc-out-web", "web", "omc", "OpenModelicaCompiler_bg.wasm")
+    if _exists(web_wasm):
+        facts["omc_web_wasm_bytes"] = fact(
+            os.path.getsize(web_wasm), "stat -c%%s %s" % web_wasm,
+            "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm",
+            "web 档 omc wasm 字节数（需求 B 的产物；浏览器内跑）")
+        facts["omc_web_wasm_sha"] = fact(
+            sha256sum(web_wasm), "sha256sum %s | cut -d' ' -f1" % web_wasm,
+            "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm", "web 档产物 sha256")
+    web_verdict = os.path.join(BUILD, "omc-out-web", "omc.build.json")
+    if _exists(web_verdict):
+        d = _read_json(web_verdict) or {}
+        if d.get("verdict"):
+            facts["omc_web_verdict"] = fact(
+                d["verdict"], "python3 -c \"import json;print(json.load(open('%s'))['verdict'])\"" % web_verdict,
+                "build/omc-out-web/omc.build.json", "web 档产物身份证 verdict")
+
     # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
     ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
     if _exists(ver_id):

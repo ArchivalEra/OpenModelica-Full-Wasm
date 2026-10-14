@@ -116,7 +116,16 @@ das MAT4-Format, erzeugt aber keine `h`/`v` (die Namen stehen in den Spalten der
 gemessen = derzeit nicht machbar** (das 91,2 MB große OM-Modul lässt die Seite beim
 Kompilieren abstürzen); Ticket 04 geht zur Entscheidung.
 
-**Nächster Schritt = Anforderung E** (`omc_*`-Semantikbrücke).
+**Anforderung B ist abgeschlossen** (2026-10-14): `loadFile` + `simulate` **im Browser**
+liefern eine **MAT4**-Datei (Web-Artefakt + eigenes Site; Prüfbefehl
+`sh test/browser/run-omc-page.sh` → **10 PASS / 0 FAIL**).
+**Anforderung E ist abgeschlossen**: `omc_simulate_model('BouncingBall')` liefert im
+**echten Octave-Engine** eine **628×7-Datenmatrix** (Prüfbefehl
+`sh test/browser/run-omc-bridge.sh` → **11 PASS / 0 FAIL**). Die Brücke ist **zweistufig**
+(`.m` sendet nur ab und kehrt zurück; der Host treibt) — ein busy-wait auf der `.m`-Seite
+würde sich mit dem Host gegenseitig blockieren (gemessen).
+
+**Nächster Schritt = Anforderung C (Performance-Linie)** / **Anforderung F** (Octave-UI).
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend

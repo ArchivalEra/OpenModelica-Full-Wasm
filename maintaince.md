@@ -86,3 +86,13 @@ side module（dylink.0，无 memory 段）改成"必须与宿主同档"+ 报告�
 ⇒ 悬案 04 交决策（惰性/缩产物/分 Worker）。
 
 ### 第五步：需求 E（`omc_*` 语义桥）→ 第六步：需求 F（`Octave-UI` 第二档集成）
+
+### ✅ 第二步（需求 B）：**已结案**（2026-10-14）
+页面内 `loadFile` + `simulate` 出 **MAT4**（10 PASS / 0 FAIL），用的是 web 档产物 +
+本仓站点（`build/promote-site.sh` 发布、`build/serve-coi.py` 带头服务）。
+
+### ✅ 第四步（需求 E）：**已结案**（2026-10-14）
+`omc_simulate_model('BouncingBall')` 在**真 Octave 引擎**里返回 **628×7 数据矩阵**
+（11 PASS / 0 FAIL）。桥是**两段式**（`.m` 提交即返回、宿主驱动）—— `.m` 侧忙等会死锁。
+
+### 第五步：需求 C 的性能线（`IllegalPerformance`）/ 需求 F（`Octave-UI` 集成）

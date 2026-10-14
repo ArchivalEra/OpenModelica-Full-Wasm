@@ -94,6 +94,17 @@ __pycache__/
 
 # ── 需求 D（.mat 握手）：Octave 侧桥接函数 + 浏览器侧验收/自证 ────────────────
 !bridge/*.m
+!bridge/*.js
 !test/browser/accept-mat-handshake.mjs
 !test/browser/run-mat-handshake.sh
 !test/browser/selftest-mat-bridge.sh
+
+# ── 需求 B（页面内端到端）/ E（语义桥）：站点 + 页面 + 验收 + 受管辖入口 ──────
+!site/*.html
+!site/*.js
+!build/promote-site.sh
+!build/serve-coi.py
+!test/browser/accept-omc-page.mjs
+!test/browser/run-omc-page.sh
+!test/browser/accept-omc-bridge.mjs
+!test/browser/run-omc-bridge.sh

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>OpenModelica in browser — 需求 B 演示页（页面内 loadFile + simulate）</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 16px; }
+  pre { background: #f5f5f5; padding: 8px; overflow: auto; max-height: 40vh; }
+  h1 { font-size: 18px; }
+  #status { font-weight: bold; }
+  .ok { color: #0a7a0a; } .bad { color: #b00; }
+</style>
+</head>
+<body>
+<h1>OpenModelica → WebAssembly（浏览器内编译 + 仿真）</h1>
+<p>纯客户端：omc 是 <b>wasm</b>，跑在这个页面里（无服务端计算）。</p>
+<p id="status">加载中…</p>
+<pre id="log"></pre>
+
+<script type="module">
+// 需求 B 的演示 + 自证页：
+//   B1 页面里跑 loadFile("BouncingBall.mo") + simulate(BouncingBall) ⇒ 产出 .mat
+//   B2 验收：.mat 头正确（MAT4）、变量数/采样数与参考一致
+//   B3 反向：语法错误的 .mo ⇒ getErrorString() 给出可读错误（不许静默）
+//
+// 用的是**官方 wasm-bindgen web 档产物**（`./omc/OpenModelicaCompiler.js`，esm-bindgen 形状），
+// 它导出的函数族与 node 档一致（omc_eval / omc_simulate / wasi_write_file …）。
+const $ = (id) => document.getElementById(id);
+const logLines = [];
+function log(s) { logLines.push(s); $('log').textContent = logLines.join('\n'); }
+function setStatus(s, ok) { $('status').textContent = s; $('status').className = ok === true ? 'ok' : ok === false ? 'bad' : ''; }
+
+// ★ 探测口（验收件读它；别在页面里放"自检"在主路径上 —— 坏产物会卡整页）
+window.__omcBridgeProbe = { ready: false, error: '', version: '', mat: null, steps: [], reversed: null };
+
+const MODEL = `model BouncingBall
+  parameter Real e=0.7 "coefficient of restitution";
+  parameter Real g=9.81 "gravity acceleration";
+  Real h(fixed=true, start=1) "height of ball";
+  Real v(fixed=true) "velocity of ball";
+equation
+  der(v) = -g;
+  der(h) = v;
+  when h <= 0 then
+    reinit(v, -e*pre(v));
+  end when;
+end BouncingBall;
+`;
+const BAD_MODEL = `model BadModel
+  Real x = ;
+equation
+  der(x) = 1;
+end BadModel;
+`;
+
+(async () => {
+  const P = window.__omcBridgeProbe;
+  try {
+    setStatus('加载 omc wasm…');
+    // ★ web 档（wasm-bindgen ESM）的形状（实测读产物得到，别照抄 node 档用法）：
+    //   · `export function omc_eval / omc_set_env / omc_init …` —— **具名导出**；
+    //   · `export { initSync, __wbg_init as default }` —— **default 是"初始化"**，不是模块对象。
+    //   ⇒ 先 `await init()`，再从**命名空间**上取那些函数（`default` 上**没有**它们 ——
+    //     第一版就是错拿 `mod.default` 当模块对象，报 `omc.omc_set_env is not a function`）。
+    const mod = await import('./omc/OpenModelicaCompiler.js');
+    await mod.default();                    // = __wbg_init：fetch + 实例化 wasm
+    const omc = mod;                        // 具名导出直接在命名空间上
+    P.steps.push('module-loaded');
+
+    omc.omc_set_env('OPENMODELICAHOME', '/usr');
+    const inited = omc.omc_init();
+    P.steps.push('init=' + inited);
+    omc.omc_set_inwasm_driver(1);          // 在 wasm 内驱动（浏览器路径；不开它要宿主回调）
+
+    P.version = String(omc.omc_eval('getVersion()'));
+    P.steps.push('version=' + P.version);
+
+    // B1：页面里 loadFile + simulate
+    const enc = new TextEncoder();
+    omc.wasi_write_file('/tmp/BouncingBall.mo', enc.encode(MODEL));
+    omc.omc_eval('cd("/tmp")');
+    const loaded = String(omc.omc_eval('loadFile("/tmp/BouncingBall.mo")'));
+    P.steps.push('loadFile=' + loaded);
+    if (!/^"?true"?$/.test(loaded.trim())) {
+      P.error = 'loadFile 失败：' + String(omc.omc_eval('getErrorString()'));
+      setStatus('失败：' + P.error, false);
+      P.ready = true;
+      return;
+    }
+    const simOut = String(omc.omc_simulate('BouncingBall', 3.0, 500, 1e-6, 'dassl', ''));
+    const m = simOut.match(/resultFile\s*=\s*"([^"]*)"/);
+    const vfsPath = m ? m[1] : '';
+    P.steps.push('resultFile=' + vfsPath);
+    if (!vfsPath) { P.error = '仿真失败：' + simOut.slice(0, 300); setStatus('失败', false); P.ready = true; return; }
+
+    // B2：把 .mat 取出（VFS → 字节），头 4 项做 MAT4 判据
+    const fd = omc.wasi_path_open(vfsPath);
+    let bytes = null;
+    if (typeof fd === 'number' && fd >= 0) {
+      try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
+    }
+    if (bytes && bytes.length) {
+      const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const ty = dv.getUint32(0, true), mr = dv.getUint32(4, true), nc = dv.getUint32(8, true), im = dv.getUint32(12, true);
+      const name = new TextDecoder('latin1').decode(bytes.subarray(20, 26));
+      P.mat = { bytes: bytes.length, typeCode: ty, mrows: mr, ncols: nc, imagf: im, firstName: name };
+      window.__omcMatBytes = bytes;             // 供验收件取走（真实字节，不是自报）
+      P.steps.push(`mat=${bytes.length}B ty=${ty} ${mr}x${nc} imagf=${im} name=${name}`);
+    } else {
+      P.error = '取 .mat 失败（wasi_path_open/fd_read）';
+    }
+
+    // B3：反向 —— 语法错的模型必须给出可读错误
+    omc.wasi_write_file('/tmp/BadModel.mo', enc.encode(BAD_MODEL));
+    const badLoad = String(omc.omc_eval('loadFile("/tmp/BadModel.mo")'));
+    const badErr = String(omc.omc_eval('getErrorString()'));
+    P.reversed = { load: badLoad.trim(), error: badErr.trim().slice(0, 400) };
+    P.steps.push('badLoad=' + badLoad.trim() + ' badErr=' + (badErr.trim() ? 'yes' : 'no'));
+
+    setStatus('就绪：' + (P.error ? '有错误' : '全部步骤完成'), !P.error);
+  } catch (e) {
+    P.error = '异常：' + String(e).slice(0, 300);
+    setStatus('异常', false);
+  }
+  P.ready = true;
+  log('steps:\n' + P.steps.join('\n'));
+  if (P.error) log('ERROR: ' + P.error);
+})();
+</script>
+</body>
+</html>

@@ -218,21 +218,46 @@ EOF
 }
 
 # ── verify：只核不写（读身份证 + 重跑探针 + 架构纯度）───────────────────────
+# ★ 档位感知（2026-10-14 需求 B 加）：node 档产 `omc-cli.js` + `pkg-nodejs/`，
+#   **web 档**产浏览器页 + `omc/`（wasm-bindgen web target，没有 omc-cli.js）——
+#   用同一套判据会假红（"缺 omc-cli.js"不是失败，是档不对）。
+is_web_mode() { case "$MODE" in web-*) return 0 ;; *) return 1 ;; esac; }
+
 do_verify() {
   local bad=0
-  local W="$OUT/web/omc-cli.js"
-  [ -f "$W" ] || { err "FATAL: 缺 $W（还没构建？跑 build）"; return 1; }
   [ -f "$OUT/omc.build.json" ] || { err "FATAL: 缺 $OUT/omc.build.json（还没构建？）"; return 1; }
-  # ① 探针：Node 里 getVersion() 出串（需求 A3 的判据）
-  local PROBE_OUT PROBE_RC
-  PROBE_OUT="$(cd "$OUT/web" && timeout 300 node omc-cli.js 'getVersion()' 2>&1)"; PROBE_RC=$?
-  log "   探针: getVersion() rc=$PROBE_RC out='$PROBE_OUT'"
-  [ "$PROBE_RC" = 0 ] || bad=1
+  if is_web_mode; then
+    # web 档：宿主模块在 `web/omc/`，页面是 `web/index.html`（+ simulator/ 等）
+    local MODJS="$OUT/web/omc/OpenModelicaCompiler.js"
+    [ -f "$MODJS" ] || { err "FATAL: 缺 $MODJS（web 档还没构建？跑 MODE=web-release build）"; return 1; }
+    [ -f "$OUT/web/index.html" ] || { err "FATAL: 缺 web/index.html（页面没装配上）"; return 1; }
+    log "   档位: web-release（宿主模块 + 页面）"
+  else
+    local W="$OUT/web/omc-cli.js"
+    [ -f "$W" ] || { err "FATAL: 缺 $W（还没构建？跑 build）"; return 1; }
+  fi
+  # ① 探针：**node 档**在 Node 里跑 getVersion()（需求 A3 的判据）；
+  #    **web 档**没有 Node 入口 ⇒ 用产物形状断言代替（真浏览器验收在 test/browser/）。
+  local PROBE_OUT="" PROBE_RC=0
+  if ! is_web_mode; then
+    PROBE_OUT="$(cd "$OUT/web" && timeout 300 node omc-cli.js 'getVersion()' 2>&1)"; PROBE_RC=$?
+    log "   探针: getVersion() rc=$PROBE_RC out='$PROBE_OUT'"
+    [ "$PROBE_RC" = 0 ] || bad=1
+  else
+    # web 档的形状判据：wasm-bindgen 的 web 产物必须带 .js 胶水 + 对应 _bg.wasm
+    if [ -f "$OUT/web/omc/OpenModelicaCompiler_bg.wasm" ]; then
+      log "   探针: web 档产物形状 ✓（omc/*.js + *_bg.wasm）"
+    else
+      err "   web 档缺 omc/OpenModelicaCompiler_bg.wasm"; bad=1
+    fi
+  fi
   # 判据：非空 + 是版本形状。⚠️ 别只认 'OpenModelica|1.x'：本仓产物实测吐 `"-rust"`
   # （构建树无 git tag ⇒ 上游 omc_git_revision.cmake 走 SOURCE_REVISION=unknown 降级路径）。
   # 且**反向**必须能红：空输出/报错文本不算过（下面两条 + id_check 的空产物守卫一起管）。
-  printf '%s' "$PROBE_OUT" | grep -qE '^-?"?[A-Za-z0-9_.+-]+"?$' || { err "   探针输出不是单个版本串：$PROBE_OUT"; bad=1; }
-  printf '%s' "$PROBE_OUT" | grep -qiE 'error|traceback|cannot|failed' && { err "   探针输出里有错误字样"; bad=1; }
+  if ! is_web_mode; then
+    printf '%s' "$PROBE_OUT" | grep -qE '^-?"?[A-Za-z0-9_.+-]+"?$' || { err "   探针输出不是单个版本串：$PROBE_OUT"; bad=1; }
+    printf '%s' "$PROBE_OUT" | grep -qiE 'error|traceback|cannot|failed' && { err "   探针输出里有错误字样"; bad=1; }
+  fi
   # ② 产物 sha/字节（从磁盘读出来）
   local wasm sha bytes
   wasm="$(find "$OUT/web" -name '*_bg.wasm' | head -1)"

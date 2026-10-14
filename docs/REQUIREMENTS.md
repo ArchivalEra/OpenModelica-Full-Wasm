@@ -108,6 +108,12 @@ index-3 → index-1 的**指标约简是符号处理**（Pantelides），**正�
 **B2 验收**：`.mat` 文件头正确（MAT4 魔数）、变量数/采样数与参考一致。
 **B3 反向断言**：语法错误的 `.mo` ⇒ `getErrorString()` 给出可读错误（不许静默）。
 
+**★ 2026-10-14 已结案**：`sh test/browser/run-omc-page.sh` → **10 PASS / 0 FAIL**。
+用的是 **web 档产物**（`MODE=web-release` 构建，与 node 档是两个独立构建）+ 本仓站点
+（`build/promote-site.sh` 发布、`build/serve-coi.py` 带头服务）。
+实测：页面内 `loadFile → true`、`simulate` 出 MAT4（字节级解析：6 矩阵、`data_2` = 5×628、
+`name` = 7 列）；B3 反向给出带定位的可读错误。⚠️ 一条实测坑记在 §7 R7（web 档的导出形状）。
+
 ### 需求 C · 三线（wasm32 / wasm64 / IllegalPerformance）
 
 **C1 线划分 = 一线一架构**（沿用 `Octave-Full-Wasm` 的用户点令，2026-10-12）：
@@ -134,6 +140,14 @@ OM 产物 **91.2 MB** + Octave **29.6 MB**（wasm 合计 **120.8 MB**）；
 调 `omc_eval`、读回 `.mat`。
 **E2 验收**：在 Octave 里 `omc_simulate('BouncingBall')` ⇒ 返回数据矩阵。
 **E3 边界**：只做"命令驱动"，**不做**"`.m` 自动翻译成 Modelica"（那需要符号翻译，不在本单）。
+
+**★ 2026-10-14 已结案**：`sh test/browser/run-omc-bridge.sh` → **11 PASS / 0 FAIL**（在**真
+Octave 引擎**里跑）。实测：`omc_simulate_model('BouncingBall', 'stopTime', 3.0)` ⇒
+**628×7 数据矩阵**（max h=1.0000 / min<0 / 末 −0.9556）；未知模型与未支持命令**都明确报错**。
+⚠️ 形态与需求书原文的差异（三条，都是实测逼出来的）记在 §7 R8：桥是**两段式**
+（`.m` 提交即返回、宿主驱动），因为 `.m` 侧忙等会与宿主**互等死锁**。
+实现件：`bridge/{omc_submit,omc_collect,omc_simulate_model,omc_mat_load,omc_fs_read,omc_fs_write}.m`
++ `bridge/omc_bridge.js`（宿主侧）。
 
 ### 需求 F · 与 `Octave-UI` 的集成（第二档）
 
@@ -250,6 +264,29 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
 - ⇒ 「两引擎同页」**在本机 chromium 上当前不可行**（至少不能都做完整实例化）。
 - 三个候选方向（**未验**，交决策）：惰性化（同时只实例化当前档）/ 缩产物
   （本 OM 产物因 `RUST_OMC_WASM_OPT=OFF` 未做 `-Oz`）/ 分 Worker（超出"同页"定义）。
+
+### R8（2026-10-14）· 需求 E 的形态：桥必须**两段式**（`.m` 侧不许等）
+
+- **原文**（E1）读起来像"`.m` 里调一个函数就拿到结果"（同步风格，像 `OMMatlab.sendExpression`）。
+- **实测**：`.m` 侧**不能等**。Octave 的忙等会占住它所在线程，而宿主读写 MEMFS 也要经同一
+  上下文 ⇒ **两边互等死锁**（实测 Octave 忙 3s 时宿主 evaluate 被阻塞 **2701ms**；
+  现象极具欺骗性：桥的应答文件明明写好了，Octave 却读不到）。
+  `pause()` 更糟：本 build 里把整个 evaluate **挂死**（rc=-99）。
+- **⇒ 落成两段式**：`.m` 只 `omc_submit()`（提交即返回）→ 宿主把请求转给 omc、写回应答 →
+  **宿主再调** `omc_collect(seq)` 取回。任何时刻只有一边在跑。
+- **另外三条硬约束**（同族，见 `docs/HISTORY.md` §5.v）：两个 wasm 的 FS **互不可见**（桥要搬字节）；
+  Octave 必须跑站点的 **worker 模式**（主线程留给桥）；worker 的 `eval` 返回值**不含结果**，
+  取值走 DOM `#output` 通道、大块内容用 base64 分块。
+
+### R7（2026-10-14）· web 档产物的**导出形状**与 node 档不同（需求 B 的坑）
+
+- **原文**（B1）写 `omc_eval(...)`，读起来与 node 档同族。
+- **实测**：web 档是 **wasm-bindgen ESM**：`export function omc_eval / omc_set_env / omc_init …`
+  是**具名导出**，而 `export { initSync, __wbg_init as default }` —— **default 是"初始化"，
+  不是模块对象**。⇒ 必须先 `await mod.default()`，再从**命名空间**取函数。
+  （第一版错拿 `mod.default` 当模块对象 ⇒ `omc.omc_set_env is not a function`。）
+- **另一条**：web 档**没有** `omc-cli.js`（那是 node 档的 launcher）⇒ `--verify` 必须**档位感知**
+  （已改：web 档查 `omc/*.js` + `*_bg.wasm` + `index.html`，不查 CLI）。
 
 ### R5（2026-10-14）· 需求 D 的实质：Octave `load` **认格式、不认语义**
 

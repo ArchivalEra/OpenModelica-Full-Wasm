@@ -287,3 +287,70 @@
   另加"开跑前清自己的旧残留"（上游 shell 被取消时 trap 也不跑）。
 - **教训**：这条是"**照抄了形状、漏了注释里的禁令**"——姊妹仓的注释是**经验载体**，
   抄代码时要连注释一起读。
+
+## 5.v 需求 E 攻关（2026-10-14）：MATLAB 语义桥 `omc_*`
+
+**目标**（需求书 E）：Octave 侧实现 `omc_getVersion`/`omc_simulate`（拼 OM 脚本 → 调 omc → 读回 `.mat`），
+E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱动，不做 `.m`→Modelica 翻译。
+
+**★ 架构（六条实测教训定出来的形状；每条都踩过，写下来免得重走）**
+
+1. **两条 wasm 各占一个文件系统**：Octave 的 MEMFS 与 omc 的 VFS **互不可见**
+   （实测 `omc.wasi_path_open('/tmp/BouncingBall.mo') → -1`，而 Octave 侧明明写好了）
+   ⇒ 桥必须**搬运字节**（宿主从一侧读出、写进另一侧）。
+2. **`__web_fetch_sync__` 那条路被实测排除**：Octave 的 sync XHR 是它唯一的"同步取字节"通道，
+   但我起了 Service Worker 专门试：**async fetch 被 SW 应答、sync XHR 不被拦截**（规范如此）
+   ⇒ 不能靠"宿主现算 + sync XHR 取"。
+3. **`.m` 侧绝不能忙等（死锁）**：Octave 的忙等占住它所在线程，而宿主读写 MEMFS 也要经同一
+   上下文 ⇒ **两边互等**。实测：Octave 忙 3s 时宿主 evaluate 被阻塞 **2701ms**
+   （worker 模式下同样成立，因为 worker 是单线程）。
+   **现象极具欺骗性**：桥的应答文件明明写好了，Octave 却读不到。
+   ⇒ 落成**两段式**：`.m` 只 `omc_submit()`（提交即返回）→ 宿主转给 omc、写回应答 →
+   **宿主再调** `omc_collect(seq)` 取回。任何时刻只有一边在跑。
+4. **`pause()` 在本 build 里把 evaluate 整条挂死**（rc=-99，连后续 `disp` 都不执行）；
+   而 `while toc<t, end` 忙等正常 ⇒ 轮询只能用忙等（但见第 3 条：忙等要分片/让宿主先跑）。
+5. **Octave 必须跑在站点的 worker 模式**（`?worker=1`）：主线程留给宿主桥
+   （主线程模式下 Octave 独占线程 ⇒ 宿主插不进去）。这是"两个 wasm 各自占线程"的必然。
+6. **两条独立通道别混**（worker 模式）：
+   · `OctaveWorker.eval` 的返回是 `{id,kind,rc,err,ms}` —— **不含求值结果**；
+   · `disp` 输出经 postMessage `{kind:'out'}` 落到**页面 DOM 的 `#output`**（不是 page console）。
+   ⇒ 取值只能走 DOM；传输大块内容用 **base64 分块**（`__OMCFS_BEGIN__/_L/_END__` 协议，
+   见 `bridge/omc_fs_read.m` 的头注：直接 `disp` 多行只在第一行带标记，逐字符转义不可逆）。
+
+**交付件**（本仓）：`bridge/{omc_submit,omc_collect,omc_getversion,omc_simulate_async,omc_fs_read,omc_fs_write}.m`
++ `bridge/omc_bridge.js`（宿主侧）+ `test/browser/accept-omc-bridge.mjs` + `run-omc-bridge.sh`。
+**注意**：`bridge/omc_simulate.m` / `omc_call_internal.m` 是**同步版**（第一版设计），
+在真实环境下会死锁 ⇒ 保留作"反面教材 + 单机无宿主时的形状参考"，**正式路径是两段式那套**。
+
+### 5.v.1 ★ **需求 B 结案**（2026-10-14）：页面内端到端
+
+**判据实跑**：`sh test/browser/run-omc-page.sh` → **10 PASS / 0 FAIL**。
+
+- **前置**：`MODE=web-release` 构建出 **web 档产物**（与 node 档是**两个独立构建**；
+  100 个文件：`omc/OpenModelicaCompiler_bg.wasm` 91,423,608 字节 + 官方页面族）。
+  `--verify` 已**档位感知**（web 档没有 `omc-cli.js` —— 那是 node 档的 launcher）。
+- **站点**：新件 `build/promote-site.sh`（**受管辖入口**，三件套 `--dry-run/--verify/--selftest`
+  齐备，自证 5 条含 4 条反向）+ `build/serve-coi.py`（**必须**带头 COOP/COEP ——
+  普通 `http.server` 发不出那两个头 ⇒ 多线程档**静默**落回基础档）。
+  ⚠️ 实测：8765 上原本驻着我早先的探针服务 ⇒ 发布后第一轮 404；**换占端口要按 PID 杀**
+  （`pkill -f 'serve-coi.py 8765'` 匹配不上，那条进程的 argv 是 `.../site-probe/serve.py`）。
+- **页面** `site/omc-bridge.html`（本仓自己的演示 + 探测页）：页面里
+  `loadFile → true`、`simulate` 出 **MAT4**；判据不走"页面自报"，而是**把字节搬到 Node 侧再解析**
+  （6 矩阵、`data_2` = 5×628、`name` = 7 列）——"自报"可以被写错，字节不会。
+- **B3 反向**：语法错的 `.mo` ⇒ `loadFile` 不为 true 且 `getErrorString()` 给出带定位的可读错误。
+- **★ 一个真坑（记进 §7 R7）**：web 档是 **wasm-bindgen ESM** —— 那些 `omc_*` 是**具名导出**，
+  而 `default` 是**初始化函数**（`__wbg_init`），**不是模块对象**。
+  第一版错拿 `mod.default` 当模块对象 ⇒ `omc.omc_set_env is not a function`。
+
+### 5.v.2 两需求合计
+
+| 需求 | 判据 | 结果 |
+|---|---|---|
+| **B**（页面内端到端） | `run-omc-page.sh` | **10 PASS / 0 FAIL** |
+| **E**（MATLAB 语义桥） | `run-omc-bridge.sh` | **11 PASS / 0 FAIL** |
+
+新增件：`site/omc-bridge.html`、`build/promote-site.sh`、`build/serve-coi.py`、
+`test/browser/{accept-omc-page,accept-omc-bridge}.mjs` + 两个 runner、
+`bridge/{omc_submit,omc_collect,omc_simulate_model,omc_simulate_async,omc_fs_read,omc_fs_write,omc_getVersion,omc_mat_load}.m`、
+`bridge/omc_bridge.js`。
+**只读纪律**：对姊妹仓零写入（只借 harness 的 playwright-core 与 8761 站点只读访问）。
