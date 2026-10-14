@@ -31,6 +31,10 @@
 !docs/agents/*
 !docs/agents/**
 
+# ── 跨 agent 通信收件箱（mail/）—— 与额外内容仓同款机制 ──────────────────────
+!mail/
+!mail/*.md
+
 # ── 事实系统（vendored Einfacht 机制层 + 本仓数据层）──────────────────────────
 !reflect-hooks/*
 !zreflect/*.py

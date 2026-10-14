@@ -16,7 +16,7 @@
 |---|---|---|
 | **A** 官方 wasm 目标出产物 | ✅ 结案 | `bash build/113/build-omc-wasm.sh --verify` → rc=0 |
 | **B** 浏览器内跑通模型 | ✅ 结案 | `sh test/browser/run-omc-page.sh` → 10 PASS/0 |
-| **C** 三线 + 架构纯度 | ⚠️ 部分 | 纯度闸门 20 条自证；**wasm64 缺上游 CMake 路径**（悬案 02，工具链侧已证可做） |
+| **C** 两线 + 架构纯度 | ⚠️ 部分 | 纯度闸门 20 条自证；**wasm64 缺上游 CMake 路径**（悬案 02，工具链侧已证可做）；IP 线已删（用户点令） |
 | **D** 与 Octave 的 `.mat` 握手 | ✅ 结案 | `sh test/browser/run-mat-handshake.sh` → 14 PASS/0 |
 | **E** MATLAB 语义桥 `omc_*` | ✅ 结案 | `sh test/browser/run-omc-bridge.sh` → 11 PASS/0 |
 | **F** `Octave-UI` 集成（第二档） | ⬜ 未做 | 在**另一个仓**做（本仓只出接口与产物） |
@@ -28,9 +28,12 @@
    `[[samepage_heap_peak_mib32]]` / `[[samepage_compile_ms500]]`）。
 2. **产物压缩** ✅：`-Oz` 把 web 档 omc **91.4MB → 74.6MB（−18.4%）**，导出/导入面逐名不变，
    两条浏览器验收仍全绿（`WASM_OPT=ON` 生效；构建脚本自带此步并记账）。
-3. **`IllegalPerformance` 线** ✅ 已开线（基线件 `build/113/ilperf-baseline.sh`）；
-   **wasm64 工具链侧可做**（`build/113/build-w64-spike.sh`：`-Zbuild-std` 8.8s 编成、
-   纯度闸门认档、反向断言正确红）——**唯一缺的是上游 CMake 路径**。
+3. **性能线（原 `IllegalPerformance`）** ⏸️ **已按用户点令删除**（2026-10-14，本地 + 远端）。
+   理由（用户原话）：IP 线**只有 wasm64 目标按官方 fork 管线做到生产级之后**才是"脱离官方树的
+   开发"；在那之前开线做出来的东西**没有用**。⇒ 本仓回到**两线**；wasm64 生产级后**重建**该线。
+   **wasm64 工具链侧可做**这条事实**保留**（`build/113/build-w64-spike.sh`：`-Zbuild-std` 8.8s
+   编成、纯度闸门认档、反向断言正确红）—— 它是"重建该线"的**前置**，不是"线已在"的证据。
+   ⚠️ 原线提交**不删**（本仓铁律）：钉在 tag `archive/ilperf-f283610`（f283610 及祖先永久可达）。
 
 ### 产物与位置（仓外）
 
@@ -41,17 +44,17 @@
 | 站点（本仓发布，带头 COOP/COEP） | `…/site-omc/`（含 `oct/` = 姊妹仓运行时**只读拷贝**） | `bash build/promote-site.sh --verify` |
 | 结果 `.mat`（需求 D 输入件） | `…/artifacts/BouncingBall_res.mat` | `[[om_result_mat_bytes]]` |
 
-### 三条线
+### 两条线（2026-10-14 用户点令删 IP 线后）
 
 | 线 | 内容 |
 |---|---|
 | `master` | 全量成果（A–E + 同页 + 压缩）；HEAD 见 `git log -1 --oneline` |
 | `wasm32` | **与 master 同一提交**（已同步；线名对应产物档 = wasm32） |
-| `IllegalPerformance` | 内容与 master 一致（有 6 个 cherry-pick 的历史副本；**不许 force-push** ⇒ 保留）；
-性能线：基线 + wasm64 可行件；**不动默认档**（发运是产品决定） |
 
-> 三线**内容**一致性用 `git diff master <line> --stat` 查（应空）；**历史**是否分叉不重要
-> （一线一架构约束的是**产物档**，不是提交图谱）。
+> **一线一架构**约束的是**产物档**：`master` = wasm64 目标（暂出 wasm32 产物，上游未接路径）、
+> `wasm32` = wasm32。判据 `build/113/check-lane-purity.py`。
+> **`IllegalPerformance` 线已删**（用户点令）：wasm64 生产级后**重建**，不续用旧线；
+> 原线对象钉在 tag `archive/ilperf-f283610`（不删 git 对象的铁律）。
 
 ### 悬案（`.scratch/open-questions/issues/`）
 
@@ -66,8 +69,9 @@
 1. **需求 F 未做**：`Octave-UI` 集成在**另一个仓**；本仓能做的只是产物 + 接口约定。
 2. **wasm64 卡上游**：工具链侧已证可做（可行件在），缺**上游 CMake 路径**；
    或本仓自建一条路径（**另立工单**，不是顺手能做）。
-3. **性能候选一条都还没验**（`IllegalPerformance` 线只有**基线**）：
-   换分配器 / 换 BLAS / libm（姊妹仓负判决）/ 热点定位 —— 每条都要 **A/B 差分门**。
+3. **性能线已删（用户点令）**：`IllegalPerformance` 线在 wasm64 做到生产级前**不开**；
+   性能候选（换分配器 / 换 BLAS / libm / 热点定位，每条要 A/B 差分门）**随之推迟**
+   —— 不在当前两线（master / wasm32）的范围内。
 4. **同页只在桌面 chromium 验过**：移动端内存更紧（未测）；站点只在本机 `127.0.0.1` 跑过。
 5. **docker 不可用**（不在 docker 组 + `sudo` 被 `no_new_privs` 挡）⇒ 构建走宿主直跑；
    容器化另立批次。
@@ -98,32 +102,32 @@
 
 | 键 | 值 | 测于 | 复跑命令 |
 |---|---|---|---|
-| `docs_present` | **3** | 2026-10-14T16:53:20+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
-| `lane_branches_present` | **3** | 2026-10-14T16:53:20+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
-| `om_result_mat_bytes` | **25729** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat` |
-| `om_result_mat_sha` | `f13495579741d616…` | 2026-10-14T16:53:20+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat | cut -d' ' -f1` |
-| `omc_version_string` | **"-rust"** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
-| `omc_wasm32_bytes` | **91152188** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
-| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
-| `omc_wasm32_sha` | `0d9866928e02b2e8…` | 2026-10-14T16:53:20+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
-| `omc_wasm32_verdict` | **ok** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
-| `omc_wasm32_web_files` | **11** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
-| `omc_web_verdict` | **ok** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-web/omc.build.json'))['verdict'])"` |
-| `omc_web_wasm_bytes` | **74579521** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm` |
-| `omc_web_wasm_sha` | `ea0a9f4f4f4bfe3d…` | 2026-10-14T16:53:20+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
-| `samepage_compile_ms500` | **500** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['compile_ms_total'];u=500;print(((int(x)+u-1)//u)*u)"` |
-| `samepage_heap_peak_mib32` | **33554432** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['js_heap_peak_bytes'];u=16*1024*1024
+| `docs_present` | **3** | 2026-10-14T19:23:33+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
+| `lane_branches_present` | **2** | 2026-10-14T19:23:33+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32)$/{n++} END{print n+0}'` |
+| `om_result_mat_bytes` | **25729** | 2026-10-14T19:23:33+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat` |
+| `om_result_mat_sha` | `f13495579741d616…` | 2026-10-14T19:23:33+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat | cut -d' ' -f1` |
+| `omc_version_string` | **"-rust"** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
+| `omc_wasm32_bytes` | **91152188** | 2026-10-14T19:23:33+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
+| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
+| `omc_wasm32_sha` | `0d9866928e02b2e8…` | 2026-10-14T19:23:33+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
+| `omc_wasm32_verdict` | **ok** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
+| `omc_wasm32_web_files` | **11** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
+| `omc_web_verdict` | **ok** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-web/omc.build.json'))['verdict'])"` |
+| `omc_web_wasm_bytes` | **74579521** | 2026-10-14T19:23:33+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm` |
+| `omc_web_wasm_sha` | `ea0a9f4f4f4bfe3d…` | 2026-10-14T19:23:33+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
+| `samepage_compile_ms500` | **500** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['compile_ms_total'];u=500;print(((int(x)+u-1)//u)*u)"` |
+| `samepage_heap_peak_mib32` | **33554432** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['js_heap_peak_bytes'];u=16*1024*1024
 while u < int(x): u *= 2
 print(u)"` |
-| `samepage_octave_bytes` | **29632229** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['octave_wasm_bytes'])"` |
-| `samepage_om_bytes` | **74579521** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['om_wasm_bytes'])"` |
-| `samepage_sum_bytes` | **104211750** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['sum_wasm_bytes'])"` |
-| `toolchain_builtins_bytes` | **117704** | 2026-10-14T16:53:20+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
-| `toolchain_clang` | **24.0.0** | 2026-10-14T16:53:20+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
-| `upstream_pins` | **4** | 2026-10-14T16:53:20+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
-| `w64_spike_bytes` | **353** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['bytes'])"` |
-| `w64_spike_gate_rc` | **0** | 2026-10-14T16:53:20+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['gate_rc'])"` |
-| `whitelist_rules` | **75** | 2026-10-14T16:53:20+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
+| `samepage_octave_bytes` | **29632229** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['octave_wasm_bytes'])"` |
+| `samepage_om_bytes` | **74579521** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['om_wasm_bytes'])"` |
+| `samepage_sum_bytes` | **104211750** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['sum_wasm_bytes'])"` |
+| `toolchain_builtins_bytes` | **117704** | 2026-10-14T19:23:33+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
+| `toolchain_clang` | **24.0.0** | 2026-10-14T19:23:33+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
+| `upstream_pins` | **4** | 2026-10-14T19:23:33+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
+| `w64_spike_bytes` | **353** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['bytes'])"` |
+| `w64_spike_gate_rc` | **0** | 2026-10-14T19:23:33+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['gate_rc'])"` |
+| `whitelist_rules` | **77** | 2026-10-14T19:23:33+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
 
 24 条事实。
 <!-- /AUTO:FACTS -->

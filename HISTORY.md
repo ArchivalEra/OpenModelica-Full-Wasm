@@ -477,3 +477,23 @@ E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱�
   否则"档"只是把抖动换了个单位。
 - 另：改档名后 `check_facts` 又抓到 STATE 里一个**裸数字 500**（“500 点齐全”那句）
   —— 因为 500 已属于某台账键 ⇒ 按纪律改写成引用。**这条闸门管得细，是好事**。
+
+## 5.t.4 删线：`IllegalPerformance` 删除（2026-10-14，用户点令）
+
+- **用户原话**："IP 分支只有 wasm64 目标按照各种官方 fork 管线做出来达到生产级以后才是
+  脱离官方树的开发，所以你现在直接做出来其实没什么用" ⇒ **删线**。
+- **做的**（本仓铁律"不删 git 对象"下的合法删法）：
+  ① 先打 tag `archive/ilperf-f283610` 钉住原 tip（f283610），使该提交及祖先**永久可达**；
+  ② 推 tag 到远端（两步失败一次：第一次被复跑闸门拦，因为台账 `lane_branches_present`
+     还是 3 —— 闸门抓对了，那正是"删了线但台账没跟上"的形状）；
+  ③ 删本地分支 + 删远端分支。
+- **台账变化**：`lane_branches_present` **3 → 2**（走 `--accept-changes=lane_branches_present`
+  显式放行 —— 守卫按设计拒绝了静默改口）。cmd 的 awk 名单同步收成 `^(master|wasm32)$`。
+- **残面清理**（"线已删"必须真的删干净，不留会说假话的句子）：三语 README、STATE、
+  maintaince、AGENTS、FORK-PIPELINE、REQUIREMENTS §2C/§7R7、悬案 02、LANES §5、
+  两个脚本（`ilperf-baseline.sh` / `build-w64-spike.sh`）的头注与 JSON `lane` 字段。
+  **保留的**：`w64_spike_*` 两条事实（"工具链侧可做"是**重建该线的前置**，不是"线已在"）；
+  纯度闸门的 `ilperf` 档名（重建时用）。
+- **顺手抓到的旧假话**：README 三语里"wasm64 仍是**双缺**：上游无路径 **且 Rust 侧没有
+  `wasm64-unknown-unknown` target**"—— 后半句正是**已翻案**的 `R-02-1`（查错了表：
+  `rustup target list` ≠ `rustc --print target-list`）。三语同批改掉，改成 R-02-1 的结论。

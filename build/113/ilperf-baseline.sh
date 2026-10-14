@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# OpenModelica-Full-Wasm — **IllegalPerformance 线的基线测量与档身份**（判据先行）
+# OpenModelica-Full-Wasm — **性能线基线测量与档身份**（判据先行）
 # Copyright (C) 2026 ArchivalEra · SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# ⚠️ **线的状态（2026-10-14 用户点令）**：原 `IllegalPerformance` 线**已删除**
+#   （本地 + 远端）—— 性能线只有在 wasm64 做到生产级后才是"脱离官方树的开发"。
+#   **本脚本保留为资产**：它量的是**当前产物**的档身份与已在的加速面，
+#   是"重建该线"时 A/B 差分门的**基线**（重建前不必重写测量法）。
 #
 # 用途：把"性能线要对比的**基线**"量成**可复跑的数**（不是感觉）。
 #   —— 姊妹仓 §5 的纪律：任何"更快"的分支都要有 **A/B 差分门**（同旗标 + 变异自证），
@@ -62,10 +67,10 @@ V="$(verdict_of "$BYTES" "${SIMD:-0}")"
 [ "$V" = ok ] || { echo "量不到：$V" >&2; exit 1; }
 
 if [ "$JSON" = 1 ]; then
-  printf '{"schema":1,"lane":"IllegalPerformance","wasm":"%s","bytes":%s,"sha256":"%s","simd_ops":%s,"postmvp_ops":%s,"features":"%s","memory_import_export":"%s"}\n' \
+  printf '{"schema":1,"lane":"perf-baseline","wasm":"%s","bytes":%s,"sha256":"%s","simd_ops":%s,"postmvp_ops":%s,"features":"%s","memory_import_export":"%s"}\n' \
     "$WASM" "$BYTES" "$SHA" "${SIMD:-0}" "${POSTMVP:-0}" "$FEATS" "$MEMSHAPE"
 else
-  echo "== IllegalPerformance 基线（只读，不改产物）=="
+  echo "== 性能线基线（只读，不改产物；原 IP 线已删，本件留作重建基线）=="
   echo "   产物        : $WASM"
   echo "   字节        : $BYTES"
   echo "   sha256      : ${SHA%"${SHA#????????????????}"}…"
