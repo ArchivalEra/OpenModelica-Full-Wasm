@@ -84,7 +84,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `docs/REQUIREMENTS.md` | **需求书**：要做什么，每条带实测现状 + 验收判据 |
 | `docs/EINFACHT-INTEGRATION.md` | **Einfacht 接入方法**（含 7 个实测坑） |
 | `docs/FORK-PIPELINE-AND-LESSONS.md` | **fork 管线 + 全部经验**（怎么搬上游、怎么维护） |
-| `docs/LANES-AND-MEMORY-MODEL.md` | **内存架构与分支线经验**（wasm32/wasm64 两档判据、三次混编事故的真实报错、架构纯度闸门三判据、多档站点与择档；含『上游零 wasm64 支持』下三线照样成立的处理）|
+| `docs/LANES-AND-MEMORY-MODEL.md` | **内存架构与分支线经验**（wasm32/wasm64 两档判据、三次混编事故的真实报错、架构纯度闸门三判据、多档站点与择档；含『上游零 wasm64 支持』下一线一架构照样成立的处理）|
 | `maintaince.md` | 方向与地图 |
 | `STATE.md` | 活状态（+ 文末机器块） |
 | `AGENTS.md` | 给 agent 的硬规矩 |

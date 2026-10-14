@@ -159,12 +159,19 @@ python3 zreflect/check_facts_replay.py                     # 每条 cmd 逐字�
 
 本仓的 `zreflect/measure_openmodelica.py` 是**数据层**。它要量的第一批事实（对应 `docs/REQUIREMENTS.md`）：
 
-| 键（建议） | 量什么 | `cmd` 示例（裸命令） |
+> ⚠️ **这个表 2026-10-14 起改为"实际在用的键"**（旧版是建仓期的"建议"表，两处已过时：
+> 键名抄了 `omc.wasm` —— 产物真名是 `OpenModelicaCompiler_bg.wasm`，见 REQUIREMENTS §7 R2；
+> 且写了"三线" —— 性能线已按用户点令删除，现为两线）。
+> **键的唯一产地 = `build/FACTS.json`**（`python3 zreflect/facts.py --render-doc STATE.md` 渲染）；
+> 下表只是分类导览，**加键/改键以数据层代码为准**。
+
+| 键（实际） | 量什么 | 出处 |
 |---|---|---|
-| `omc_wasm_sha` | `omc.wasm` 的 sha256 | `sha256sum <out>/omc.wasm \| cut -d' ' -f1` |
-| `omc_wasm_bytes` | 字节数 | `stat -c%s <out>/omc.wasm` |
-| `omc_wasm64_sha` | wasm64 档产物 sha | 同形 |
-| `lane_ok_lines` | 三线 verdict 全 ok 的条数 | `grep -l '^ok' <dir>/*.verdict \| wc -l` |
-| `msl_version` | 标准库版本 | `grep -m1 ... ` |
+| `omc_wasm32_sha` / `omc_wasm32_bytes` | node 档产物 sha / 字节（**路径从产物身份证读出**，不猜文件名） | `omc-out-wasm32/omc.build.json` |
+| `omc_web_wasm_sha` / `omc_web_wasm_bytes` | web 档产物 sha / 字节（需求 B 用的那份） | `omc-out-web/web/omc/*_bg.wasm` |
+| `omc_wasm32_verdict` / `omc_web_verdict` | 产物身份证 verdict（只有 ok 才可部署） | `omc.build.json` |
+| `lane_branches_present` | 两线分支齐备数（一线一架构） | `git branch --list` + awk |
+| `w64_spike_bytes` / `w64_spike_gate_rc` | wasm64 可行件（重建性能线的前置） | `artifacts/w64-spike.json` |
+| `samepage_*` | 同页成本（**波动量只上档位**，见 STATE 的关键约定） | `artifacts/samepage-cost.json` |
 
 **⚠️ 数字一律引用台账键，正文不手抄** —— 这是 Einfacht 的第一条规矩。
