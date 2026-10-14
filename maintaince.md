@@ -82,7 +82,7 @@ side module（dylink.0，无 memory 段）改成"必须与宿主同档"+ 报告�
 ### ✅ 第四步（需求 D）：**已结案**（2026-10-14）
 `.mat` 握手打通：`bridge/omc_mat_load.m` 做 OM→Octave 的**语义映射**
 （Octave 的 `load` 认格式不认语义）；验收 `sh test/browser/run-mat-handshake.sh`
-→ **11 PASS / 0 FAIL**。**D4 同页成本实测 = 当前不可行**（OM 91.2MB 模块一编译整页崩）
+→ **14 PASS / 0 FAIL**。**D4 同页成本实测 = 当前不可行**（OM 91.2MB 模块一编译整页崩）
 ⇒ 悬案 04 交决策（惰性/缩产物/分 Worker）。
 
 ### 第五步：需求 E（`omc_*` 语义桥）→ 第六步：需求 F（`Octave-UI` 第二档集成）

@@ -220,7 +220,7 @@
 ### 5.w ★ **需求 D 结案**（2026-10-14）：`.mat` 握手打通
 
 **判据实跑**（两条，都是真浏览器）：
-- `sh test/browser/run-mat-handshake.sh` → **11 PASS / 0 FAIL**（D2 正例 5 / D3 反向 3 / 基线 2 / 注入 1）
+- `sh test/browser/run-mat-handshake.sh` → **14 PASS / 0 FAIL**（D2 正例 8 / D3 反向 3 / 基线 2 / 注入 1）
 - `sh test/browser/selftest-mat-bridge.sh` → **8 PASS / 0 FAIL**（三类用例齐备）
 - `sh build/113/measure-samepage-cost.sh` → rc=0（D4 的量，见下）
 
@@ -230,7 +230,7 @@
   实测 `load` 返回 struct（字段 = `Aclass`/`name`/`description`/`dataInfo`/`data_1`/`data_2`），
   但**不产生** `h`/`v`。
 - **新件 `test/node/produce-result-mat.mjs`**：可复跑地产出结果 `.mat`
-  （跑真仿真 → 从 wasm VFS 取件 → 落 `artifacts/`）。**这是"换机器也能跑"的关键**
+  （跑真仿真 → 从 wasm VFS 取件 → 落 `artifacts/BouncingBall_res.mat`）。**这是"换机器也能跑"的关键**
   （此前那份在 `/tmp` 里，是手搓的临时物）。
 - **新件 `test/browser/accept-mat-handshake.mjs` + `run-mat-handshake.sh`**（D2/D3 验收）与
   **`test/browser/selftest-mat-bridge.sh`**（桥接函数自证台）。
@@ -259,3 +259,19 @@
 **只读纪律**：本批对姊妹仓（`Octave-Full-Wasm`）**零写入** —— 只借它的
 `harness/node_modules`（playwright-core）与 8761 站点的**只读**访问；套件、桥接函数、
 夹具全部从本仓注入（用户点令：不许改本仓以外任何仓库的文件）。
+
+### 5.w.1 完工审计（2026-10-14，逐条对照需求书 D）
+
+- **D1**（OM 产 `.mat` ⇒ Octave 读）：✅ `bridge/omc_mat_load.m` 是那层语义映射；
+  产出器 `test/node/produce-result-mat.mjs` 可复跑（真仿真 → VFS 取件）。
+- **D2**（`BouncingBall_res.mat` 喂进 Octave，`load` 成功且**数值合理**）：
+  ✅ 文件名逐字对上需求书点名的 `BouncingBall_res.mat`；
+  "数值合理"**对解析解**（不是"看着差不多"）—— 4 条硬判据：
+  时间步长 = 3/500（精确）、`h(1) = 1`（初值条件，精确）、
+  `h(2)` 对 `1 − ½·g·dt²` 相对误差 < 1e-6、无超调（max = 1）且真弹到地下（min < 0）。
+- **D3**（非 `.mat` ⇒ 明确报错）：✅ 三条反向断言（非 mat / 截断的 MAT4 / 路径不存在）。
+- **D4**（同页成本）：✅ 已测 —— 结论是"当前不可行"（见 §7 R6 与悬案 04）。
+- **合计**：`run-mat-handshake.sh` = **14 PASS / 0 FAIL**；桥接自证台 = **8 PASS / 0 FAIL**。
+- **用户约束（不许改本仓以外其他仓库的文件）**：✅ 姊妹仓 `git status` **空**（零写入）；
+  只借其 `harness/node_modules` 与 8761 站点只读访问；本仓临时物已清理
+  （harness 里剩下的 `_*.mjs` 是姊妹仓自己 9 月的遗留与它的 `check-boot.sh` 产物，未动）。

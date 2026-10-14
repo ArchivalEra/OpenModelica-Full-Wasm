@@ -23,7 +23,7 @@ import { chromium } from 'playwright-core';
 import { readFileSync } from 'node:fs';
 const URL = process.argv[2] || 'http://127.0.0.1:8761/';
 const REPO = process.env.OMC_REPO || '/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm';
-const GOOD = '/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat';
+const GOOD = '/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat';
 const bridge = readFileSync(REPO + '/bridge/omc_mat_load.m', 'utf8');
 const good = readFileSync(GOOD);
 

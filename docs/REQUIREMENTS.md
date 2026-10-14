@@ -259,7 +259,7 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
   但**不产生** `h`/`v` 这些变量 —— 因为 OM 的语义是「变量名在 `name` 矩阵的**列**里、
   时间序列在 `data_2` 的**行**里」，而 `load` 只把顶层矩阵名当变量名。
 - **⇒ 握手点就是这一层语义映射**，本仓提供 `bridge/omc_mat_load.m`（读取 + 消毒 + 元信息）。
-  验收：`sh test/browser/run-mat-handshake.sh` → **11 PASS / 0 FAIL**（D2 正例 + D3 反向）。
+  验收：`sh test/browser/run-mat-handshake.sh` → **14 PASS / 0 FAIL**（D2 正例 8 + D3 反向 3）。
 - **两处真语义（都是喂真产物才暴露，逐条记）**：
   · `dataInfo` 的 **channel 0 = 独立变量 `time`**（非 1/2）——上游 writer 注释逐字
     "The independent variable (`time`): data_2 row 1."；第一版只认 1/2 ⇒ `time` 被跳过；

@@ -95,7 +95,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 **需求 D 已结案**（2026-10-14）：`.mat` 握手打通 —— OM 仿真结果喂进 **Octave 引擎**
 （真浏览器、8761 站点）读出变量且数值合理；判据 `sh test/browser/run-mat-handshake.sh`
-→ **11 PASS / 0 FAIL**（含 D3 反向断言）。握手点是**语义映射**而非 `load`：
+→ **14 PASS / 0 FAIL**（含 D3 反向断言）。握手点是**语义映射**而非 `load`：
 Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩阵的列里）⇒
 本仓 `bridge/omc_mat_load.m` 补这一层。**D4 同页成本实测 = 当前不可行**
 （OM 91.2MB 模块一编译整页崩），悬案 04 交决策。

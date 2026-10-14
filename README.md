@@ -95,7 +95,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 **需求 D 已结案**（2026-10-14）：`.mat` 握手打通 —— OM 仿真结果喂进 **Octave 引擎**
 （真浏览器、8761 站点）读出变量且数值合理；判据 `sh test/browser/run-mat-handshake.sh`
-→ **11 PASS / 0 FAIL**（含 D3 反向断言）。握手点是**语义映射**而非 `load`：
+→ **14 PASS / 0 FAIL**（含 D3 反向断言）。握手点是**语义映射**而非 `load`：
 Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩阵的列里）⇒
 本仓 `bridge/omc_mat_load.m` 补这一层。**D4 同页成本实测 = 当前不可行**
 （OM 91.2MB 模块一编译整页崩），悬案 04 交决策。
@@ -131,11 +131,11 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (20785 bytes)
+- `HISTORY.md` (22153 bytes)
 - `LICENSE` (34523 bytes)
 - `README.de.md` (6881 bytes)
 - `README.zh.md` (6092 bytes)
-- `STATE.md` (17173 bytes)
+- `STATE.md` (17161 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_mat_load.m` (7687 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
@@ -145,7 +145,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
 - `build/113/measure-samepage-cost.sh` (8144 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (7469 bytes)
+- `build/FACTS.json` (7461 bytes)
 - `build/gates-selftest.sh` (3746 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
@@ -155,7 +155,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
-- `docs/REQUIREMENTS.md` (17052 bytes)
+- `docs/REQUIREMENTS.md` (17056 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
 - `docs/agents/issue-tracker.md` (3217 bytes)
@@ -171,13 +171,13 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `reflect-hooks/install.sh` (575 bytes)
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
-- `test/browser/accept-mat-handshake.mjs` (8613 bytes)
+- `test/browser/accept-mat-handshake.mjs` (9671 bytes)
 - `test/browser/run-mat-handshake.sh` (1893 bytes)
-- `test/browser/selftest-mat-bridge.sh` (6689 bytes)
+- `test/browser/selftest-mat-bridge.sh` (6685 bytes)
 - `test/node/accept-omc-getversion.mjs` (4653 bytes)
 - `test/node/accept-omc-simulate.mjs` (7828 bytes)
 - `test/node/manifest.json` (1279 bytes)
-- `test/node/produce-result-mat.mjs` (3756 bytes)
+- `test/node/produce-result-mat.mjs` (3803 bytes)
 - `test/node/run.sh` (1019 bytes)
 - `upstream/openmodelica` (4096 bytes)
 - `zreflect/__init__.py` (112 bytes)
@@ -203,7 +203,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (13190 bytes)
+- `zreflect/measure_openmodelica.py` (13186 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

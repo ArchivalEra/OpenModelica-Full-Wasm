@@ -14,7 +14,7 @@
 //
 // 用法：HARNESS=<harness 目录> node test/browser/accept-mat-handshake.mjs [URL] [MAT]
 //   默认 URL = http://127.0.0.1:8761/（姊妹仓 Octave 站点）
-//   默认 MAT = /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat
+//   默认 MAT = /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat
 import { chromium } from 'playwright-core';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -24,7 +24,7 @@ import { join } from 'node:path';
 //   报"桥接函数不在 /mnt/hdd/bridge/omc-mat-load.m"）。⇒ 用环境变量 + 绝对默认。
 const REPO = process.env.OMC_REPO || '/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm';
 const URL = process.argv[2] || 'http://127.0.0.1:8761/';
-const MAT = process.argv[3] || '/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat';
+const MAT = process.argv[3] || '/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat';
 const BRIDGE = join(REPO, 'bridge', 'omc_mat_load.m');
 
 let pass = 0, fail = 0;
@@ -106,9 +106,22 @@ ok('③b D2：变量进了工作区且形状/首末值对（h 长度 628、首 1
    `out=${JSON.stringify(r.out.slice(0, 200))} err=${r.err.slice(0, 160)}`);
 
 // ④ 数值合理性：与"真值"对——h 单调跌到负（有弹跳）、max(h)=1、min 在 (-1,0)
-r = await ev("disp(max(h)); disp(min(h)); disp(max(abs(h - (1 - 0.5*9.81*time.^2))))");
-ok('④ D2：数值合理（max h=1、min h∈(-1,0)、抛物线残差小）',
-   r.rc === 0 && /1\b/.test(r.out), `out=${JSON.stringify(r.out.slice(0, 200))} err=${r.err.slice(0, 160)}`);
+// ★ "数值合理"要**对解析解**，不是"看起来差不多"（前者能证伪，后者不能）：
+//   第一次弹跳前是自由落体 h(t) = 1 − ½·g·t²，所以
+//     · h(1) 必须精确等于 1（初值条件）
+//     · h(2) 必须 ≈ 1 − ½·9.81·dt²（dt = 3/500 = 0.006 ⇒ 0.9998234…）
+//     · 全过程 max(h) = 1（没有超调）、min(h) < 0（真的弹到地下再 reinit）
+//   这些数来自**方程本身**，不是从产物里抄的 ⇒ 产物一改错就会红。
+// ⚠️ 取时间轴要用 **time_2**（`time` 撞 Octave 内建 ⇒ 桥接主动改名，见 bridge 注释）
+r = await ev("dt = time_2(2) - time_2(1); disp(dt); disp(h(1)); disp(h(2)); disp(1 - 0.5*9.81*dt^2); disp(max(h)); disp(min(h))");
+const nums = String(r.out).match(/-?\d+\.?\d*(?:e-?\d+)?/g) || [];
+const [dt, h1, h2, h2exact, hmax, hmin] = nums.map(Number);
+ok('④a D2：时间轴步长 = 3/500（对解析解）', Math.abs(dt - 0.006) < 1e-12, `dt=${dt}`);
+ok('④b D2：h(1) 精确 = 1（初值条件）', h1 === 1, `h(1)=${h1}`);
+ok('④c D2：h(2) 对解析解 1−½g·dt²（相对误差 <1e-6）',
+   Math.abs(h2 - h2exact) / Math.abs(h2exact) < 1e-6, `h(2)=${h2} 解析=${h2exact}`);
+ok('④d D2：无超调 + 真弹到地下（max h=1、min h<0）',
+   hmax === 1 && hmin < 0, `max=${hmax} min=${hmin}`);
 
 // ⑤ der(h) 这种非法名被消毒（实测踩到的那个坑）
 r = await ev("disp(exist('der_h_','var')); disp(exist('der(h)','var'))");

@@ -154,7 +154,7 @@ def measure():
                 "build/%s/omc.build.json" % sub, "web 包文件数（布局收口完整性）")
     # ── 需求 D（.mat 握手）：产物 + 同页成本的量 ────────────────────────────────
     # 判据物：OM 产出的结果 .mat（由 test/node/produce-result-mat.mjs 可复跑产出）。
-    res_mat = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "OmcHandshakeDemo_res.mat")
+    res_mat = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "BouncingBall_res.mat")
     if _exists(res_mat):
         facts["om_result_mat_bytes"] = fact(
             os.path.getsize(res_mat), "stat -c%%s %s" % res_mat,

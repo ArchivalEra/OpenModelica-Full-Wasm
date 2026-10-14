@@ -106,7 +106,7 @@ Gegenprobe). Ursache und Fix vollständig in
 **Anforderung D ist abgeschlossen** (2026-10-14): Der `.mat`-Handshake funktioniert —
 das OM-Simulationsergebnis geht in den **Octave-Engine** (echter Browser, Site 8761),
 die Variablen sind lesbar und die Zahlen plausibel; Prüfbefehl
-`sh test/browser/run-mat-handshake.sh` → **11 PASS / 0 FAIL** (mit D3-Gegenprobe).
+`sh test/browser/run-mat-handshake.sh` → **14 PASS / 0 FAIL** (mit D3-Gegenprobe).
 Der Handshake-Punkt ist die **Semantik-Abbildung**, nicht `load`: Octaves `load` kennt
 das MAT4-Format, erzeugt aber keine `h`/`v` (die Namen stehen in den Spalten der
 `name`-Matrix) ⇒ dafür `bridge/omc_mat_load.m`. **D4 (Kosten auf derselben Seite)
