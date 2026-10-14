@@ -87,14 +87,13 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 **上游 pin**：`upstream/openmodelica` = `cbff5eb7…`、`OMCompiler/3rdParty` = `ae7e482a…`。
 
 **还没做的**（别混）：浏览器端到端跑模型（需求 B）与 `.mat` 握手（需求 D）。
-**下一步 = 需求 B**（未结案，悬案 03）：Node 侧 `loadFile`/`getClassNames`/`translateModel`
-已通（编译器前端全通、模型 wasm 真被写出）；`simulate()` 卡在
-`Import #0 "env" "rt_host_lin_solve": function import requires a callable`
-—— **根因已定位**：交接件里的运行时 blob 是**宿主委派版**（stage1 native 编的，
-带 `host_lin_solve`），stage2 按文件名复用了它；**修补已进构建脚本但未实测**
-（关机打断重建）。复跑判据：`node test/node/accept-omc-simulate.mjs`（当前 6 PASS / 3 FAIL）。
-**修补已实测生效**（新 runtime blob `df866d92…`，`env.rt_host_lin_solve` 导入 **1 → 0**），
-但产物要在 stage2 收尾后重新 `--verify` 才算数。
+**需求 B 已结案**（2026-10-14）：模型在 wasm 里**跑完**并产出 **MAT4** 结果文件
+（`LOG_SUCCESS | The initialization finished successfully`），`h` 的 500 点曲线
+是真物理（从 1.0 衰减 + 弹跳）。判据：`node test/node/accept-omc-simulate.mjs`
+→ **10 PASS / 0 FAIL**（含反向用例）。根因与修补全过程见
+`.scratch/open-questions/issues/03-simulate-needs-host-solver.md`（`resolved`）。
+
+**下一步 = 需求 D**（把结果 `.mat` 喂进 Octave 引擎 `load` 通 + 数值合理）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
@@ -121,17 +120,17 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (1646 bytes)
-- `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (5249 bytes)
+- `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (6171 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (14985 bytes)
+- `HISTORY.md` (17584 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (6504 bytes)
-- `README.zh.md` (5790 bytes)
-- `STATE.md` (13512 bytes)
+- `README.de.md` (6218 bytes)
+- `README.zh.md` (5570 bytes)
+- `STATE.md` (14458 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
-- `build/113/build-omc-wasm.sh` (20292 bytes)
+- `build/113/build-omc-wasm.sh` (20049 bytes)
 - `build/113/check-lane-purity.py` (20889 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
@@ -155,7 +154,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `docs/agents/upstream-issues.md` (12882 bytes)
 - `doctor.json` (645 bytes)
 - `gates-selftest.sh` (13572 bytes)
-- `maintaince.md` (4508 bytes)
+- `maintaince.md` (5154 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
 - `reflect-hooks/Einfacht.env.example` (1606 bytes)
 - `reflect-hooks/einfacht-env.sh` (4231 bytes)
@@ -163,7 +162,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
 - `test/node/accept-omc-getversion.mjs` (4653 bytes)
-- `test/node/accept-omc-simulate.mjs` (5741 bytes)
+- `test/node/accept-omc-simulate.mjs` (7828 bytes)
 - `test/node/manifest.json` (1279 bytes)
 - `test/node/run.sh` (1019 bytes)
 - `upstream/openmodelica` (4096 bytes)

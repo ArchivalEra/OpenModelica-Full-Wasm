@@ -7,7 +7,7 @@
 //   ③ 仿真：`omc_simulate(...)` 跑完且 `resultFile` 非空
 //   ④ **产物层**：那个 .mat 真存在、非空、前 4 字节是 MAT4/MAT5 魔数（不是空壳也不是错误页）
 //   ⑤ 反向断言：坏模型（语法错）⇒ **必须**报错（判据不是恒真）
-import { existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -82,20 +82,52 @@ const m = blob.match(/resultFile\s*=\s*"([^"]*)"/);
 const resultFile = m ? m[1] : '';
 ok('③b resultFile 非空', resultFile.length > 0, `resultFile=${JSON.stringify(resultFile)}`);
 
-// ④ 产物层：.mat 真存在 + 魔数（MAT4 = "MAT4" ASCII；MAT5 = 128 字节头含 "MATLAB 5.0"）
-const cand = [resultFile, '/tmp/BouncingBall_res.mat', '/tmp/BouncingBall_res.arrow'].filter(Boolean);
-let matPath = cand.find((p) => { try { return statSync(p).isFile() && statSync(p).size > 0; } catch { return false; } });
-ok('④a 结果文件在磁盘上且非空', !!matPath, `试过 ${JSON.stringify(cand)}`);
-if (matPath) {
-  const { readFileSync } = await import('node:fs');
-  const head = readFileSync(matPath).subarray(0, 128);
-  const is4 = head.subarray(0, 4).toString('latin1') === 'MAT4';
-  const is5 = head.subarray(0, 128).toString('latin1').startsWith('MATLAB 5.0 MAT-file');
-  const isArrow = head.subarray(0, 6).toString('latin1') === 'ARROW1';
-  ok('④b 结果文件头合法（MAT4 / MAT5 / ARROW1）', is4 || is5 || isArrow,
-     `head=${JSON.stringify(head.subarray(0, 16).toString('latin1'))}`);
-  console.log(`     结果文件: ${matPath} (${statSync(matPath).size} 字节)` +
-              `${is4 ? ' [MAT4]' : is5 ? ' [MAT5]' : isArrow ? ' [ARROW1]' : ''}`);
+// ④ 产物层：结果文件**从 wasm VFS 里取出来**（不是宿主磁盘 —— 本产物跑在 wasm 内，
+//    文件写在 omc 自己的 VFS 里；宿主 fs 上本来就没有，那是设计如此不是失败）。
+//    取件协议（照 .d.ts 的契约，2026-10-14 实测）：
+//      `wasi_path_open(path) → fd`（-1 = 不在）；`wasi_fd_read(fd) → Uint8Array`（整文件）。
+let matBytes = null, matPath = resultFile || '/tmp/BouncingBall_res.mat';
+{
+  const fd = omc.wasi_path_open(matPath);
+  if (typeof fd === 'number' && fd >= 0) {
+    try { matBytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
+  }
+}
+const matSize = matBytes ? matBytes.length : 0;
+ok('④a 结果文件在 VFS 里且非空', matSize > 0, `path=${matPath} size=${matSize}`);
+if (matBytes && matSize > 0) {
+  const head = Buffer.from(matBytes.subarray(0, 128));
+  // ⚠️ **MAT4 没有 ASCII 魔数**（本探针第一版就错在这：照 MAT5 的 `MATLAB 5.0 MAT-file`
+  //    去判 ⇒ 假红）。MAT4 的判据是**类型码序列**：
+  //      每个顶层项 = int32 类型码 + int32 字节数 + 载荷；`33` = miMATRIX，
+  //      `04` = miUINT32，`0b` = miCOMPRESSED/miUTF8… 首项必是 33 00 00 00。
+  //    更硬的旁证：**变量名字符串**（`Aclass` + 首个变量名，实测 `A1` / `bt`）。
+  //    出处：上游 openmodelica_sim_meta/src/result.rs:166 `Mat4Stream::begin` /
+  //          :361 `openmodelica_mat_writer::write_mat4`。
+  const typeCode = head.readUInt32LE(0);
+  const mrows = head.readUInt32LE(4);
+  const ncols = head.readUInt32LE(8);
+  const imagf = head.readUInt32LE(12);
+  const nameLen = head.readUInt32LE(16);
+  const name = head.subarray(20, 20 + Math.max(0, Math.min(nameLen - 1, 32))).toString('latin1');
+  const asText = head.toString('latin1');
+  // MAT4 首矩阵的**精确形状**（出处：上游 openmodelica_mat_writer/src/lib.rs:405-413
+  // `write_mat_header`）：[i32 类型码][i32 mrows][i32 ncols][i32 imagf][i32 名长][名字\0]，
+  // 全小端；首项必是 `Aclass` 这个 char 矩阵（lib.rs:152-153）。类型码 51 = mat_type(5,true)。
+  const is4 = typeCode === 51 && mrows === 4 && ncols === 11 && imagf === 0 && name === 'Aclass';
+  const is5 = asText.startsWith('MATLAB 5.0 MAT-file');
+  const isArrow = asText.slice(0, 6) === 'ARROW1';
+  ok('④b 结果文件头合法（MAT4：类型码 51 + 4x11 Aclass + imagf=0）', is4 || is5 || isArrow,
+     `typeCode=${typeCode} mrows=${mrows} ncols=${ncols} imagf=${imagf} name=${JSON.stringify(name)}`);
+  console.log(`     结果文件: ${matPath} (${matSize} 字节, 取自 VFS)` +
+              `${is4 ? ' [MAT4 ✓]' : is5 ? ' [MAT5]' : isArrow ? ' [ARROW1]' : ' [格式未知]'}`);
+  // ★ 落盘一份到宿主（供需求 D 的 Octave 握手用；也让"产物"可被人肉眼查）
+  const OUT = process.env.OMC_RESULT_DUMP || '/tmp/omc-BouncingBall_res.mat';
+  try {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(OUT, Buffer.from(matBytes));
+    console.log(`     ↳ 已落盘宿主: ${OUT}`);
+  } catch (e) { console.log(`     (落盘宿主失败，不影响判据: ${String(e).slice(0,80)})`); }
 }
 
 // ⑤ 反向断言：坏模型必须报错

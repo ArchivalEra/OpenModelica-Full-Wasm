@@ -69,3 +69,12 @@ side module（dylink.0，无 memory 段）改成"必须与宿主同档"+ 报告�
 
 见 `AGENTS.md` 的「批次收尾」与「提交前」两节（那是权威形态）。一句话：
 **开工预检 → 实验站 → 受管辖入口发运 → 三层 SHA → 全量回归 → 三处一致 → 闸门 → 提交 → 推镜像。**
+
+### ✅ 第二步（需求 B）：**已结案**（2026-10-14）
+模型在 wasm 里跑完并产出 **MAT4** 结果文件；判据 = `node test/node/accept-omc-simulate.mjs`
+（10 PASS / 0 FAIL，含反向用例）。修的是交接件里那个**宿主委派版** runtime blob
+（`env.rt_host_lin_solve` 导入 1→0），全过程见悬案 03（`resolved`）。
+
+### 第三步：需求 D 起（`.mat` 握手 → 语义桥 → UI 集成）
+结果文件已能落盘（`/tmp/omc-BouncingBall_res.mat`，MAT4，25,729 字节）⇒ 需求 D 的
+输入端就绪；缺的是"喂进 Octave 引擎 `load` 通 + 数值合理"的端到端与反向断言。

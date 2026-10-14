@@ -142,8 +142,6 @@ do_build() {
     -DRUST_OMC_WASM_ARTIFACTS_OUT="$ART" \
     -DRUST_OMC_WASM_OPT="$WASM_OPT" \
     -DRUST_OMC_ENABLE_SUNDIALS=ON \
-    # ⚠️ 用户点令（2026-10-13 深夜）：**ccache 必须开**（上游默认也是 ON：CMakeLists.txt:172）
-    #    + **优先 LLVM 工具**；本批曾图快写 OFF —— 下次开工改回 ON（并用 ccache -s 验命中）。
     -DOM_USE_CCACHE=ON -DOM_COMPILER_CACHE=ccache \
     > "$OUT/stage1.configure.log" 2>&1 || { err "FATAL: stage1 configure 失败（tail $OUT/stage1.configure.log）"; tail -30 "$OUT/stage1.configure.log" >&2; return 1; }
   cmake --build "$S1" --parallel "$JOBS" --target $STAGE1_TARGETS \

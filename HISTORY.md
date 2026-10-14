@@ -181,3 +181,38 @@
   `omc_simulate` 是**六参**签名。
 - **★ 纪律（这一条最重要）**：本批**没有**把需求 B 说成"做完了"——修补未经实测，
   悬案 03 的状态是 `needs-info`，STATE 里也按"未结案"写。
+
+### 5.z.1 ★ **需求 B 结案**（2026-10-14）
+
+**判据实跑**：`node test/node/accept-omc-simulate.mjs` → **10 PASS / 0 FAIL**。
+
+- **仿真真的跑完**：`messages` 含 `LOG_SUCCESS | info | The initialization finished successfully`；
+  `resultFile = "/tmp/BouncingBall_res.mat"`；耗时 ~0.1s。
+- **结果真产出**：25,729 字节 **MAT4**，已从 wasm VFS 取出并落盘宿主（供需求 D 的 Octave 握手）。
+- **数据是真物理**（深验，不是"文件非空"就算过）：`h` 从 1.0 按 `der(v)=-g, der(h)=v`
+  衰减，500 点齐全（min −0.9556 / max 1.0000），含 `when h<=0 reinit(v,-e*pre(v))` 的弹跳。
+- **产物换新**：`OpenModelicaCompiler_bg.wasm` = **91,152,188** 字节（修复前 88.7MB；
+  差额是补上的 in-wasm 求解器），身份证 **verdict=ok**。
+
+**这一天修掉的四处**（都写了注释与自证）：
+
+1. **`runtime_wasip1_interactive.wasm` 的宿主委派版**（昨天定位、今天闭环）：
+   把它移出交接件 ⇒ stage2 自编 web 版 ⇒ `env.rt_host_lin_solve` 导入 **1 → 0**。
+   **闭环实测**：`wasm-objdump -x` 数导入 = 0，仿真随即跑通。
+2. **`build-omc-wasm.sh` 里 `#` 注释插在 cmake 参数续行中间**（dash 把它当新命令 ⇒
+   `stage1 configure` 崩）。修法：注释挪出参数区。
+3. **漏 blob（我昨天 `rm -rf Compiler/wasm-blobs/` 的后果）**：`libc_pic.wasm` /
+   `ModelicaUtilities.wasm` 由 **`openmodelica_wasi_libc` 的 build.rs** 经 `OMC_WASM_BLOB_OUT`
+   汇出，而 cargo 判定"无需重跑" ⇒ 副本没回来。**救法**：从该 crate 的 `OUT_DIR`
+   取回（cargo 缓存还在）。**教训（写进 STATE）**：清产物**只删要删的那个文件**，
+   别删共享输出目录。
+4. **探针自身的两个判据 bug**（都是喂真产物才暴露）：
+   · `omc_eval` 返回**字符串** `"true"`，我写 `=== true` ⇒ 假红；
+   · MAT4 **没有 ASCII 魔数**，我照 MAT5 的 `MATLAB 5.0 MAT-file` 判 ⇒ 假红。
+     正解读上游 `write_mat_header`（`openmodelica_mat_writer/src/lib.rs:405-413`）：
+     `[i32 类型码][mrows][ncols][imagf][名长][名字\\0]`，首矩阵 = 类型码 51 + 4×11 `Aclass`。
+   · 结果文件在 **wasm VFS** 里（不在宿主 fs）—— 取件协议
+     `wasi_path_open(path) → fd` + `wasi_fd_read(fd) → Uint8Array`（照产物 `.d.ts` 契约）。
+
+**用户点令落实情况**：`ccache` 已改回 **ON**（上游默认本也是 ON：`CMakeLists.txt:172`）
+并显式 `-DOM_COMPILER_CACHE=ccache`；`OM_USE_CCACHE=OFF` 的图快写法已删。

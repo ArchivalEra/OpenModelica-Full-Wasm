@@ -96,18 +96,15 @@ Build-Pfad = direkt auf dem Host (Docker ist hier nicht nutzbar).
 
 **Noch nicht gemacht** (nicht verwechseln): Modell Ende-zu-Ende im Browser (Anforderung B)
 und `.mat`-Handshake (Anforderung D).
-**Nächster Schritt = Anforderung B** (offen, Ticket 03): Node-seitig sind
-`loadFile`/`getClassNames`/`translateModel` grün (Compiler-Frontend vollständig, das
-Modul-wasm wird wirklich geschrieben); `simulate()` hängt an
-`Import #0 "env" "rt_host_lin_solve": function import requires a callable`.
-**Ursache gefunden**: der Runtime-Blob im Hand-over ist die **host-delegierende** Variante
-(von stage1 nativ gebaut, mit `host_lin_solve`), und stage2 verwendet ihn per Dateiname
-wieder. **Der Fix steckt im Build-Skript, ist aber noch nicht verifiziert**
-(Neubau wurde vom Herunterfahren unterbrochen). Prüfbefehl:
-`node test/node/accept-omc-simulate.mjs` (aktuell 6 PASS / 3 FAIL).
-**Der Fix ist verifiziert wirksam** (neuer Runtime-Blob `df866d92…`,
-`env.rt_host_lin_solve`-Import **1 → 0**), aber das Artefakt muss nach dem Ende von
-stage2 erneut `--verify` durchlaufen.
+**Anforderung B ist abgeschlossen** (2026-10-14): Das Modell läuft **im wasm** durch und
+erzeugt eine **MAT4**-Ergebnisdatei (`LOG_SUCCESS | The initialization finished
+successfully`); die 500-Punkte-Kurve von `h` ist echte Physik (Abfall von 1.0 + Prellen).
+Prüfbefehl: `node test/node/accept-omc-simulate.mjs` → **10 PASS / 0 FAIL** (mit
+Gegenprobe). Ursache und Fix vollständig in
+`.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (`resolved`).
+
+**Nächster Schritt = Anforderung D** (die `.mat`-Ergebnisdatei im Octave-Engine per
+`load` lesen, mit plausiblen Zahlen).
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend

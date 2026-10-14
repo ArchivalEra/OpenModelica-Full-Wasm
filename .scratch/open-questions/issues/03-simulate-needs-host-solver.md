@@ -1,7 +1,22 @@
 # 03 · 需求 B：simulate() 在 wasm 里跑不起来（宿主要求 `rt_host_lin_solve` 回调）
 
-**Status:** needs-info
+**Status:** resolved
 **Settling:** `bash build/113/build-omc-wasm.sh --verify && node test/node/accept-omc-simulate.mjs` —— rc=0 ⇒ A（模型在 Node 里跑完并产出 `.mat`，需求 B 结案）；rc=1 ⇒ B（仍失败，脚本打印卡在哪一层）；rc=2 ⇒ C（产物目录不在，环境问题不是结论）
+
+## ★ 结案（2026-10-14）
+
+`node test/node/accept-omc-simulate.mjs` → **10 PASS / 0 FAIL**。实跑证据：
+- 仿真跑完：`messages` 含 `LOG_SUCCESS | info | The initialization finished successfully`；
+  `resultFile = "/tmp/BouncingBall_res.mat"`；
+- 结果真产出：25,729 字节，**MAT4**（首矩阵类型码 51 + 4×11 `Aclass` + `imagf=0`，
+  与上游 `openmodelica_mat_writer/src/lib.rs:405-413 write_mat_header` 精确一致），
+  已落盘宿主供需求 D 用；
+- **数据是真物理**（深验）：`h` 从 1.0 起按 `der(v)=-g, der(h)=v` 衰减，500 点齐全
+  （min −0.9556 / max 1.0000 —— 含 `when h<=0 reinit` 的弹跳）；
+- 产物新 sha：`OpenModelicaCompiler_bg.wasm` = **91,152,188** 字节
+  （比修复前 88.7MB 大：多了 in-wasm 求解器）。
+
+**关键复跑命令**：`node test/node/accept-omc-simulate.mjs`（判据住在探针里，含反向用例）。
 
 ## 现象（2026-10-13 实测）
 

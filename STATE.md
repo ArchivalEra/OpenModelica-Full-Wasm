@@ -78,18 +78,18 @@
 
 | 键 | 值 | 测于 | 复跑命令 |
 |---|---|---|---|
-| `docs_present` | **3** | 2026-10-13T22:37:48+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
-| `lane_branches_present` | **3** | 2026-10-13T22:37:48+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
-| `omc_version_string` | **"-rust"** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
-| `omc_wasm32_bytes` | **88701756** | 2026-10-13T22:37:48+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
-| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
-| `omc_wasm32_sha` | `eb1f63c66832eb6f…` | 2026-10-13T22:37:48+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
-| `omc_wasm32_verdict` | **ok** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
-| `omc_wasm32_web_files` | **11** | 2026-10-13T22:37:48+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
-| `toolchain_builtins_bytes` | **117704** | 2026-10-13T22:37:48+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
-| `toolchain_clang` | **24.0.0** | 2026-10-13T22:37:48+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
-| `upstream_pins` | **4** | 2026-10-13T22:37:48+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
-| `whitelist_rules` | **56** | 2026-10-13T22:37:48+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
+| `docs_present` | **3** | 2026-10-14T09:40:35+0800 | `ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l` |
+| `lane_branches_present` | **3** | 2026-10-14T09:40:35+0800 | `git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'` |
+| `omc_version_string` | **"-rust"** | 2026-10-14T09:40:35+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())"` |
+| `omc_wasm32_bytes` | **91152188** | 2026-10-14T09:40:35+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm` |
+| `omc_wasm32_rustc` | **1.98.0-nightly** | 2026-10-14T09:40:35+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])"` |
+| `omc_wasm32_sha` | `0d9866928e02b2e8…` | 2026-10-14T09:40:35+0800 | `sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1` |
+| `omc_wasm32_verdict` | **ok** | 2026-10-14T09:40:35+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))"` |
+| `omc_wasm32_web_files` | **11** | 2026-10-14T09:40:35+0800 | `python3 -c "import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])"` |
+| `toolchain_builtins_bytes` | **117704** | 2026-10-14T09:40:35+0800 | `stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a` |
+| `toolchain_clang` | **24.0.0** | 2026-10-14T09:40:35+0800 | `/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\.[0-9]+\.[0-9]+' | head -1` |
+| `upstream_pins` | **4** | 2026-10-14T09:40:35+0800 | `python3 -c "import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))"` |
+| `whitelist_rules` | **56** | 2026-10-14T09:40:35+0800 | `grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore` |
 
 12 条事实。
 <!-- /AUTO:FACTS -->
@@ -119,17 +119,22 @@
 <!-- /AUTO:GATES -->
 
 
-## 需求 B 的现状（2026-10-13 深夜，**未结案**）
+## 需求 B：**已结案**（2026-10-14）
 
-- **编译器前端在 wasm 里全通**（实测）：`loadFile` true、`getClassNames()` `{BouncingBall}`、
-  `translateModel` true（并真的写出模型 wasm）。
-- **卡在仿真实例化**：`Import #0 "env" "rt_host_lin_solve": function import requires a callable`
-  —— 根因是**交接件里的运行时 blob 是宿主委派版**（stage1 native 编的，带 `host_lin_solve`），
-  stage2 按文件名复用了它。证据链与修补见悬案
-  `.scratch/open-questions/issues/03-simulate-needs-host-solver.md`。
-- **修补已写进构建脚本，但未实测**（关机打断了重建）⇒ 下次开工第一件事：
-  跑 `bash build/113/build-omc-wasm.sh build` 重建，再按悬案 03 的 `Settling:` 验收。
-  **别把这条当好消息读** —— 它是"更接近了"，不是"通过了"。
+**判据**：`node test/node/accept-omc-simulate.mjs` → 见台账（`[[omc_wasm32_verdict]]` 与
+`[[omc_version_string]]` 同批更新）。实跑 = **10 PASS / 0 FAIL**。
+
+- 模型在 wasm 里**跑完**：`LOG_SUCCESS | The initialization finished successfully`，
+  `resultFile=/tmp/BouncingBall_res.mat`。
+- 结果 **25,729 字节 MAT4**，从 wasm VFS 取出并落盘宿主（`/tmp/omc-BouncingBall_res.mat`；
+  供需求 D 的 Octave 握手）。
+- **数据是真物理**（深验）：`h` 从 1.0 按 `der(v)=-g, der(h)=v` 衰减，500 点齐全
+  （min −0.9556 / max 1.0000，含 `when h<=0 reinit` 弹跳）。
+- 根因与修补全过程：悬案 `.scratch/open-questions/issues/03-simulate-needs-host-solver.md`
+  （状态 `resolved`）。
+
+**下一步 = 需求 D**（`.mat` 与 Octave 引擎握手）：结果文件已能落盘，
+缺的是"喂进 Octave 引擎 `load` 通 + 数值合理"的端到端与反向断言。
 
 ## ★ 下次开工第一件事（2026-10-13 关机前留）
 
@@ -144,3 +149,14 @@
 4. ⚠️ **用户点令（2026-10-13）**：构建**必须用 ccache**（上游默认也是 ON：`CMakeLists.txt:172`），
    **优先 LLVM 工具**。本批曾图快写 `OM_USE_CCACHE=OFF` —— 已改回 `ON` 并显式
    `-DOM_COMPILER_CACHE=ccache`；下次用 `ccache -s` 验命中率。
+
+## ★ 本次开工修掉的两个坑（2026-10-14，已闭环，留档免得重犯）
+
+1. **stage2 的 `--target install` 曾没落盘**：昨天 `web/` 一包是旧字节、
+   `stage2/…/web/pkg-nodejs/` 是新字节（两份"真相"）。今天续建到 install 完成后
+   **已验证同步**（产物 sha 与身份证一致，见台账 `[[omc_wasm32_sha]]`）。
+2. **漏 blob（我昨天 `rm -rf Compiler/wasm-blobs/` 的后果）**：`libc_pic.wasm` /
+   `ModelicaUtilities.wasm` 是 `openmodelica_wasi_libc` 的 build.rs 经 `OMC_WASM_BLOB_OUT`
+   汇出的，而 cargo 判定"无需重跑" ⇒ 副本没回来（`Error copying file …: No such file or directory`）。
+   **救法**：从该 crate 的 `OUT_DIR` 取回（cargo 缓存还在）。
+   **教训**：清产物**只删要删的那个文件**，别删共享输出目录。
