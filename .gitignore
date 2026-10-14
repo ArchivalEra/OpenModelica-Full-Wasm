@@ -105,6 +105,7 @@ __pycache__/
 !site/*.js
 !build/promote-site.sh
 !build/serve-coi.py
+!build/113/ilperf-baseline.sh
 !test/browser/accept-omc-page.mjs
 !test/browser/run-omc-page.sh
 !test/browser/accept-omc-bridge.mjs
