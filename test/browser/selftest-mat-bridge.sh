@@ -16,6 +16,8 @@ H="${HARNESS:-/mnt/hdd/octave-wasm-build/harness}"
 URL="${1:-http://127.0.0.1:8761/}"
 [ -d "$H/node_modules/playwright-core" ] || { echo "FATAL: harness 缺 playwright-core" >&2; exit 2; }
 
+# 开跑前清掉**自己**的旧残留（trap 只在正常退出时跑；上游 shell 被取消会留下副本）
+rm -f "$H"/_omc-mat-handshake.*.mjs "$H"/_omc-bridge-selftest.*.mjs 2>/dev/null || true
 RUNF="$H/_omc-bridge-selftest.$$.mjs"
 trap 'rm -f "$RUNF"' EXIT INT TERM
 cat > "$RUNF" <<'JS'
@@ -99,4 +101,10 @@ await browser.close();
 console.log(`\n=== MAT-BRIDGE-SELFTEST ${pass} PASS / ${fail} FAIL ===`);
 process.exit(fail?1:0);
 JS
-cd "$H" && exec node "$RUNF" "$URL"
+# ⚠️ 别写 `exec node`：exec 会把 shell 换掉 ⇒ trap 不跑 ⇒ 临时副本留在 harness 里
+#    （姊妹仓 run.sh:19 逐字警告过同一件事："不能用 exec node：trap 要能在退出时删掉这次副本"）。
+#    实测：本仓第一版就是 exec，跑完留下 _omc-*.mjs 残渣。
+cd "$H"
+node "$RUNF" "$URL"
+rc=$?
+exit "$rc"

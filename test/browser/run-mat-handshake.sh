@@ -24,7 +24,15 @@ MAT="${2:-/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/Bounci
 [ -f "$REPO/test/browser/accept-mat-handshake.mjs" ] || { echo "FATAL: 套件不在" >&2; exit 2; }
 [ -f "$MAT" ] || { echo "FATAL: 输入 .mat 不在（$MAT）—— 先跑 node test/node/produce-result-mat.mjs" >&2; exit 2; }
 
+# 开跑前清掉**自己**的旧残留（trap 只在正常退出时跑；上游 shell 被取消会留下副本）
+rm -f "$H"/_omc-mat-handshake.*.mjs "$H"/_omc-bridge-selftest.*.mjs 2>/dev/null || true
 RUNF="$H/_omc-mat-handshake.$$.mjs"
 trap 'rm -f "$RUNF"' EXIT INT TERM
 cp "$REPO/test/browser/accept-mat-handshake.mjs" "$RUNF"
-cd "$H" && exec node "$RUNF" "$URL" "$MAT"
+# ⚠️ 别写 `exec node`：exec 会把 shell 换掉 ⇒ trap 不跑 ⇒ 临时副本留在 harness 里
+#    （姊妹仓 run.sh:19 逐字警告过同一件事："不能用 exec node：trap 要能在退出时删掉这次副本"）。
+#    实测：本仓第一版就是 exec，跑完留下 _omc-*.mjs 残渣。
+cd "$H"
+node "$RUNF" "$URL" "$MAT"
+rc=$?
+exit "$rc"

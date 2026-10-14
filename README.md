@@ -95,7 +95,9 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 **需求 D 已结案**（2026-10-14）：`.mat` 握手打通 —— OM 仿真结果喂进 **Octave 引擎**
 （真浏览器、8761 站点）读出变量且数值合理；判据 `sh test/browser/run-mat-handshake.sh`
-→ **14 PASS / 0 FAIL**（含 D3 反向断言）。握手点是**语义映射**而非 `load`：
+→ **14 PASS / 0 FAIL**（含 D3 反向断言；"数值合理"是对**解析解**的 4 条硬判据，
+不是"看着差不多"）。对姊妹仓**零写入**（只借它的 harness 与只读站点）。
+握手点是**语义映射**而非 `load`：
 Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩阵的列里）⇒
 本仓 `bridge/omc_mat_load.m` 补这一层。**D4 同页成本实测 = 当前不可行**
 （OM 91.2MB 模块一编译整页崩），悬案 04 交决策。
@@ -131,10 +133,10 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (22153 bytes)
+- `HISTORY.md` (23009 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (6881 bytes)
-- `README.zh.md` (6092 bytes)
+- `README.de.md` (7101 bytes)
+- `README.zh.md` (6244 bytes)
 - `STATE.md` (17161 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_mat_load.m` (7687 bytes)
@@ -172,8 +174,8 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
 - `test/browser/accept-mat-handshake.mjs` (9671 bytes)
-- `test/browser/run-mat-handshake.sh` (1889 bytes)
-- `test/browser/selftest-mat-bridge.sh` (6685 bytes)
+- `test/browser/run-mat-handshake.sh` (2414 bytes)
+- `test/browser/selftest-mat-bridge.sh` (7210 bytes)
 - `test/node/accept-omc-getversion.mjs` (4653 bytes)
 - `test/node/accept-omc-simulate.mjs` (7828 bytes)
 - `test/node/manifest.json` (1279 bytes)
