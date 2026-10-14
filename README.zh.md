@@ -88,6 +88,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `AGENTS.md` | 给 agent 的硬规矩 |
 | `CONTEXT.md` | 术语表（每词一条定义 + 一行复跑证据） |
 | `HISTORY.md` | 历史（append-only） |
+| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信，规矩见 `mail/README.md` |
 
 ## 现行状态
 

@@ -88,6 +88,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `AGENTS.md` | 给 agent 的硬规矩 |
 | `CONTEXT.md` | 术语表（每词一条定义 + 一行复跑证据） |
 | `HISTORY.md` | 历史（append-only） |
+| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信，规矩见 `mail/README.md` |
 
 ## 现行状态
 
@@ -168,8 +169,8 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (38136 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (10571 bytes)
-- `README.zh.md` (9265 bytes)
+- `README.de.md` (10709 bytes)
+- `README.zh.md` (9379 bytes)
 - `STATE.md` (14672 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)

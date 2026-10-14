@@ -97,6 +97,7 @@ bei jedem Commit wörtlich ausführen. Jedes Gate muss **beweisen können, dass 
 | `AGENTS.md` | Harte Regeln für Agenten |
 | `CONTEXT.md` | Glossar (je Begriff eine Definition + ein Wiederholbefehl) |
 | `HISTORY.md` | Historie (append-only) |
+| `mail/` | Posteingang für Cross-Agent-Kommunikation (nur anhängen): Briefe anderer Repos an dieses Repo; Regeln in `mail/README.md` |
 
 ## Aktueller Stand
 
