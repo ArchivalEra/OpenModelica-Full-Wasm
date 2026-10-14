@@ -101,7 +101,7 @@ bei jedem Commit wörtlich ausführen. Jedes Gate muss **beweisen können, dass 
 | `AGENTS.md` | Harte Regeln für Agenten |
 | `CONTEXT.md` | Glossar (je Begriff eine Definition + ein Wiederholbefehl) |
 | `HISTORY.md` | Historie (append-only) |
-| `mail/` | Posteingang für Cross-Agent-Kommunikation (nur anhängen): Briefe anderer Repos an dieses Repo; Regeln in `mail/README.md` |
+| `mail/` | Posteingang für Cross-Agent-Kommunikation (nur anhängen): Briefe anderer Repos an dieses Repo + eigene Außenkorrespondenz; Regeln in `mail/README.md`. Der Content-List-Port-Werbbrief von `Octave-Extra-Content` ist beantwortet (`mail/002`): dieses Repo ist **Produzent** (Tabelle erst, wenn das erste Modell mit MSL-Import landet; Toolchain-Teile kommen nicht in die Tabelle) |
 
 ## Aktueller Stand
 
