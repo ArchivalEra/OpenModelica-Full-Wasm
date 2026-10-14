@@ -126,6 +126,16 @@ liefern eine **MAT4**-Datei (Web-Artefakt + eigenes Site; Prüfbefehl
 (`.m` sendet nur ab und kehrt zurück; der Host treibt) — ein busy-wait auf der `.m`-Seite
 würde sich mit dem Host gegenseitig blockieren (gemessen).
 
+**★ Gleiche Seite ist umgesetzt** (2026-10-14, wasm32): beide Engines laufen **auf einer Seite**,
+der `.mat`-Handshake passiert dort (Prüfbefehl `sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**).
+**Artefakt komprimiert**: `-Oz` bringt das Web-omc von **91,4 MB auf 74,6 MB (−18,4 %)**,
+alle Abnahmen bleiben grün. (Die frühere Aussage "gleiche Seite nicht machbar" ist **widerlegt** —
+das war ein Messfehler, siehe `build/retractions.json`.)
+
+⚠️ **wasm64 fehlt doppelt**: kein Pfad im Upstream-CMake **und kein `wasm64-unknown-unknown`-Target
+auf Rust-Seite** ⇒ der Compiler-Kern lässt sich nicht als wasm64 bauen (das `-sMEMORY64=1` des
+Schwester-Repos ist ein C/C++-Pfad und nicht übertragbar).
+
 **Nächster Schritt = Anforderung C (Performance-Linie)** / **Anforderung F** (Octave-UI).
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**

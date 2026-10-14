@@ -2,6 +2,15 @@
 # OpenModelica-Full-Wasm — **同页成本测量**（悬案 04 / 需求 D4 的结算件）
 # Copyright (C) 2026 ArchivalEra · SPDX-License-Identifier: AGPL-3.0-or-later
 #
+# ⚠️ **2026-10-14 状态：本脚本的口径已作废**（保留作教训，见下）──────
+#   它用 **base64 把 wasm 塞进 JS** 再 `WebAssembly.compile` ⇒ 91MB 模块放大成 ~122MB 字符串
+#   ⇒ 报"整页崩"，于是给出了**错误结论**（"同页不可行"，已登记翻案 `R-R6-1`）。
+#   正解是 `WebAssembly.compileStreaming`（引擎直接消化响应体），见：
+#     · 同页实现与**真实测**：`site/samepage.html` + `test/browser/accept-samepage.mjs`
+#       （跑法 `sh test/browser/run-samepage.sh`，它把实测写回 `samepage-cost.json`）
+#     · 台账键 `samepage_*` 现在的出处是上面那个验收件（`report: accept-samepage.mjs`）
+#   本脚本的三个用例仍能跑（体积项仍然有用），但**内存那一项不要再用它的结论**。
+#
 # 量什么：两个引擎档"同时放进一个页面"的**体积**与**内存峰值**（要么量到、要么明说缺件）。
 #   · 体积：直接读文件（OM 产物 + Octave 产物），不需要浏览器；
 #   · 内存峰值：起真 chromium，把**两个模块都实例化**（fetch + WebAssembly.instantiate），

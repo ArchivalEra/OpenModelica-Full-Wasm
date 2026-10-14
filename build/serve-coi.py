@@ -29,6 +29,8 @@ def main():
             self.send_header("Cross-Origin-Opener-Policy", "same-origin")
             self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
             self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+            # 允许**受控的**跨源取件（同页集成时会用到两个站点；同源部署则用不到）
+            self.send_header("Access-Control-Allow-Origin", "*")
             # wasm 要按 MIME 正确服务（有些浏览器对 application/wasm 严格）
             self.send_header("Cache-Control", "no-store")
             super().end_headers()
@@ -43,6 +45,23 @@ def main():
         def log_message(self, *a):
             if not quiet:
                 super().log_message(*a)
+
+        def do_HEAD(self):
+            # 支持 HEAD（验收/探针用 `curl -sI` 读头）
+            try:
+                f = self.send_head()
+                if f:
+                    f.close()
+            except (ConnectionResetError, BrokenPipeError):
+                pass
+
+        def handle_one_request(self):
+            # 单请求的连接重置（客户端提前断开，curl -sI 常见）**不许**打死整个服务
+            # （实测踩到：一个 ConnectionResetError 让 ThreadingTCPServer 的进程退出了）
+            try:
+                super().handle_one_request()
+            except (ConnectionResetError, BrokenPipeError, TimeoutError):
+                self.close_connection = True
 
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("127.0.0.1", port), H) as httpd:

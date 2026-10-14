@@ -85,7 +85,12 @@ log "== 发布产物 → $SITE =="
 tar -C "$WEB" -cf - . | tar -xf - -C "$SITE"
 log "== 拷本仓页面资产（桥 + 演示页）=="
 mkdir -p "$SITE/bridge"
-for f in "$REPO"/bridge/*.js; do [ -f "$f" ] && cp "$f" "$SITE/bridge/" && log "   + bridge/$(basename "$f")"; done
+# ★ `.m` 也要拷（需求 B/E/D 的桥接函数是 `.m`！只拷 `*.js` 会让页面 fetch 到 404 的 HTML
+#   ⇒ Octave 报 `syntax error near line 1`（实测踩到：同页的 omc_mat_load 加载失败）。
+#   —— 这条是"白名单只拷了一半"的同一族错误：**列清单时漏了扩展名**。
+for f in "$REPO"/bridge/*.js "$REPO"/bridge/*.m; do
+  [ -f "$f" ] && cp "$f" "$SITE/bridge/" && log "   + bridge/$(basename "$f")"
+done
 for f in "$REPO"/site/*.html "$REPO"/site/*.js "$REPO"/site/*.m; do
   [ -f "$f" ] && cp "$f" "$SITE/" && log "   + $(basename "$f")"
 done

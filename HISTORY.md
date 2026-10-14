@@ -354,3 +354,56 @@ E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱�
 `bridge/{omc_submit,omc_collect,omc_simulate_model,omc_simulate_async,omc_fs_read,omc_fs_write,omc_getVersion,omc_mat_load}.m`、
 `bridge/omc_bridge.js`。
 **只读纪律**：对姊妹仓零写入（只借 harness 的 playwright-core 与 8761 站点只读访问）。
+
+## 5.u 同页集成（wasm32）+ 产物压缩 + wasm64 边界（2026-10-14，用户点令）
+
+**用户点令**：读新 doc（`docs/LANES-AND-MEMORY-MODEL.md`）→ 先在 wasm32 做到**同页实现**，
+然后**实现产物压缩**，再开 `IllegalPerformance` 分支**开始发展 wasm64**。
+
+### 5.u.1 ★ R6 翻案：同页本来就可做，是我**测量方法错了**
+
+- **旧结论**（§7 R6）："OM 模块一 `WebAssembly.compile` 就整页崩 ⇒ 同页当前不可行"。
+- **翻案证据**：那次探针把 91MB 模块 **base64 成 ~122MB JS 字符串 + 巨型数组**再编译 ⇒
+  内存放大把它变成"崩"。改用 **`WebAssembly.compileStreaming`**（引擎直接消化响应体）：
+  Octave 29.6MB **92ms** + omc 91.4MB **219ms**，**同页都跑起来**，JS 堆峰值 **23–28MB**。
+- 已登记 `build/retractions.json` 的 `R-R6-1`（翻案台账会拦"它重新出现"），
+  §7 R6 就地标注翻案、保留旧结论作教训。
+
+### 5.u.2 ★ 同页实现（`site/samepage.html`）：8 PASS / 0 FAIL
+
+- 判据 `sh test/browser/run-samepage.sh`：两引擎**同页**跑起来 + **页内 `.mat` 握手**闭环
+  （omc 产出 → 写进 Octave 的 FS → 用需求 D 的 `omc_mat_load` 读出
+  `VARS time_2,h,v,der_h_,der_v_,e_2,g` / `N 628` / `HMAX 1.0000` / `HEND −0.9556`）+
+  坏件反向必须报错 + 内存实测记账。
+- **踩到的四个真坑**（都写进页面注释，别再犯）：
+  ① Octave 必须跑**我们钉的 base 档**：它的 `pickFrom` 按 COI+`hasMemory64` 会自动挑
+     **w64**（本机浏览器支持 memory64！）⇒ 而我们只拷了 base 档 ⇒ 404。
+  ② 资源路径走 `opts.base`（`createOctaveCore` 收的；`locateFile` 不是它对外的口）。
+  ③ 输出汇是 **`opts.host.print`**（更里层）；站点的 `createOctaveHost` 把它接到 `console.log`。
+  ④ **长脚本要写文件 + `source`**（把 `;` 拼接的多语句一把梭给 `eval_string` 会 rc=0 但什么
+     都不发生）；结果也**写文件读回**（stdout 有三层汇，FS 是唯一确定通道）。
+  另：`promote-site.sh` 只拷 `bridge/*.js` 漏了 `*.m` ⇒ 页面 fetch 到 404 的 HTML
+  ⇒ Octave 报 `syntax error near line 1`（"列清单漏扩展名"的同一族错误，已修）。
+
+### 5.u.3 ★ 产物压缩：`-Oz` 91.4MB → 74.6MB（**−18.4%**）
+
+- **又一处误判更正**：早先记的"binaryen 133 与上游旗标不兼容"**是错的** ——
+  binaryen 133 **认** `--enable-bulk-memory`（也认 `-opt` 别名）；当时失败是**我手测时把整套
+  旗标给漏了**（只给一两个 enable ⇒ 报 "requires bulk memory/SIMD"，看起来像版本不兼容）。
+- 用**上游原样整套旗标**（`rust_omc.cmake:829-832` 的 7 个）实测：约 69s，
+  **导出/导入面逐名不变**（538 exports / 116 imports 无差集），替换后
+  **OMC-PAGE 10 PASS/0 + SAME-PAGE 8 PASS/0 全绿**。
+- 已作为**构建脚本自己的步骤**接入（`WASM_OPT=ON` 时跑；旗标自己写、前后字节与耗时记账到
+  `wasm-opt.stats`）—— 不靠上游那条难分辨的 `RUST_OMC_WASM_OPT`。
+
+### 5.u.4 wasm64：**上游 + Rust 双缺**（边界如实记）
+
+- 上游：`check-wasm64-upstream.sh` → `NOT-YET（0 处命中）`（悬案 02 的结算件，rc=1）。
+- **Rust 侧更硬**：`rustup target list` 里**没有 `wasm64-unknown-unknown`**（稳定与
+  nightly-2026-05-31 都没有）⇒ OM 编译器主体（`libopenmodelica_compiler` 是 Rust cdylib）
+  **无法编成 wasm64**。姊妹仓能出 wasm64 是因为 Emscripten 有 `-sMEMORY64=1`（C/C++ 路径），
+  本仓是 Rust+CMake 目标 ⇒ **根因不同，不能照搬**。
+- ⇒ `IllegalPerformance` 线的 wasm64 工作量 = **等上游 Rust target + 上游 CMake 路径**；
+  本仓能先做的是：**把该线的纯度判据与档表先立起来**（文档 §3/§6 已给形状），
+  以及把性能候选（SIMD/多线程/优化求解器）按 §5 的纪律（A/B 差分门、负判决也是资产、
+  不许改默认档）逐条验。

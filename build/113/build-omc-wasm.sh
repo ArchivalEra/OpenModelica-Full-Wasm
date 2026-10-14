@@ -38,15 +38,14 @@ JOBS="${JOBS:-$(nproc)}"
 # 单测期可覆写成小值（--selftest 不跑真构建）
 STAGE1_TARGETS="${STAGE1_TARGETS:-rust_codegen rust_wasm_runtime rust_wasm_artifacts}"
 # ★ 需求 B 的关键修补：**别让 stage2 复用 stage1 的 runtime blob**（见 stage1 完成处那段注释）。
-# wasm-opt（binaryen -Oz 体积优化）：**默认 OFF**，理由是本机实测：
-#   · 上游 rust_omc.cmake:829 的旗标清单（--enable-bulk-memory …）与唯一可用的
-#     binaryen 133（emsdk 版）**不兼容** —— 旧 feature 名在新版被改名
-#     （bulk-memory → bulk-memory-opt，等等），上游因此在自己的 build.rs:801 **panic**
-#     （原文：`wasm-opt failed on .../fmi3_me_adapter.wasm. Fix the binaryen invocation,
-#      or build with -DRUST_OMC_WASM_OPT=OFF to leave every blob unoptimized.`）
-#   · ⇒ 按上游给的正道关掉它。代价**只**是产物偏大（官方 CI 也是 PR 关、发布开，
-#     见 .CI/common.groovy:1483-1487），功能不受影响。
-#   · 想开：WASM_OPT=ON 前先装与上游旗标兼容的 binaryen（或补全 feature 别名）。
+# wasm-opt（binaryen -Oz 体积优化）：**默认 OFF，但已查明可开**（2026-10-14 更新）。
+#   · 早先记的"binaryen 133 与上游旗标不兼容"**是错的**：binaryen 133 **认** `--enable-bulk-memory`
+#     （也认 `-opt` 那个别名）。当时的失败是**我手测时把整套旗标给漏了**
+#     （只给一两个 enable ⇒ 校验期报 "requires bulk memory/simd" 之类，看起来像版本不兼容）。
+#   · 用**上游原样的整套旗标**（rust_omc.cmake:829-832 那 7 个）实测通过：
+#     `-Oz` 把 `OpenModelicaCompiler_bg.wasm` **91,423,608 → 74,579,521 字节（−18.4%）**，
+#     耗时约 69s；且**导出/导入面逐名不变**（538 exports / 116 imports 无差集，实测）。
+#   · ⇒ 要压产物就 `WASM_OPT=ON`（本仓 walk 过一遍，留下这条是为了下次别再误判）。
 WASM_OPT="${WASM_OPT:-OFF}"
 
 log()  { printf '%s\n' "$*"; }
@@ -181,6 +180,40 @@ do_build() {
   cmake --build "$S2" --parallel "$JOBS" --target install \
     > "$OUT/stage2.build.log" 2>&1 || { err "FATAL: stage2 build 失败（tail $OUT/stage2.build.log）"; tail -40 "$OUT/stage2.build.log" >&2; return 1; }
   log "   ② stage2 完成"
+
+  # ── ★ 产物压缩（本仓自己的 wasm-opt 步骤；WASM_OPT=ON 时生效）─────────────────
+  #   为什么自己做而不是靠上游的 `RUST_OMC_WASM_OPT`：上游那条旗标清单在它自己的
+  #   build.rs 里传给 binaryen，报错形式难以分辨（我们曾据此误判"版本不兼容"，见文件头的更正）；
+  #   自己跑的好处是**旗标我自己写、耗时/前后字节都记账**（可复跑、可对账）。
+  #   实测（2026-10-14，binaryen 133）：91,423,608 → 74,579,521 字节（**−18.4%**），约 69s，
+  #   导出/导入面逐名不变。
+  if [ "$WASM_OPT" = "ON" ]; then
+    local WO="$TOOLS/bin/wasm-opt"
+    [ -x "$WO" ] || WO="$(command -v wasm-opt 2>/dev/null || true)"
+    if [ -z "$WO" ] || [ ! -x "$WO" ]; then
+      err "   ⚠️ WASM_OPT=ON 但找不到 wasm-opt ⇒ 跳过压缩（产物偏大，功能不受影响）"
+    else
+      local pw="$S2/OMCompiler/Compiler/web/omc/OpenModelicaCompiler_bg.wasm"
+      if [ -f "$pw" ]; then
+        local before after t0 t1
+        before="$(stat -c%s "$pw")"; t0="$(date +%s)"
+        log "   wasm-opt -Oz：$before 字节 → …"
+        # ★ 旗标照**上游原文**（rust_omc.cmake:829-832 那 7 个）；一次性整套给，
+        #   少给会得到"requires bulk memory/SIMD"这类**看起来像版本不兼容**的错（踩过）。
+        if "$WO" -Oz --enable-bulk-memory --enable-multivalue --enable-mutable-globals \
+           --enable-nontrapping-float-to-int --enable-reference-types --enable-sign-ext --enable-simd \
+           "$pw" -o "$pw.opt" > "$OUT/wasm-opt.log" 2>&1; then
+          mv "$pw.opt" "$pw"
+          after="$(stat -c%s "$pw")"; t1="$(date +%s)"
+          log "   ✅ 压缩：$before → $after 字节（-$(( (before-after)*100/before ))%），$((t1-t0))s"
+          echo "$before $after $((t1-t0))" > "$OUT/wasm-opt.stats"
+        else
+          err "   ⚠️ wasm-opt 失败（见 $OUT/wasm-opt.log）⇒ 保留未压缩产物（功能不受影响）"
+          rm -f "$pw.opt"
+        fi
+      fi
+    fi
+  fi
 
   # ── 收口：把可跑的 web/ 目录摊到 OUT/web（Node 侧 layout：omc-cli.js + pkg-nodejs/ + wasm-blobs/）
   local WEB_SRC="$OUT/install/share/omc/web"

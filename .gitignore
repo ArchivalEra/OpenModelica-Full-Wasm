@@ -109,3 +109,8 @@ __pycache__/
 !test/browser/run-omc-page.sh
 !test/browser/accept-omc-bridge.mjs
 !test/browser/run-omc-bridge.sh
+
+# ── 同页集成（wasm32 双引擎；用户点令 2026-10-14）─────────────────────────────
+!site/samepage.html
+!test/browser/accept-samepage.mjs
+!test/browser/run-samepage.sh

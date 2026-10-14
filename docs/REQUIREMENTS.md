@@ -256,14 +256,21 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
 - **处置**：本仓采用**官方两步链**（stage1 native configure 生成该文件 → stage2 wasm 包），
   见 `build/113/build-omc-wasm.sh` 头注。
 
-### R6（2026-10-14）· 同页成本：**量的结果就是"不可行"**（D4 结案物）
+### R6（2026-10-14）· ~~同页成本：量的结果就是"不可行"~~ → **★ 已翻案：可行**（同日）
 
-- 实测（`build/113/measure-samepage-cost.sh` → `artifacts/samepage-cost.json`）：
-  Octave 模块（29.6 MB）编译成功（710 导出，JS 堆 81.4 MB）；
-  **OM 模块（91.2 MB）一 `WebAssembly.compile` 就整页崩**（`Target page: closed`）。
-- ⇒ 「两引擎同页」**在本机 chromium 上当前不可行**（至少不能都做完整实例化）。
-- 三个候选方向（**未验**，交决策）：惰性化（同时只实例化当前档）/ 缩产物
-  （本 OM 产物因 `RUST_OMC_WASM_OPT=OFF` 未做 `-Oz`）/ 分 Worker（超出"同页"定义）。
+> **翻案（R-R6-1，同日）**：那条"不可行"**是测量方法的错，不是事实**。
+> 旧探针把 91MB 模块 **base64 成 ~122MB 的 JS 字符串 + 巨型数组**再 `WebAssembly.compile`
+> ⇒ 内存放大把它变成"整页崩"。
+> 改用 `WebAssembly.compileStreaming`（引擎直接消化响应体）后实测：
+> Octave 29.6MB **92ms** + omc 91.4MB **219ms**，两者在**同一页面**都跑起来，
+> **JS 堆峰值 23–28MB**；页内 `.mat` 握手 + 反向断言全过（`sh test/browser/run-samepage.sh`
+> → **8 PASS / 0 FAIL**）。⇒ **同页已实现**（`site/samepage.html`）。
+>
+> 旧结论（保留作教训）：
+> - 实测（`build/113/measure-samepage-cost.sh` → `artifacts/samepage-cost.json`）：
+>   Octave 模块（29.6 MB）编译成功（710 导出，JS 堆 81.4 MB）；
+>   OM 模块（91.2 MB）一 `WebAssembly.compile` 就整页崩（`Target page: closed`）。
+> - 三个候选方向里 **"缩产物"仍值得做**（91MB → 更小 ⇒ 加载/编译更快），另两个不再需要。
 
 ### R8（2026-10-14）· 需求 E 的形态：桥必须**两段式**（`.m` 侧不许等）
 

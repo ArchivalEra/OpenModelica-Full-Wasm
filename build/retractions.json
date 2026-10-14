@@ -1,1 +1,12 @@
-{"schema":1,"retractions":[]}
+{
+  "schema": 1,
+  "retractions": [
+    {
+      "id": "R-R6-1",
+      "text": "两引擎**同页**在本机 chromium 上当前不可行",
+      "why": "**测量方法的错，不是事实**：那次探针把 91MB 模块 **base64 成 ~122MB 的 JS 字符串 + 巨型数组**再交给 `WebAssembly.compile` ⇒ 内存放大与字符串上限把它变成'整页崩'。改用 `WebAssembly.compileStreaming`（引擎直接消化响应体）后：Octave 29.6MB **92ms**、omc 91.4MB **219ms**，两者在**同一页面**都跑起来，JS 堆峰值 **23–28MB**。",
+      "evidence": "`sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**（含页内 `.mat` 握手 + 反向）；页面 `site/samepage.html` 的内存表 23–28MB；台账键 `samepage_*`（重测后更新）",
+      "fixed_in": "docs/REQUIREMENTS.md §7 R6（就地标注翻案）；site/samepage.html（同页实现）；test/browser/accept-samepage.mjs（新判据）"
+    }
+  ]
+}

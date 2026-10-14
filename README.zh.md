@@ -109,7 +109,15 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 **628×7 数据矩阵**（判据 `sh test/browser/run-omc-bridge.sh` → **11 PASS / 0 FAIL**）。
 桥是**两段式**（`.m` 提交即返回、宿主驱动）—— `.m` 侧忙等会与宿主互等死锁（实测）。
 
-**下一步 = 需求 C 的性能线**（`IllegalPerformance`）/ **需求 F**（`Octave-UI` 集成）。
+**★ 同页已实现**（2026-10-14，wasm32）：两个引擎在**同一页面**跑通，页内完成 `.mat` 握手
+（判据 `sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**）。**产物已压缩**：
+`-Oz` 把 web 档 omc **91.4 MB → 74.6 MB（−18.4%）**，验收仍全绿。
+（早先"同页不可行"的结论已**翻案**：那是测量方法的错，见 `build/retractions.json`。）
+
+⚠️ **wasm64 仍是双缺**：上游 CMake 无路径 **且 Rust 侧没有 `wasm64-unknown-unknown` target**
+⇒ 编译器主体编不成 wasm64（姊妹仓的 Emscripten `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+
+**下一步 = 需求 C 的性能线**（`IllegalPerformance`：SIMD/多线程/优化求解器）/ **需求 F**（`Octave-UI`）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是

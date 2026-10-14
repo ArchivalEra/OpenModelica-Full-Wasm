@@ -109,7 +109,15 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 **628×7 数据矩阵**（判据 `sh test/browser/run-omc-bridge.sh` → **11 PASS / 0 FAIL**）。
 桥是**两段式**（`.m` 提交即返回、宿主驱动）—— `.m` 侧忙等会与宿主互等死锁（实测）。
 
-**下一步 = 需求 C 的性能线**（`IllegalPerformance`）/ **需求 F**（`Octave-UI` 集成）。
+**★ 同页已实现**（2026-10-14，wasm32）：两个引擎在**同一页面**跑通，页内完成 `.mat` 握手
+（判据 `sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**）。**产物已压缩**：
+`-Oz` 把 web 档 omc **91.4 MB → 74.6 MB（−18.4%）**，验收仍全绿。
+（早先"同页不可行"的结论已**翻案**：那是测量方法的错，见 `build/retractions.json`。）
+
+⚠️ **wasm64 仍是双缺**：上游 CMake 无路径 **且 Rust 侧没有 `wasm64-unknown-unknown` target**
+⇒ 编译器主体编不成 wasm64（姊妹仓的 Emscripten `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+
+**下一步 = 需求 C 的性能线**（`IllegalPerformance`：SIMD/多线程/优化求解器）/ **需求 F**（`Octave-UI`）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
@@ -132,19 +140,19 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (4614 bytes)
+- `.gitignore` (4856 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
-- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (1646 bytes)
+- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (2492 bytes)
 - `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (6171 bytes)
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (28334 bytes)
+- `HISTORY.md` (32389 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (8042 bytes)
-- `README.zh.md` (7070 bytes)
-- `STATE.md` (19442 bytes)
+- `README.de.md` (8766 bytes)
+- `README.zh.md` (7732 bytes)
+- `STATE.md` (21040 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -159,26 +167,26 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `bridge/omc_simulate_model.m` (1790 bytes)
 - `bridge/omc_submit.m` (1492 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
-- `build/113/build-omc-wasm.sh` (21394 bytes)
+- `build/113/build-omc-wasm.sh` (23539 bytes)
 - `build/113/check-lane-purity.py` (20889 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
-- `build/113/measure-samepage-cost.sh` (8144 bytes)
+- `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (8632 bytes)
+- `build/FACTS.json` (9051 bytes)
 - `build/gates-selftest.sh` (3779 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
-- `build/promote-site.sh` (5795 bytes)
+- `build/promote-site.sh` (6134 bytes)
 - `build/provision-upstream.sh` (5930 bytes)
-- `build/retractions.json` (30 bytes)
-- `build/serve-coi.py` (2135 bytes)
+- `build/retractions.json` (950 bytes)
+- `build/serve-coi.py` (3033 bytes)
 - `build/upstream-lock.json` (2909 bytes)
 - `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
 - `docs/LANES-AND-MEMORY-MODEL.md` (7638 bytes)
-- `docs/REQUIREMENTS.md` (20172 bytes)
+- `docs/REQUIREMENTS.md` (20661 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
 - `docs/agents/issue-tracker.md` (3217 bytes)
@@ -195,12 +203,15 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
 - `site/omc-bridge.html` (5956 bytes)
+- `site/samepage.html` (14655 bytes)
 - `test/browser/accept-mat-handshake.mjs` (9671 bytes)
 - `test/browser/accept-omc-bridge.mjs` (18075 bytes)
 - `test/browser/accept-omc-page.mjs` (5493 bytes)
+- `test/browser/accept-samepage.mjs` (6594 bytes)
 - `test/browser/run-mat-handshake.sh` (2414 bytes)
 - `test/browser/run-omc-bridge.sh` (1146 bytes)
 - `test/browser/run-omc-page.sh` (1175 bytes)
+- `test/browser/run-samepage.sh` (1104 bytes)
 - `test/browser/selftest-mat-bridge.sh` (7210 bytes)
 - `test/node/accept-omc-getversion.mjs` (4653 bytes)
 - `test/node/accept-omc-simulate.mjs` (7828 bytes)
@@ -231,7 +242,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (14443 bytes)
+- `zreflect/measure_openmodelica.py` (14852 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

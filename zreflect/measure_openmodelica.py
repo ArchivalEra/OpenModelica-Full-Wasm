@@ -163,20 +163,24 @@ def measure():
         facts["om_result_mat_sha"] = fact(
             sha256sum(res_mat), "sha256sum %s | cut -d' ' -f1" % res_mat,
             "build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat", "结果 .mat 的 sha256")
-    # 同页成本（悬案 04 的实测；三个数都从 JSON 里读出来，不手抄）
+    # 同页（2026-10-14 翻案后的**新口径**：从同页验收件的实测产出读）
+    # ⚠️ 旧的 `samepage-cost.json` 口径**已作废**（base64 测量法的错，见 retractions R-R6-1）；
+    #    现在三个数都来自 `test/browser/accept-samepage.mjs` 的页面实测。
     cost = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "samepage-cost.json")
     if _exists(cost):
         d = _read_json(cost) or {}
-        for key, jk, note in (
-            ("samepage_om_bytes", "om_wasm_bytes", "OM 产物体积（同页成本口径）"),
-            ("samepage_octave_bytes", "octave_wasm_bytes", "Octave 产物体积（同页成本口径）"),
-            ("samepage_sum_bytes", "sum_wasm_bytes", "两引擎 wasm 字节合计"),
-            ("samepage_heap_peak", "js_heap_peak_bytes", "JS 堆峰值（两模块编译后）"),
-        ):
-            if d.get(jk):
-                facts[key] = fact(
-                    d[jk], "python3 -c \"import json;print(json.load(open('%s'))['%s'])\"" % (cost, jk),
-                    "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
+        if d.get("report") == "accept-samepage.mjs":
+            for key, jk, note in (
+                ("samepage_om_bytes", "om_wasm_bytes", "OM 产物体积（同页口径）"),
+                ("samepage_octave_bytes", "octave_wasm_bytes", "Octave 产物体积（同页口径）"),
+                ("samepage_sum_bytes", "sum_wasm_bytes", "两引擎 wasm 字节合计"),
+                ("samepage_heap_peak", "js_heap_peak_bytes", "同页 JS 堆峰值（**真实测**，非估算）"),
+                ("samepage_compile_ms", "compile_ms_total", "两引擎同页编译总耗时（毫秒）"),
+            ):
+                if d.get(jk):
+                    facts[key] = fact(
+                        d[jk], "python3 -c \"import json;print(json.load(open('%s'))['%s'])\"" % (cost, jk),
+                        "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
 
     # ── 需求 B（页面内端到端）与需求 E（语义桥）：产物侧的量 ─────────────────────
     # web 档产物（需求 B 用的那份；与 node 档是**两个独立构建**）

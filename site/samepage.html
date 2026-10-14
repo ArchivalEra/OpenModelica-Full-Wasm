@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>OpenModelica + Octave 同页（wasm32 双引擎）</title>
+<style>
+  body { font: 14px/1.55 system-ui, sans-serif; margin: 16px; max-width: 1100px; }
+  pre { background:#f6f6f6; padding:8px; overflow:auto; max-height:32vh; }
+  h1 { font-size: 18px; } h2 { font-size: 15px; margin-top: 18px; }
+  #status { font-weight: 600; } .ok { color:#0a7a0a } .bad { color:#b00 }
+  table { border-collapse: collapse; } td, th { border: 1px solid #ddd; padding: 3px 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>两个 wasm 引擎同页：OpenModelica（建模/仿真）+ Octave（数值/分析）</h1>
+<p>纯客户端：两个引擎都跑在这个页面里，中间用 <code>.mat</code> 握手（需求 D 的通道），
+   **零服务端计算**。</p>
+<p id="status">未开始</p>
+
+<h2>① 步骤日志</h2>
+<pre id="log"></pre>
+<h2>② 内存/体积实测</h2>
+<table id="mem"><tr><th>时点</th><th>JS 堆</th><th>说明</th></tr></table>
+
+<script type="module">
+// ══ 同页集成（用户点令：先在 wasm32 做到同页实现）══════════════════════════════
+// 判据（见 test/browser/accept-samepage.mjs）：
+//   ① 两个引擎在**同一页面**都真跑起来（Octave 解释器可用 + omc 模块可 eval）；
+//   ② 通道：omc 产 `.mat` → Octave `load` 读出变量（需求 D 的握手在**页内**完成，
+//      不经过 Node，也不经过任何服务端）；
+//   ③ 反向：喂坏件给 Octave 必须明确报错。
+//
+// ★ 实现要点（都是实测踩出来的，别改回去）：
+//   · **同源**是硬要求：两个引擎的 wasm 都从**本站点**取（`./oct/…`、`./omc/…`）。
+//     跨源取 wasm 会被 CORP/COEP 拦（实测 `TypeError: Failed to fetch`）。
+//   · 用 `WebAssembly.compileStreaming`：引擎直接消化响应体，**不造巨型 JS 字符串**
+//     （我早先的探针用 base64 塞 91MB ⇒ 内存放大 + 假崩；那是**测量方法的错**，已翻案）。
+//   · Octave 用**它自己的**胶水（`./oct/lane.js` 择档 → `octave.js`）；我们只调它的
+//     `window.Module.eval_string`（站点既有的稳定入口），**不改**它的加载链。
+const $ = (id) => document.getElementById(id);
+const L = [];
+const log = (s) => { L.push(s); $('log').textContent = L.join('\n'); };
+const st = (s, ok) => { $('status').textContent = s; $('status').className = ok === true ? 'ok' : ok === false ? 'bad' : ''; };
+const HEAP = () => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : -1);
+function memRow(t, note) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${t}</td><td>${HEAP()} MB</td><td>${note}</td>`;
+  $('mem').appendChild(tr);
+}
+
+// 验收件读的探测口（**按需触发**，不放在开机路径上 —— 坏产物不许卡整页）
+window.__samepage = { ready: false, error: '', oct: null, omc: null, handoff: null, mem: [] };
+
+const MODEL = `model BouncingBall
+  parameter Real e=0.7 "coefficient of restitution";
+  parameter Real g=9.81 "gravity acceleration";
+  Real h(fixed=true, start=1) "height of ball";
+  Real v(fixed=true) "velocity of ball";
+equation
+  der(v) = -g;
+  der(h) = v;
+  when h <= 0 then
+    reinit(v, -e*pre(v));
+  end when;
+end BouncingBall;
+`;
+
+async function bootOmc() {
+  const mod = await import('./omc/OpenModelicaCompiler.js');
+  await mod.default();                       // web 档：default 是初始化（不是模块对象）
+  mod.omc_set_env('OPENMODELICAHOME', '/usr');
+  mod.omc_init();
+  mod.omc_set_inwasm_driver(1);
+  return mod;
+}
+
+// Octave：**照它自己 index.html 的脚本链**引导（那些是**经典脚本**，不是 ESM —— 
+// 用 `import()` 加载会踩 404/顺序问题，实测踩过）。
+// ⚠️ 前提：`oct/**` 是本仓站点从姊妹仓**只读拷来**的一份（同源 ⇒ 不违"只读姊妹仓"）。
+function loadClassic(src) {
+  return new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src;
+    el.onload = () => res(src);
+    el.onerror = () => rej(new Error('script 加载失败：' + src));
+    document.head.appendChild(el);
+  });
+}
+async function bootOctave() {
+  // 顺序照 index.html 的脚本链（assets-loader 必须在几个桥之前；core→page 在最后）
+  for (const f of ['./oct/assets-loader.js', './oct/queue.js', './oct/p5canvas.js',
+                   './oct/webaudio.js', './oct/webaudiorec.js', './oct/webfilepick.js',
+                   './oct/webnet.js', './oct/octave-core.js', './oct/octave-page.js',
+                   './oct/lanes.js', './oct/lane.js']) {
+    await loadClassic(f);
+  }
+  // ── 择档（照 LANES-AND-MEMORY-MODEL §6 的纪律）─────────────────────────────
+  //   · 我们的 `oct/` 只有 **base 档**（wasm32 无线程）⇒ **显式选 base**，
+  //     不让自动择档器去挑 w64/threads（那些档的文件不在本拷贝里 ⇒ 404）。
+  //   · "选错档 ⇒ 硬失败，不静默降级"（§6 原文）—— 所以这里**不**回退：拿不到 base 就报错。
+  // ⚠️ 别用自动择档：`pickFrom` 会按 COI + `hasMemory64` 挑档，而我们的 `oct/` 只有
+  //    **base 档** ⇒ 它挑 w64/w64-base/threads 都会 404（实测：`script 加载失败：w64/octave.js`）。
+  //    ⇒ 显式钉 base；`lanes.js` 的清单仍由站点提供（不手抄档名）。
+  const LANE = 'base';
+  const plan = (typeof window.octaveLaneFiles === 'function')
+    ? window.octaveLaneFiles(LANE) : { lane: LANE, js: 'octave.js', wasm: 'octave.wasm', data: 'octave.data' };
+  const jsUrl = './oct/' + (plan && plan.js ? plan.js : 'octave.js');
+  window.__samepageLane = { lane: LANE, js: jsUrl, auto: (window.octaveLaneState || {}).lane,
+                            autoWhy: (window.octaveLaneState || {}).why };
+  await loadClassic(jsUrl);
+  // ★ 资源路径（**读产物源码定的，别猜**）：emscripten 胶水用
+  //   `Module["locateFile"](name, prefix)` 解析 `octave.wasm` / `octave.data`
+  //   （见 octave.js 里 `REMOTE_PACKAGE_NAME = Module["locateFile"] ? locateFile(...) : ...`）。
+  //   它默认按**页面 URL**取 ⇒ 我们放在 `./oct/` 下就会 404。
+  //   ⇒ 传一个 `locateFile` 把它指到 `./oct/`（站点自己的 index.html 与文件同目录，所以没这问题）。
+  // `opts.base` = 资源前缀（**读 octave-core.js:56 得来**：`baseOf` 拼 wasm/data 的 URL）。
+  // 我们放在 `./oct/` 下 ⇒ base='./oct/'。
+  const assetOpts = {
+    id: 'samepage',
+    lane: LANE,
+    base: './oct/',
+  };
+  // ★ 输出汇（**读 octave-core.js:22-23, 259-260 得来**）：
+  //   主线程模式下胶水把 stdout 走 `host.print(t)`、"stderr" 走 `host.printErr(t)`
+  //   （worker 模式才合批 postMessage）。⇒ 我们给这两个汇，把行**收进数组**供验收读；
+  //   同时不再往 DOM 抓（那是 worker 模式的做法，本页是主线程 —— 第一版抓 DOM 得到空串）。
+  // ★ Octave 的输出落点（**读姊妹仓 octave-page.js:142-190 得来，别猜**）：
+  //   站点自己的 `createOctaveHost` 把 print 接到 **`console.log`**（外加一个页面 sink），
+  //   **不是** `opts.host.print`（那是更里层的 `createOctaveCore` 收的）。
+  //   ⇒ 本页把 `console.log` 的 Octave 行也收进 `__octOut`，验收读这里即可
+  //     （主线程模式；worker 模式才走 postMessage，见 test/browser/accept-omc-bridge.mjs 的教训）。
+  window.__octOut = [];
+  if (!window.__octOutWrapped) {
+    window.__octOutWrapped = true;
+    const orig = console.log.bind(console);
+    console.log = (...a) => { try { window.__octOut.push(a.map(String).join(' ')); } catch (e) {} return orig(...a); };
+  }
+  const M = (typeof window.createOctaveHost === 'function')
+    ? window.createOctaveHost(assetOpts)
+    : window.Module;
+  window.Module = M;
+  if (typeof window.OCTAVE === 'function') { try { window.OCTAVE(M); } catch (e) { /* 站点页面适配；这里可能不需要 */ } }
+  const t0 = Date.now();
+  while (Date.now() - t0 < 300000) {
+    if (M && typeof M.eval_string === 'function') {
+      // eval_string 可用还不够：等它真能算（站点的 __octaveReady 是整条启动链跑完）
+      try { const ok = M.eval_string("x=1+1;"); if (ok === 0) break; } catch (e) {}
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return M;
+}
+
+async function main() {
+  const P = window.__samepage;
+  try {
+    memRow('页面加载后', 'HTML/CSS/JS');
+    st('① 装载两个引擎…');
+    // 两个引擎**同时**装载（同页的实质）
+    const [omc, oct] = await Promise.all([bootOmc(), bootOctave()]);
+    P.omc = { ready: true, exports: 0 };
+    P.oct = { ready: !!(oct && typeof oct.eval_string === 'function') };
+    memRow('两引擎实例化后', 'omc + Octave 同页');
+    st('② omc：模型编译 + 仿真…');
+    log('omc version = ' + String(omc.omc_eval('getVersion()')));
+    const enc = new TextEncoder();
+    omc.wasi_write_file('/tmp/BouncingBall.mo', enc.encode(MODEL));
+    omc.omc_eval('cd("/tmp")');
+    const loaded = String(omc.omc_eval('loadFile("/tmp/BouncingBall.mo")')).trim();
+    if (!/^"?true"?$/.test(loaded)) throw new Error('omc loadFile: ' + loaded);
+    const simOut = String(omc.omc_simulate('BouncingBall', 3.0, 500, 1e-6, 'dassl', ''));
+    const rf = (simOut.match(/resultFile\s*=\s*"([^"]*)"/) || [])[1] || '';
+    if (!rf) throw new Error('仿真失败：' + simOut.slice(0, 200));
+    const fd = omc.wasi_path_open(rf);
+    let bytes = null;
+    if (typeof fd === 'number' && fd >= 0) { try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); } }
+    if (!bytes || !bytes.length) throw new Error('取 .mat 失败');
+    log(`omc → .mat ${bytes.length} 字节（${rf}）`);
+
+    st('③ 页内握手：把 .mat 交给 Octave…');
+    // ★ 通道：把字节写进 **Octave 的 FS**（同页 = 同一个 JS 世界，两个 FS 仍各自独立
+    //   —— 这是实测教训：两个 wasm 的 FS 互不可见，必须显式搬运）
+    const octFS = oct.FS;
+    try { octFS.mkdir('/tmp'); } catch {}
+    octFS.writeFile('/tmp/om.mat', bytes);
+    memRow('握手后', '.mat 已进 Octave FS');
+
+    // 用需求 D 的桥接函数（本仓 bridge/，已发布到站点 ./bridge/）
+    st('④ Octave 侧读取并做数值分析…');
+    const rd = await fetch('./bridge/omc_mat_load.m').then((r) => r.text());
+    octFS.writeFile('/work_omc_mat_load.m', new TextEncoder().encode(rd));
+    // ★ 结果**写文件再从 FS 读回**（比抓 stdout/console 稳：输出汇有三层，
+    //   而 FS 是**唯一确定**的通道 —— 实测踩过：console 拦截只收到 4 条、变量名抓不到）。
+    // ★ 用**我们已发布的** `bridge/omc_mat_load.m`（需求 D 的桥接函数）——
+    //   它带名字消毒（`der(h)` → `der_h_`）+ dataInfo 语义 + 自证台；
+    //   **别在本页内联简化读器**：第一版就是这么写的，栽在 `assignin: invalid variable
+    //   name 'sp_der(h)'`（把需求 D 踩过的坑又踩一遍）。
+    log('④a 取桥接函数…');
+    const bridgeSrc = await fetch('./bridge/omc_mat_load.m').then((r) => {
+      if (!r.ok) throw new Error('bridge fetch ' + r.status);
+      return r.text();
+    });
+    log(`④b 桥接函数 ${bridgeSrc.length} 字节，写入 Octave FS…`);
+    oct.FS.writeFile('/tmp/omc_mat_load.m', new TextEncoder().encode(bridgeSrc));
+    log('④c 已写入，开始分析…');
+    // ★ 脚本**写文件 + `source`**（别用 `;` 拼接的长串 —— 实测：一把梭 eval_string 返回
+    //   rc=0 但什么都没发生（它的多语句解析与 `\n` 转义纠缠），而文件 source 是确定的）。
+    const script = [
+      "addpath('/tmp');",
+      "m = omc_mat_load('/tmp/om.mat');",
+      "fid = fopen('/tmp/sp_result.txt', 'w');",
+      "fprintf(fid, 'VARS %s', strjoin(m.vars, ','));",
+      "fprintf(fid, '\\nN %d', m.samples);",
+      "fprintf(fid, '\\nHMAX %.4f', max(evalin('base','h')));",
+      "fprintf(fid, '\\nHEND %.4f', evalin('base','h')(end));",
+      "fprintf(fid, '\\nRENAMED %d', numel(m.renamed));",
+      "fprintf(fid, '\\n');",
+      "fclose(fid);",
+      "disp('__SP_ANALYSIS_DONE__');",
+    ].join('\n');
+    oct.FS.writeFile('/tmp/sp_analysis.m', new TextEncoder().encode(script));
+    const rc = oct.eval_string("source('/tmp/sp_analysis.m');");
+    log('④e source 返回 rc=' + rc);
+    // 读回结果（FS 是**唯一确定**的通道；stdout 有三层汇，别指它）
+    let txt = '';
+    try { txt = new TextDecoder().decode(oct.FS.readFile('/tmp/sp_result.txt')); }
+    catch (e) { log('④f 读结果文件失败：' + String(e).slice(0, 120)); }
+    const vars = (txt.match(/VARS (\S+)/) || [])[1] || '';
+    const n = (txt.match(/N (\d+)/) || [])[1] || '';
+    const hmax = (txt.match(/HMAX ([\d.-]+)/) || [])[1] || '';
+    const hend = (txt.match(/HEND ([\d.-]+)/) || [])[1] || '';
+    const renamed = (txt.match(/RENAMED (\d+)/) || [])[1] || '';
+    P.handoff = { matBytes: bytes.length, vars, samples: n, hmax, hend, renamed, raw: txt.slice(0, 200) };
+    log(`④f Octave 读出：vars=${vars} N=${n} hmax=${hmax} hend=${hend} renamed=${renamed}`);
+    memRow('Octave 分析后', '需求 D 的握手在页内闭环');
+
+    st('⑤ 反向：坏件必须报错…');
+    octFS.writeFile('/tmp/bad.mat', new TextEncoder().encode('not a mat at all'));
+    const S2 = '__SB' + Math.random().toString(36).slice(2) + '__';
+    oct.eval_string(`try, s2 = load('/tmp/bad.mat'); disp('NOERR'); catch e, disp(['REJECTED ' e.message]); end; disp('${S2}');`);
+    const t2 = Date.now();
+    let out2 = '';
+    while (Date.now() - t2 < 30000) { out2 = (window.__octOut || []).join('\n'); if (out2.includes(S2)) break; await new Promise((r) => setTimeout(r, 200)); }
+    P.reverse = /REJECTED/.test(out2.slice(-600)) || /NOERR/.test(out2.slice(-600)) ? (out2.slice(-600) || '') : (out2.slice(-600) || '');
+    P.reverseRejected = /REJECTED/.test(out2.slice(-600));
+    log('反向（坏件）：' + (P.reverseRejected ? '明确报错 ✅' : '见输出'));
+    st('完成：两引擎同页 + 页内 .mat 握手', true);
+  } catch (e) {
+    P.error = String(e).slice(0, 400);
+    st('失败：' + P.error, false);
+    log('ERROR ' + P.error);
+  }
+  P.mem = [...document.querySelectorAll('#mem tr')].map((tr) => [...tr.children].map((c) => c.textContent));
+  P.ready = true;
+}
+main();
+</script>
+</body>
+</html>

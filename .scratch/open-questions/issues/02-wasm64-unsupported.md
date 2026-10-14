@@ -20,6 +20,17 @@ rc=3 ⇒ 上游树不在（环境问题，不是结论）。
 - **旁证（C 侧能编，卡在上游）**：本仓 clang 24 实测 `--target=wasm64-unknown-unknown -c` **通过**
   ⇒ 硬件/工具链不是瓶颈，缺的是上游 CMake 目标与 Rust target 面。
 
+## ★ 2026-10-14 加了一条更硬的证据：**Rust 侧没有 wasm64 target**
+
+- `rustup target list`（稳定通道与 `nightly-2026-05-31` 都查了）**没有 `wasm64-unknown-unknown`**
+  ⇒ OM 编译器主体（`libopenmodelica_compiler` 是 **Rust cdylib**）**无法编成 wasm64**。
+- 对照姊妹仓（`doc/LANES-AND-MEMORY-MODEL.md` §4）：它能出 wasm64 是因为
+  **Emscripten 有 `-sMEMORY64=1`（C/C++ 路径）** —— 本仓是 **Rust + CMake** 目标，
+  **根因不同、不能照搬**。
+- ⇒ 本悬案的结案条件因此要**两条同时满足**：① 上游 CMake 有 wasm64 路径（本仓结算件查的这条）；
+  ② **Rust 侧出现 `wasm64-unknown-unknown`（或等价的 memory64 目标）**。
+  （结算件 `check-wasm64-upstream.sh` 目前只查 ①；等 ① 翻面时把 ② 一并纳入。）
+
 ## 未决
 
 - 上游何时（或是否）会加 wasm64 —— 无法预测；结算件每次跑都会如实报（加支持即翻面）。
