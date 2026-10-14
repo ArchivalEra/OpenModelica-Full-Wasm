@@ -407,3 +407,33 @@ E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱�
   本仓能先做的是：**把该线的纯度判据与档表先立起来**（文档 §3/§6 已给形状），
   以及把性能候选（SIMD/多线程/优化求解器）按 §5 的纪律（A/B 差分门、负判决也是资产、
   不许改默认档）逐条验。
+
+## 5.t `IllegalPerformance` 线开工（2026-10-14，用户点令第三步）
+
+**用户点令**："再直接开一个名为 IllegalPerformance 的分支直接开始发展 wasm64"。
+
+- **分支现状**：`IllegalPerformance` 已存在（建仓时三线之一）；本批把 `master` 的底座
+  合过来（同页/压缩/桥接件都在），**线内不动默认线**（§5 纪律：性能线是候选线，发运是产品决定）。
+- **★ 档身份实测（本线第一步不是"编 wasm64"，而是"先看清边界"）**：
+  · `build/113/check-wasm64-upstream.sh` → `NOT-YET（0 处命中）`：**上游 CMake 无 wasm64 路径**；
+  · **Rust 侧更硬**：`rustup target list` 里**没有 `wasm64-unknown-unknown`**（稳定与
+    `nightly-2026-05-31` 都查了）⇒ 编译器主体（`libopenmodelica_compiler` 是 Rust cdylib）
+    **编不成 wasm64**；
+  · 姊妹仓能出 wasm64 的事实依据是 **Emscripten 的 `-sMEMORY64=1`（C/C++ 路径）** ——
+    本仓是 **Rust + CMake**，**根因不同、不能照搬**（`docs/LANES-AND-MEMORY-MODEL.md` §4 同旨）。
+  ⇒ 结论：wasm64 的工作量**卡在上游**（两条同时满足才可开工：上游 CMake 路径 + Rust
+    memory64 目标）。悬案 02 已补这条；**本线当前能做的**是先立基线与判据。
+- **★ 基线已立（新件 `build/113/ilperf-baseline.sh`，4 条自证）**——只读、不改产物：
+  · 产物：web 档 `OpenModelicaCompiler_bg.wasm` = **74,579,521** 字节（压缩后），
+    sha256 `ea0a9f4f…`；
+  · **已有加速面（不是待做项）**：**SIMD 指令 5876 处** + post-MVP 指令 23,451 处；
+    `target_features` 段：`bulk-memory, bulk-memory-opt, call-indirect-overlong, multivalue,
+    mutable-globals, nontrapping-fptoint, reference-types, sign-ext, simd128`
+    （上游注释原文：rustc/LLVM 对 `wasm32-unknown-unknown` 默认开这些，
+    `strip` 丢了 `target_features` 段才需要手工告诉 binaryen）；
+  · memory 形态 **导入/导出 = 0/1**（wasm32：宿主导出 memory）—— 这也正是纯度闸门
+    判档时要看的量之一。
+- **性能候选的下一步**（按姊妹仓 §5 的封口清单，**每条都要 A/B 差分门 + 变异自证**）：
+  换分配器（姊妹仓结论：**有效**）/ 换 BLAS（**有效**，配 IEEE 逐位红线）/
+  libm 标量替换（姊妹仓**负判决**：wasm 无标量 FMA）/ 热点定位（仪器，不猜）。
+  ⚠️ 本仓的等价物是 `openmodelica_solvers`/`openmodelica_lapack` 那几层，**不是** BLAS 库名照搬。

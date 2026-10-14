@@ -32,6 +32,7 @@ build/113/build-omc-wasm.sh --selftest
 build/113/check-wasm64-upstream.sh --selftest
 build/113/gen-runtime-sources-mo.sh --selftest
 build/113/measure-samepage-cost.sh --selftest
+build/113/ilperf-baseline.sh --selftest
 build/promote-site.sh --selftest
 build/provision-upstream.sh --selftest
 EOF

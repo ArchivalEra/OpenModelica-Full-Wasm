@@ -117,7 +117,13 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 ⚠️ **wasm64 仍是双缺**：上游 CMake 无路径 **且 Rust 侧没有 `wasm64-unknown-unknown` target**
 ⇒ 编译器主体编不成 wasm64（姊妹仓的 Emscripten `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
 
-**下一步 = 需求 C 的性能线**（`IllegalPerformance`：SIMD/多线程/优化求解器）/ **需求 F**（`Octave-UI`）。
+**`IllegalPerformance` 线已开工**（2026-10-14）：基线已立（`build/113/ilperf-baseline.sh`）——
+产物 74.6 MB、**SIMD 5876 处 + post-MVP 23,451 处已在产物里**、features 九项、memory 导出形态。
+⚠️ **wasm64 卡在上游两条**：上游 CMake 无路径 **且 Rust 无 `wasm64-unknown-unknown` target**
+⇒ 编译器主体编不成（姊妹仓的 `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+线内**不动默认线**；性能候选按"A/B 差分门 + 负判决也是资产"推进。
+
+**下一步 = 需求 F**（`Octave-UI` 集成）/ 性能候选逐条验。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
@@ -140,7 +146,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (4856 bytes)
+- `.gitignore` (4886 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (2492 bytes)
@@ -148,11 +154,11 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (32389 bytes)
+- `HISTORY.md` (34967 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (8766 bytes)
-- `README.zh.md` (7732 bytes)
-- `STATE.md` (21040 bytes)
+- `README.de.md` (9423 bytes)
+- `README.zh.md` (8203 bytes)
+- `STATE.md` (22033 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -171,10 +177,11 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/113/check-lane-purity.py` (20889 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
+- `build/113/ilperf-baseline.sh` (5003 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
 - `build/FACTS.json` (9051 bytes)
-- `build/gates-selftest.sh` (3779 bytes)
+- `build/gates-selftest.sh` (3819 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
 - `build/promote-site.sh` (6134 bytes)

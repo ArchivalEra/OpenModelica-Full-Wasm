@@ -136,7 +136,16 @@ das war ein Messfehler, siehe `build/retractions.json`.)
 auf Rust-Seite** ⇒ der Compiler-Kern lässt sich nicht als wasm64 bauen (das `-sMEMORY64=1` des
 Schwester-Repos ist ein C/C++-Pfad und nicht übertragbar).
 
-**Nächster Schritt = Anforderung C (Performance-Linie)** / **Anforderung F** (Octave-UI).
+**Die `IllegalPerformance`-Linie ist gestartet** (2026-10-14): Baseline steht
+(`build/113/ilperf-baseline.sh`) — Artefakt 74,6 MB, **SIMD 5876 Ops + Post-MVP 23.451 Ops
+bereits enthalten**, neun Features, Export-Form des Speichers.
+⚠️ **wasm64 hängt an zwei Upstream-Lücken**: kein Pfad im Upstream-CMake **und kein
+`wasm64-unknown-unknown`-Target in Rust** ⇒ der Compiler-Kern lässt sich nicht als wasm64 bauen
+(das `-sMEMORY64=1` des Schwester-Repos ist ein C/C++-Pfad, nicht übertragbar).
+Die Linie **ändert die Standardlinie nicht**; Performance-Kandidaten laufen nach der Regel
+"A/B-Differenztor + negative Befunde sind auch Vermögen".
+
+**Nächster Schritt = Anforderung F** (Octave-UI) / Performance-Kandidaten einzeln prüfen.
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend
