@@ -72,7 +72,9 @@ Gegenprobe: falsches Artefakt muss rot werden).
 Kompilierdauer ändern sich pro Lauf; ein Rohwert macht das Replay-Gate rot — das ist kein
 Artefakt-Problem, sondern eine **Kategorie-Verwechslung zwischen Messgröße und Prüfregel**.
 Dieses Repo führt solche Größen deshalb als **Größenklasse** (Heap auf 5 MiB aufgerundet,
-Kompilierdauer auf 100 ms; `cmd` rundet identisch ⇒ wortwörtlich reproduzierbar).
+Kompilierdauer auf **500 ms**; `cmd` rundet identisch ⇒ wortwörtlich reproduzierbar).
+**Zweite Lehre: die Klasse muss gröber sein als das Rauschen** — eine 100-ms-Klasse kippt
+weiterhin (295→300 vs. 306→400).
 
 Die **einzige Quelle** für Zahlen ist `build/FACTS.json`; Dokumenttexte **schreiben keine Zahlen
 ab**, sondern `[[Schlüssel]]`; neben jeder Tatsache steht ein **Wiederholbefehl**, den die Gates
