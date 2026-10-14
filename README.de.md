@@ -52,7 +52,7 @@ Das **offizielle** OpenModelica-Repository hat ein erstklassiges wasm-Buildziel
 Same-Origin-Hosting", **dieselbe Art Repository wie `Octave-Full-Wasm`**
 (Unterschied nur in der Toolchain: hier **Rust + wasm32-wasip1**).
 
-## Drei Linien (eine Linie, eine Architektur)
+## Zwei Linien (eine Linie, eine Architektur)
 
     master              → Artefakt wasm64, kompiliert nur wasm64 (⚠️ Upstream hat keinen Pfad; vorerst wasm32-Artefakt)
     wasm32              → Artefakt wasm32, kompiliert nur wasm32

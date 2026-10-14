@@ -2,7 +2,7 @@
 """OpenModelica-Full-Wasm — **本仓的数据层**（Einfacht 机制层之上的"你的部分"）。
 
 Einfacht 的 `zreflect/facts.py` 只提供**机制**（守卫 / 渲染 / 收尾）；
-这里放本仓真正要量的东西：产物身份证、三线 sha、构建输入、上游 pin 状态……全部照旧
+这里放本仓真正要量的东西：产物身份证、两线 sha、构建输入、上游 pin 状态……全部照旧
 （每条带复跑命令 + 出处）。
 
 ⚠️ 本模块**自包含**：不 import 姊妹仓的任何东西（那是另一棵仓）。
@@ -24,7 +24,7 @@ from gate import module_meta                               # noqa: E402
 
 # ★ C5：本仓数据层也必须在平台名册里声明自己，否则 registry 报 undeclared。
 #   selftest=False：它是**数据**（量什么、怎么量），机制的自证在 zreflect/ 上游那批。
-MODULE = module_meta("本仓数据层", "量本仓的产物/三线/上游 pin（数据 vs 机制分离）", selftest=False)
+MODULE = module_meta("本仓数据层", "量本仓的产物/两线/上游 pin（数据 vs 机制分离）", selftest=False)
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 产物根（待建；与姊妹仓的 /mnt/hdd/octave-wasm-build 平级）
@@ -59,7 +59,7 @@ def measure():
     facts = {}
 
     # ── ① 仓骨架期的自证事实（这些**现在就能量**，且每条都有复跑命令）────────────
-    # 三线分支存在性：一线一架构（用户点令）—— 那是本仓的硬约束，先把它变成可量的事。
+    # 两线分支存在性：一线一架构（用户点令）—— 那是本仓的硬约束，先把它变成可量的事。
     def _branches():
         try:
             out = subprocess.run(["git", "branch", "--list", "--format=%(refname:short)"],

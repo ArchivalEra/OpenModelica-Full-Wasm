@@ -47,7 +47,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 ⇒ **本仓照这条走** —— 也就是"上游 submodule + 自己交叉编 + 同源托管"，
 **与 `Octave-Full-Wasm` 是同一种仓库**（区别只在工具链：本仓 **Rust + wasm32-wasip1**）。
 
-## 三条线（一线一架构）
+## 两条线（一线一架构）
 
     master              → 产物 wasm64，只编 wasm64（⚠️ 上游未接路径，暂出 wasm32 产物）
     wasm32              → 产物 wasm32，只编 wasm32
@@ -173,7 +173,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `HISTORY.md` (39888 bytes)
 - `LICENSE` (34523 bytes)
 - `README.de.md` (11031 bytes)
-- `README.zh.md` (9569 bytes)
+- `README.zh.md` (9578 bytes)
 - `STATE.md` (15248 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
@@ -207,9 +207,9 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `build/serve-coi.py` (3033 bytes)
 - `build/upstream-lock.json` (2909 bytes)
 - `build/upstream-pins.json` (2957 bytes)
-- `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
-- `docs/FORK-PIPELINE-AND-LESSONS.md` (11094 bytes)
-- `docs/LANES-AND-MEMORY-MODEL.md` (7994 bytes)
+- `docs/EINFACHT-INTEGRATION.md` (10086 bytes)
+- `docs/FORK-PIPELINE-AND-LESSONS.md` (11106 bytes)
+- `docs/LANES-AND-MEMORY-MODEL.md` (8003 bytes)
 - `docs/REQUIREMENTS.md` (22373 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
