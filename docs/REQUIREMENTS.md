@@ -123,7 +123,10 @@ index-3 → index-1 的**指标约简是符号处理**（Pantelides），**正�
 **D1** OM 档产出 `.mat` ⇒ Octave 档 `load` 进来做后处理（画图 / 控制设计 / 统计）。
 **D2 验收**：端到端 —— OM 的 `BouncingBall_res.mat` 喂进 Octave，`load` 成功且数值合理。
 **D3 反向断言**：非 `.mat` 文件喂进去 ⇒ Octave 明确报错（不许静默）。
-**D4（未决，如实记）**：两引擎**同页**的内存/体积成本**未测**（OM ~21 MB + Octave ~29.6 MB）。
+**D4（2026-10-14 已测，结论见 §7 R6 与悬案 04）**：两引擎**同页**的成本 ——
+OM 产物 **91.2 MB** + Octave **29.6 MB**（wasm 合计 **120.8 MB**）；
+分步实例化时 Octave 模块可编（堆 81.4 MB），**OM 模块一编译整页就崩**
+（`Target page: closed`）⇒ **当前不可行**，方向（惰性/缩产物/分 Worker）留给决策。
 
 ### 需求 E · MATLAB 语义桥（`omc_*` 函数族）
 
@@ -238,6 +241,32 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
   于是产出半缺的 `lib.rs`（`Compiler/CMakeLists.txt:47-52` 有官方描述）。
 - **处置**：本仓采用**官方两步链**（stage1 native configure 生成该文件 → stage2 wasm 包），
   见 `build/113/build-omc-wasm.sh` 头注。
+
+### R6（2026-10-14）· 同页成本：**量的结果就是"不可行"**（D4 结案物）
+
+- 实测（`build/113/measure-samepage-cost.sh` → `artifacts/samepage-cost.json`）：
+  Octave 模块（29.6 MB）编译成功（710 导出，JS 堆 81.4 MB）；
+  **OM 模块（91.2 MB）一 `WebAssembly.compile` 就整页崩**（`Target page: closed`）。
+- ⇒ 「两引擎同页」**在本机 chromium 上当前不可行**（至少不能都做完整实例化）。
+- 三个候选方向（**未验**，交决策）：惰性化（同时只实例化当前档）/ 缩产物
+  （本 OM 产物因 `RUST_OMC_WASM_OPT=OFF` 未做 `-Oz`）/ 分 Worker（超出"同页"定义）。
+
+### R5（2026-10-14）· 需求 D 的实质：Octave `load` **认格式、不认语义**
+
+- **原文**（D1）：「OM 档产出 `.mat` ⇒ Octave 档 `load` 进来做后处理」——读起来像 `load` 就完事。
+- **实测**（真浏览器，2026-10-14）：Octave 的 `load('...mat')` **能**读 OpenModelica 的 MAT4
+  （返回 struct，字段就是 OM 的原始矩阵名 `Aclass`/`name`/`description`/`dataInfo`/`data_1`/`data_2`），
+  但**不产生** `h`/`v` 这些变量 —— 因为 OM 的语义是「变量名在 `name` 矩阵的**列**里、
+  时间序列在 `data_2` 的**行**里」，而 `load` 只把顶层矩阵名当变量名。
+- **⇒ 握手点就是这一层语义映射**，本仓提供 `bridge/omc_mat_load.m`（读取 + 消毒 + 元信息）。
+  验收：`sh test/browser/run-mat-handshake.sh` → **11 PASS / 0 FAIL**（D2 正例 + D3 反向）。
+- **两处真语义（都是喂真产物才暴露，逐条记）**：
+  · `dataInfo` 的 **channel 0 = 独立变量 `time`**（非 1/2）——上游 writer 注释逐字
+    "The independent variable (`time`): data_2 row 1."；第一版只认 1/2 ⇒ `time` 被跳过；
+  · `name` 项数 ≠ `data_2` 行数：参数（`e`/`g`）走 **`data_1`**（channel 1），
+    按"行数≥变量数"写会**假红**报"文件损坏"。
+- **还有一层不是 bug 的边界**：Octave 内建函数名撞车（`time`/`e`）—— 变量能建出来，
+  但调用 `time(...)` 会走内建 ⇒ 桥接**主动改名**（`time_2`/`e_2`）并在元信息里记明。
 
 ### R4（2026-10-13）· wasm 路径**不需要** OMBootstrapping（§4 pin 表要改）
 

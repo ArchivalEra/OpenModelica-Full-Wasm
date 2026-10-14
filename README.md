@@ -93,7 +93,14 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 → **10 PASS / 0 FAIL**（含反向用例）。根因与修补全过程见
 `.scratch/open-questions/issues/03-simulate-needs-host-solver.md`（`resolved`）。
 
-**下一步 = 需求 D**（把结果 `.mat` 喂进 Octave 引擎 `load` 通 + 数值合理）。
+**需求 D 已结案**（2026-10-14）：`.mat` 握手打通 —— OM 仿真结果喂进 **Octave 引擎**
+（真浏览器、8761 站点）读出变量且数值合理；判据 `sh test/browser/run-mat-handshake.sh`
+→ **11 PASS / 0 FAIL**（含 D3 反向断言）。握手点是**语义映射**而非 `load`：
+Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩阵的列里）⇒
+本仓 `bridge/omc_mat_load.m` 补这一层。**D4 同页成本实测 = 当前不可行**
+（OM 91.2MB 模块一编译整页崩），悬案 04 交决策。
+
+**下一步 = 需求 E**（`omc_*` 语义桥）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
@@ -116,27 +123,30 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (3984 bytes)
+- `.gitignore` (4245 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (1646 bytes)
 - `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (6171 bytes)
+- `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (17584 bytes)
+- `HISTORY.md` (20785 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (6218 bytes)
-- `README.zh.md` (5570 bytes)
-- `STATE.md` (14458 bytes)
+- `README.de.md` (6881 bytes)
+- `README.zh.md` (6092 bytes)
+- `STATE.md` (17173 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
+- `bridge/omc_mat_load.m` (7687 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
 - `build/113/build-omc-wasm.sh` (20049 bytes)
 - `build/113/check-lane-purity.py` (20889 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
+- `build/113/measure-samepage-cost.sh` (8144 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (4974 bytes)
-- `build/gates-selftest.sh` (3700 bytes)
+- `build/FACTS.json` (7469 bytes)
+- `build/gates-selftest.sh` (3746 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
 - `build/provision-upstream.sh` (5930 bytes)
@@ -145,7 +155,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
-- `docs/REQUIREMENTS.md` (14581 bytes)
+- `docs/REQUIREMENTS.md` (17052 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
 - `docs/agents/issue-tracker.md` (3217 bytes)
@@ -154,16 +164,20 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `docs/agents/upstream-issues.md` (12882 bytes)
 - `doctor.json` (645 bytes)
 - `gates-selftest.sh` (13572 bytes)
-- `maintaince.md` (5154 bytes)
+- `maintaince.md` (5672 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
 - `reflect-hooks/Einfacht.env.example` (1606 bytes)
 - `reflect-hooks/einfacht-env.sh` (4231 bytes)
 - `reflect-hooks/install.sh` (575 bytes)
 - `reflect-hooks/pre-commit` (4531 bytes)
 - `reflect-hooks/pre-push` (3790 bytes)
+- `test/browser/accept-mat-handshake.mjs` (8613 bytes)
+- `test/browser/run-mat-handshake.sh` (1893 bytes)
+- `test/browser/selftest-mat-bridge.sh` (6689 bytes)
 - `test/node/accept-omc-getversion.mjs` (4653 bytes)
 - `test/node/accept-omc-simulate.mjs` (7828 bytes)
 - `test/node/manifest.json` (1279 bytes)
+- `test/node/produce-result-mat.mjs` (3756 bytes)
 - `test/node/run.sh` (1019 bytes)
 - `upstream/openmodelica` (4096 bytes)
 - `zreflect/__init__.py` (112 bytes)
@@ -189,7 +203,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (11402 bytes)
+- `zreflect/measure_openmodelica.py` (13190 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

@@ -216,3 +216,46 @@
 
 **用户点令落实情况**：`ccache` 已改回 **ON**（上游默认本也是 ON：`CMakeLists.txt:172`）
 并显式 `-DOM_COMPILER_CACHE=ccache`；`OM_USE_CCACHE=OFF` 的图快写法已删。
+
+### 5.w ★ **需求 D 结案**（2026-10-14）：`.mat` 握手打通
+
+**判据实跑**（两条，都是真浏览器）：
+- `sh test/browser/run-mat-handshake.sh` → **11 PASS / 0 FAIL**（D2 正例 5 / D3 反向 3 / 基线 2 / 注入 1）
+- `sh test/browser/selftest-mat-bridge.sh` → **8 PASS / 0 FAIL**（三类用例齐备）
+- `sh build/113/measure-samepage-cost.sh` → rc=0（D4 的量，见下）
+
+**做了什么**：
+- **新件 `bridge/omc_mat_load.m`**（Octave 侧桥接函数）：把 OM 的 MAT4 读成带名字的变量。
+  它是需求 D 的**实质**（见 §7 R5）：Octave 的 `load` **认格式不认语义** ——
+  实测 `load` 返回 struct（字段 = `Aclass`/`name`/`description`/`dataInfo`/`data_1`/`data_2`），
+  但**不产生** `h`/`v`。
+- **新件 `test/node/produce-result-mat.mjs`**：可复跑地产出结果 `.mat`
+  （跑真仿真 → 从 wasm VFS 取件 → 落 `artifacts/`）。**这是"换机器也能跑"的关键**
+  （此前那份在 `/tmp` 里，是手搓的临时物）。
+- **新件 `test/browser/accept-mat-handshake.mjs` + `run-mat-handshake.sh`**（D2/D3 验收）与
+  **`test/browser/selftest-mat-bridge.sh`**（桥接函数自证台）。
+- **新件 `build/113/measure-samepage-cost.sh`**（悬案 04 的结算件）。
+
+**★ 四处真语义/真坑（全部喂真产物才暴露，逐条带证据）**：
+
+1. **`dataInfo` channel 0 = 独立变量 `time`**（不是 1/2）——上游 writer 注释逐字
+   "The independent variable (`time`): data_2 row 1."。第一版只认 1/2 ⇒ `time` 被**静默跳过**
+   （自证台 ① 抓到："7 变量"实际只赋 6 个）。
+2. **`name` 项数 ≠ `data_2` 行数**：参数 `e`/`g` 走 **`data_1`**（channel 1）。
+   第一版按"行数 ≥ 变量数"写 ⇒ **假红**报"文件损坏"（文件没问题，是判据错）。
+3. **Octave 内建函数名撞车**（`time`/`e`）：变量能建出来，但 `time(...)` 会走**内建**
+   （`Invalid call to time`）⇒ 桥接**主动改名**（`time_2`/`e_2`）并在 `meta.renamed` 记明。
+   这不是绕开问题：符号解析优先级是 Octave 的语义，只能按它的规则命名（且必须**可见地**改）。
+4. **`cellstr(s.name')` 给的是列 cell** ⇒ `strcmp` 返回空 ⇒ `s.dataInfo(2,[])` 什么也没改
+   ⇒ 自证台 ②c **假绿过一轮**。改成"逐列取名字再匹配"才真测到 `dataInfo` 越界那条分支。
+
+**★ D4（同页成本）实测结论 = "当前不可行"（如实记，不是好消息）**：
+- 体积：OM `91,152,188` + Octave `29,632,229` = **120,784,417** 字节（≈115 MiB）；
+- 分步实例化：Octave 模块**编译成功**（710 导出、堆 81.4 MB），
+  **OM 模块一编译整页就崩**（`Target page: closed`）。
+- ⇒ 悬案 04 记 `ready-for-human`：三个候选方向（惰性/缩产物/分 Worker）**留给决策**，
+  只做了"量"没做"选"。
+
+**只读纪律**：本批对姊妹仓（`Octave-Full-Wasm`）**零写入** —— 只借它的
+`harness/node_modules`（playwright-core）与 8761 站点的**只读**访问；套件、桥接函数、
+夹具全部从本仓注入（用户点令：不许改本仓以外任何仓库的文件）。

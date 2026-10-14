@@ -152,6 +152,32 @@ def measure():
             facts["omc_%s_web_files" % lane] = fact(
                 wf, "python3 -c \"import json;print(json.load(open('%s'))['measured']['web_files'])\"" % ident,
                 "build/%s/omc.build.json" % sub, "web 包文件数（布局收口完整性）")
+    # ── 需求 D（.mat 握手）：产物 + 同页成本的量 ────────────────────────────────
+    # 判据物：OM 产出的结果 .mat（由 test/node/produce-result-mat.mjs 可复跑产出）。
+    res_mat = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "OmcHandshakeDemo_res.mat")
+    if _exists(res_mat):
+        facts["om_result_mat_bytes"] = fact(
+            os.path.getsize(res_mat), "stat -c%%s %s" % res_mat,
+            "build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat",
+            "OM 仿真结果 .mat（MAT4）字节数（需求 D 的输入件，可复跑产出）")
+        facts["om_result_mat_sha"] = fact(
+            sha256sum(res_mat), "sha256sum %s | cut -d' ' -f1" % res_mat,
+            "build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat", "结果 .mat 的 sha256")
+    # 同页成本（悬案 04 的实测；三个数都从 JSON 里读出来，不手抄）
+    cost = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "samepage-cost.json")
+    if _exists(cost):
+        d = _read_json(cost) or {}
+        for key, jk, note in (
+            ("samepage_om_bytes", "om_wasm_bytes", "OM 产物体积（同页成本口径）"),
+            ("samepage_octave_bytes", "octave_wasm_bytes", "Octave 产物体积（同页成本口径）"),
+            ("samepage_sum_bytes", "sum_wasm_bytes", "两引擎 wasm 字节合计"),
+            ("samepage_heap_peak", "js_heap_peak_bytes", "JS 堆峰值（两模块编译后）"),
+        ):
+            if d.get(jk):
+                facts[key] = fact(
+                    d[jk], "python3 -c \"import json;print(json.load(open('%s'))['%s'])\"" % (cost, jk),
+                    "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
+
     # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
     ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
     if _exists(ver_id):

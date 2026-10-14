@@ -91,3 +91,9 @@ __pycache__/
 !test/node/*.mjs
 !test/node/manifest.json
 !test/node/run.sh
+
+# ── 需求 D（.mat 握手）：Octave 侧桥接函数 + 浏览器侧验收/自证 ────────────────
+!bridge/*.m
+!test/browser/accept-mat-handshake.mjs
+!test/browser/run-mat-handshake.sh
+!test/browser/selftest-mat-bridge.sh

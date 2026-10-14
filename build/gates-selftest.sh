@@ -31,6 +31,7 @@ build/113/build-clang24-builtins.sh --selftest
 build/113/build-omc-wasm.sh --selftest
 build/113/check-wasm64-upstream.sh --selftest
 build/113/gen-runtime-sources-mo.sh --selftest
+build/113/measure-samepage-cost.sh --selftest
 build/provision-upstream.sh --selftest
 EOF
 # ⚠️ 上面**故意不含** `.githooks/check-consistency.py`：那个检查器查的是**Octave 特有的
