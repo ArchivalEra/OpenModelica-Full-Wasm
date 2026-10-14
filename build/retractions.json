@@ -7,6 +7,13 @@
       "why": "**测量方法的错，不是事实**：那次探针把 91MB 模块 **base64 成 ~122MB 的 JS 字符串 + 巨型数组**再交给 `WebAssembly.compile` ⇒ 内存放大与字符串上限把它变成'整页崩'。改用 `WebAssembly.compileStreaming`（引擎直接消化响应体）后：Octave 29.6MB **92ms**、omc 91.4MB **219ms**，两者在**同一页面**都跑起来，JS 堆峰值 **23–28MB**。",
       "evidence": "`sh test/browser/run-samepage.sh` → **8 PASS / 0 FAIL**（含页内 `.mat` 握手 + 反向）；页面 `site/samepage.html` 的内存表 23–28MB；台账键 `samepage_*`（重测后更新）",
       "fixed_in": "docs/REQUIREMENTS.md §7 R6（就地标注翻案）；site/samepage.html（同页实现）；test/browser/accept-samepage.mjs（新判据）"
+    },
+    {
+      "id": "R-02-1",
+      "text": "Rust 侧**没有** wasm64 target ⇒ 编译器主体编不成 wasm64",
+      "why": "**查错了列表**：`rustup target list` 是'可安装'列表，不是编译器内置目标表。`rustc --print target-list` 里 `wasm64-unknown-unknown` 在；裸编缺 core 是'该目标无预编译 std'，而 `-Zbuild-std=core,alloc` 正是解法。",
+      "evidence": "`bash build/113/build-w64-spike.sh` → 8.8s 编成 353 字节 wasm64；Node 实例化成功（add64(2n,3n)=5）；纯度闸门 rc=0（认档 wasm64）；反向断言 rc=1（wasm32 产物喂 wasm64 档正确变红）",
+      "fixed_in": ".scratch/open-questions/issues/02-wasm64-unsupported.md（就地更正）+ build/113/build-w64-spike.sh"
     }
   ]
 }

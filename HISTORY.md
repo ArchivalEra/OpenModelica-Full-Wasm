@@ -437,3 +437,22 @@ E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱�
   换分配器（姊妹仓结论：**有效**）/ 换 BLAS（**有效**，配 IEEE 逐位红线）/
   libm 标量替换（姊妹仓**负判决**：wasm 无标量 FMA）/ 热点定位（仪器，不猜）。
   ⚠️ 本仓的等价物是 `openmodelica_solvers`/`openmodelica_lapack` 那几层，**不是** BLAS 库名照搬。
+
+### 5.t.1 ★★ 同日更正：wasm64 **工具链侧可做**（我上一条查错了地方）
+
+- **我写错的**（5.t 里）："Rust 侧没有 `wasm64-unknown-unknown` ⇒ 编译器主体编不成 wasm64"。
+  **错在查的表**：`rustup target list` 是**"可安装"列表**，不是**编译器内置目标表**。
+- **实测（新件 `build/113/build-w64-spike.sh`，5 条自证，全部可复跑）**：
+  · `rustc --print target-list | grep wasm64` → **`wasm64-unknown-unknown` 在**；
+  · 裸编报 `can't find crate for core`（该目标**无预编译 std**）；
+  · **`cargo build --target wasm64-unknown-unknown -Zbuild-std=core,alloc`** ⇒
+    **8.8 秒**编出 353 字节 wasm64；
+  · Node 实例化成功：`add64(2n,3n)=5`（**参数是 BigInt** —— 64 位地址空间的特征，旁证是真 wasm64）；
+  · 本仓**纯度闸门认档 = wasm64**（memory64 标志判据），且**wasm32 产物喂 wasm64 档正确地红**
+    （反向断言 rc=1）。
+- **更正后的边界**：wasm64 在**工具链侧可做**（`-Zbuild-std` 即可）；
+  缺的只是**上游 CMake 路径**（`rust_omc.cmake` 0 命中 wasm64）——
+  "上游还没接进构建系统"，**不是"编不出来"**。
+- 已登记翻案 `R-02-1`（防止那条错误结论重新出现）；悬案 02 就地更正，**结案条件收窄为一条**。
+- **自证台当场抓到我另一处写反的判据**：`verdict_of` 的"反向断言合格"我写成了
+  `rc != 1`（语义相反）—— 自证台的"该报必须报"用例把它红了，修成 `rc == 1`。

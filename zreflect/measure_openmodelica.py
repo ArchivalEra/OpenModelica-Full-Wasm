@@ -201,6 +201,22 @@ def measure():
                 d["verdict"], "python3 -c \"import json;print(json.load(open('%s'))['verdict'])\"" % web_verdict,
                 "build/omc-out-web/omc.build.json", "web 档产物身份证 verdict")
 
+    # ── IllegalPerformance 线：wasm64 可行件（2026-10-14）────────────────────────
+    # 判据物：`build/113/build-w64-spike.sh --json`（编成才写；没编过 ⇒ 这条不写，缺席≠0）
+    w64 = os.path.join(BASE, "build", "omc-out-wasm32", "artifacts", "w64-spike.json")
+    if _exists(w64):
+        d = _read_json(w64) or {}
+        if d.get("bytes"):
+            facts["w64_spike_bytes"] = fact(
+                d["bytes"], "python3 -c \"import json;print(json.load(open('%s'))['bytes'])\"" % w64,
+                "build/omc-out-wasm32/artifacts/w64-spike.json",
+                "wasm64 可行件产物字节（-Zbuild-std 编出；证明工具链侧可做）")
+        if d.get("gate_rc") is not None:
+            facts["w64_spike_gate_rc"] = fact(
+                d["gate_rc"], "python3 -c \"import json;print(json.load(open('%s'))['gate_rc'])\"" % w64,
+                "build/omc-out-wasm32/artifacts/w64-spike.json",
+                "纯度闸门对 wasm64 产物的 rc（0 = 认档）")
+
     # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
     ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
     if _exists(ver_id):

@@ -220,6 +220,16 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
 > 为什么有这一节：需求书 §1 的 1.2 引用的是**侦察性查证**（读上游文档/CMake）；真正上手构建时
 > 会撞上文档里没写的东西。**改需求书原文会掩盖"我们曾经这么以为"**，所以只在此追加。
 
+### R7（2026-10-14）· wasm64 的**真实边界**：工具链可做、上游未接（更正 R1 的框法）
+
+- **R1 说"上游零支持"**——那条成立于"上游构建系统"这一面（`rust_omc.cmake` 0 命中 wasm64），
+  但**不能推出"编不出来"**。实测（`build/113/build-w64-spike.sh`，5 条自证）：
+  Rust 侧 **`wasm64-unknown-unknown` 在编译器内置目标表里**（`rustc --print target-list`），
+  `-Zbuild-std=core,alloc` **8.8 秒**就能编出 wasm64；Node 实例化成功（BigInt 参数是 64 位特征）；
+  本仓纯度闸门认档 wasm64 且反向断言正确。
+- **⇒ 边界应表述为**："工具链侧可行；**上游 CMake 尚未提供 wasm64 路径**"
+  ⇒ `IllegalPerformance` 线的 wasm64 工作 = **等上游接路径**（或本仓自建一条路径，另立工单）。
+
 ### R1（2026-10-13）· C1 的「master 线 → wasm64」今天不可达：**上游零支持**
 
 - **原文**：C1「`master` 线 → 产物 wasm64，只编 wasm64」。

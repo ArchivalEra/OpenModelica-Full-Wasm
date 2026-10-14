@@ -139,9 +139,12 @@ Schwester-Repos ist ein C/C++-Pfad und nicht übertragbar).
 **Die `IllegalPerformance`-Linie ist gestartet** (2026-10-14): Baseline steht
 (`build/113/ilperf-baseline.sh`) — Artefakt 74,6 MB, **SIMD 5876 Ops + Post-MVP 23.451 Ops
 bereits enthalten**, neun Features, Export-Form des Speichers.
-⚠️ **wasm64 hängt an zwei Upstream-Lücken**: kein Pfad im Upstream-CMake **und kein
-`wasm64-unknown-unknown`-Target in Rust** ⇒ der Compiler-Kern lässt sich nicht als wasm64 bauen
-(das `-sMEMORY64=1` des Schwester-Repos ist ein C/C++-Pfad, nicht übertragbar).
+**★ wasm64 ist auf der Toolchain-Seite machbar** (noch am selben Tag gemessen und korrigiert):
+`cargo build --target wasm64-unknown-unknown -Zbuild-std=core,alloc` baut in **8,8 s** ein
+wasm64-Artefakt (Machbarkeitsstück `build/113/build-w64-spike.sh`, 5 Selbsttests),
+das Purity-Gate erkennt die Spur als wasm64, die Gegenprobe wird korrekt rot.
+⚠️ **Es fehlt nur der Upstream-CMake-Pfad** (`rust_omc.cmake` 0 Treffer für wasm64) —
+"Upstream hat es noch nicht in das Build-System eingehängt", **nicht "nicht baubar"**.
 Die Linie **ändert die Standardlinie nicht**; Performance-Kandidaten laufen nach der Regel
 "A/B-Differenztor + negative Befunde sind auch Vermögen".
 
