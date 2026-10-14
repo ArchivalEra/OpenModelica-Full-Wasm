@@ -67,6 +67,13 @@ Gegenprobe: falsches Artefakt muss rot werden).
 
 ## Fakten-System (Einfacht, Antihalluzination)
 
+**★ Eine Lehre aus der Praxis (2026-10-14, vom Replay-Gate gefunden)**:
+**schwankende Messgrößen dürfen nicht mit ihrem Rohwert ins Ledger**. JS-Heap-Spitze und
+Kompilierdauer ändern sich pro Lauf; ein Rohwert macht das Replay-Gate rot — das ist kein
+Artefakt-Problem, sondern eine **Kategorie-Verwechslung zwischen Messgröße und Prüfregel**.
+Dieses Repo führt solche Größen deshalb als **Größenklasse** (Heap auf 5 MiB aufgerundet,
+Kompilierdauer auf 100 ms; `cmd` rundet identisch ⇒ wortwörtlich reproduzierbar).
+
 Die **einzige Quelle** für Zahlen ist `build/FACTS.json`; Dokumenttexte **schreiben keine Zahlen
 ab**, sondern `[[Schlüssel]]`; neben jeder Tatsache steht ein **Wiederholbefehl**, den die Gates
 bei jedem Commit wörtlich ausführen. Jedes Gate muss **beweisen können, dass es rot wird**

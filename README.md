@@ -61,6 +61,12 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 ## 事实系统（Einfacht，反幻觉）
 
+**★ 一条实战教训（2026-10-14，被复跑闸门抓到）**：**波动的观测量不能以原值进台账**。
+JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复跑闸门红（那不是产物问题，
+是**判据与量的性质不匹配**）⇒ 本仓改成**量级档**（堆峰值取整到 5 MiB、编译耗时取整到
+100ms，`cmd` 里做同样的取整，⇒ 逐字复跑稳定）。
+
+
 数字的**唯一产地**是 `build/FACTS.json`；文档正文**不手抄数字**，写 `[[键名]]`；
 每条事实旁写**复跑命令**，闸门每次提交逐字执行。每个闸门必须**能证明自己会红**
 （`sh gates-selftest.sh`）。
@@ -158,8 +164,8 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (37546 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (9684 bytes)
-- `README.zh.md` (8407 bytes)
+- `README.de.md` (10219 bytes)
+- `README.zh.md` (8836 bytes)
 - `STATE.md` (23035 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
