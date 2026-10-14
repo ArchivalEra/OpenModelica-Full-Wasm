@@ -119,8 +119,10 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 
 **`IllegalPerformance` 线已开工**（2026-10-14）：基线已立（`build/113/ilperf-baseline.sh`）——
 产物 74.6 MB、**SIMD 5876 处 + post-MVP 23,451 处已在产物里**、features 九项、memory 导出形态。
-⚠️ **wasm64 卡在上游两条**：上游 CMake 无路径 **且 Rust 无 `wasm64-unknown-unknown` target**
-⇒ 编译器主体编不成（姊妹仓的 `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+**★ wasm64 工具链侧可做**（同日实测更正）：`cargo build --target wasm64-unknown-unknown
+-Zbuild-std=core,alloc` **8.8 秒编成**（可行件 `build/113/build-w64-spike.sh`，5 条自证），
+纯度闸门认档 wasm64、反向断言正确红。⚠️ **缺的只是上游 CMake 路径**
+（`rust_omc.cmake` 0 命中 wasm64）——"上游还没接进构建系统"，**不是"编不出来"**。
 线内**不动默认线**；性能候选按"A/B 差分门 + 负判决也是资产"推进。
 
 **下一步 = 需求 F**（`Octave-UI` 集成）/ 性能候选逐条验。
@@ -146,19 +148,19 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (4886 bytes)
+- `.gitignore` (4916 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
-- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (2492 bytes)
+- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3818 bytes)
 - `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (6171 bytes)
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3105 bytes)
 - `AGENTS.md` (8090 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (34967 bytes)
+- `HISTORY.md` (36533 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (9423 bytes)
-- `README.zh.md` (8203 bytes)
-- `STATE.md` (22033 bytes)
+- `README.de.md` (9684 bytes)
+- `README.zh.md` (8407 bytes)
+- `STATE.md` (22934 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -174,26 +176,27 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `bridge/omc_submit.m` (1492 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
 - `build/113/build-omc-wasm.sh` (23539 bytes)
+- `build/113/build-w64-spike.sh` (7866 bytes)
 - `build/113/check-lane-purity.py` (20889 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
 - `build/113/ilperf-baseline.sh` (5003 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (9051 bytes)
-- `build/gates-selftest.sh` (3819 bytes)
+- `build/FACTS.json` (9887 bytes)
+- `build/gates-selftest.sh` (3859 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
 - `build/promote-site.sh` (6134 bytes)
 - `build/provision-upstream.sh` (5930 bytes)
-- `build/retractions.json` (950 bytes)
+- `build/retractions.json` (1704 bytes)
 - `build/serve-coi.py` (3033 bytes)
 - `build/upstream-lock.json` (2909 bytes)
 - `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
 - `docs/LANES-AND-MEMORY-MODEL.md` (7638 bytes)
-- `docs/REQUIREMENTS.md` (20661 bytes)
+- `docs/REQUIREMENTS.md` (21499 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
 - `docs/agents/issue-tracker.md` (3217 bytes)
@@ -249,7 +252,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (14852 bytes)
+- `zreflect/measure_openmodelica.py` (15922 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

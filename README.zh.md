@@ -119,8 +119,10 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 
 **`IllegalPerformance` 线已开工**（2026-10-14）：基线已立（`build/113/ilperf-baseline.sh`）——
 产物 74.6 MB、**SIMD 5876 处 + post-MVP 23,451 处已在产物里**、features 九项、memory 导出形态。
-⚠️ **wasm64 卡在上游两条**：上游 CMake 无路径 **且 Rust 无 `wasm64-unknown-unknown` target**
-⇒ 编译器主体编不成（姊妹仓的 `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+**★ wasm64 工具链侧可做**（同日实测更正）：`cargo build --target wasm64-unknown-unknown
+-Zbuild-std=core,alloc` **8.8 秒编成**（可行件 `build/113/build-w64-spike.sh`，5 条自证），
+纯度闸门认档 wasm64、反向断言正确红。⚠️ **缺的只是上游 CMake 路径**
+（`rust_omc.cmake` 0 命中 wasm64）——"上游还没接进构建系统"，**不是"编不出来"**。
 线内**不动默认线**；性能候选按"A/B 差分门 + 负判决也是资产"推进。
 
 **下一步 = 需求 F**（`Octave-UI` 集成）/ 性能候选逐条验。
