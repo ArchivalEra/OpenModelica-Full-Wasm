@@ -27,6 +27,7 @@
 !docs/REQUIREMENTS.md
 !docs/EINFACHT-INTEGRATION.md
 !docs/FORK-PIPELINE-AND-LESSONS.md
+!docs/LANES-AND-MEMORY-MODEL.md
 !docs/agents/*
 !docs/agents/**
 

@@ -72,6 +72,7 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 | `docs/REQUIREMENTS.md` | **需求书**：要做什么，每条带实测现状 + 验收判据 |
 | `docs/EINFACHT-INTEGRATION.md` | **Einfacht 接入方法**（含 7 个实测坑） |
 | `docs/FORK-PIPELINE-AND-LESSONS.md` | **fork 管线 + 全部经验**（怎么搬上游、怎么维护） |
+| `docs/LANES-AND-MEMORY-MODEL.md` | **Memory-model & lane experience** (wasm32/wasm64 read-outs, the three real mixing incidents, the purity gate's three criteria, multi-lane sites and lane selection; incl. how the three lines still hold when the upstream has zero wasm64 support) |
 | `maintaince.md` | 方向与地图 |
 | `STATE.md` | 活状态（+ 文末机器块） |
 | `AGENTS.md` | 给 agent 的硬规矩 |
@@ -131,7 +132,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (4582 bytes)
+- `.gitignore` (4614 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (1646 bytes)
@@ -141,8 +142,8 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (28334 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (7746 bytes)
-- `README.zh.md` (6810 bytes)
+- `README.de.md` (8042 bytes)
+- `README.zh.md` (7070 bytes)
 - `STATE.md` (19442 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
@@ -176,6 +177,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
+- `docs/LANES-AND-MEMORY-MODEL.md` (7638 bytes)
 - `docs/REQUIREMENTS.md` (20172 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)

@@ -79,6 +79,7 @@ bei jedem Commit wörtlich ausführen. Jedes Gate muss **beweisen können, dass 
 | `docs/REQUIREMENTS.md` | **Anforderungsdokument**: was zu tun ist, je Punkt mit Messung + Abnahmekriterium |
 | `docs/EINFACHT-INTEGRATION.md` | **Einfacht-Integration** (inkl. 7 gemessener Fallstricke) |
 | `docs/FORK-PIPELINE-AND-LESSONS.md` | **Fork-Pipeline + alle Erfahrungen** |
+| `docs/LANES-AND-MEMORY-MODEL.md` | **Speichermodell- & Linien-Erfahrung** (wasm32/wasm64-Nachweise, die drei echten Mischunfaelle, die drei Kriterien des Reinheits-Gates, Multi-Lane-Sites und Lane-Wahl; inkl. wie die drei Linien trotz null wasm64-Unterstuetzung im Upstream bestehen bleiben) |
 | `maintaince.md` | Richtung und Karte |
 | `STATE.md` | Live-Status (+ Maschinenblock am Ende) |
 | `AGENTS.md` | Harte Regeln für Agenten |
