@@ -174,11 +174,11 @@ def measure():
                 ("samepage_om_bytes", "om_wasm_bytes", "OM 产物体积（同页口径）"),
                 ("samepage_octave_bytes", "octave_wasm_bytes", "Octave 产物体积（同页口径）"),
                 ("samepage_sum_bytes", "sum_wasm_bytes", "两引擎 wasm 字节合计"),
-                # ⚠️ JS 堆**每次跑都不同**（实测 26/31MB 两轮）⇒ 台账不许放原值
-                #   （复跑闸门会红：那是"裸值不符"，不是波动）。改成**量级档**：
-                #   向上取整到 5 MiB，cmd 里做同样的取整 ⇒ 逐字复跑稳定。
-                ("samepage_heap_peak_mib5", "js_heap_peak_bytes", "同页 JS 堆峰值的**量级档**"
-                 "（向上取整到 5 MiB；原始值逐轮波动 ⇒ 台账只放档位）"),
+                # ⚠️ JS 堆**每次跑都不同**（实测 26/31MB，且 25MiB 档与 30MiB 档都出现过 ⇒
+                #   5 MiB 档也跨边界）⇒ 用**上界档**：向上取整到 **2 的幂 MiB**
+                #   （实测值域 23–31MB ⇒ 稳定落在 32 MiB 档）。cmd 同算法 ⇒ 逐字复跑稳定。
+                ("samepage_heap_peak_mib32", "js_heap_peak_bytes", "同页 JS 堆峰值**上界档**"
+                 "（向上取整到 2 的幂 MiB；原始值逐轮波动 23–31MB）"),
                 # ⚠️ 编译耗时**逐轮波动**（实测 242/295/306ms）⇒ 只放**粗档**
                 #   （向上取整到 **500ms**）。100ms 档实测仍会翻（295→300 vs 306→400），
                 #   ⇒ 档要**粗于噪声**才有意义（这是"波动的量只上档位"的第 2 课：
@@ -193,12 +193,16 @@ def measure():
                                   "python3 -c \"import json;x=json.load(open('%s'))['%s'];"
                                   "u=500;print(((int(x)+u-1)//u)*u)\"" % (cost, jk),
                                   "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
-                    elif key == "samepage_heap_peak_mib5":
-                        # 取整到 5 MiB 的倍数（`(x+5MiB-1)//5MiB*5MiB`）——cmd 与值同源同算法
-                        val = ((int(d[jk]) + 5 * 1024 * 1024 - 1) // (5 * 1024 * 1024)) * (5 * 1024 * 1024)
-                        ft = fact(val,
+                    elif key == "samepage_heap_peak_mib32":
+                        # 向上取整到 2 的幂 MiB（16 MiB → 32 MiB → 64 MiB…）——cmd 同算法
+                        def _pow2_mib(x):
+                            u = 16 * 1024 * 1024
+                            while u < int(x):
+                                u *= 2
+                            return u
+                        ft = fact(_pow2_mib(d[jk]),
                                   "python3 -c \"import json;x=json.load(open('%s'))['%s'];"
-                                  "u=5*1024*1024;print(((int(x)+u-1)//u)*u)\"" % (cost, jk),
+                                  "u=16*1024*1024\nwhile u < int(x): u *= 2\nprint(u)\"" % (cost, jk),
                                   "build/omc-out-wasm32/artifacts/samepage-cost.json", note)
                     else:
                         ft = fact(d[jk],
