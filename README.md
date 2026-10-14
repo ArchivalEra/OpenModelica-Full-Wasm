@@ -49,17 +49,19 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 
 ## 三条线（一线一架构）
 
-    master              → 产物 wasm64，只编 wasm64
+    master              → 产物 wasm64，只编 wasm64（⚠️ 上游未接路径，暂出 wasm32 产物）
     wasm32              → 产物 wasm32，只编 wasm32
-    IllegalPerformance  → 性能线（SIMD / 多线程 / 优化库）
 
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
-**All three lines are in place and content-synchronized** (`master` / `wasm32` / `IllegalPerformance`) —
-`git diff master <line> --stat` must be empty (`wasm32` is the very same commit as `master`;
-`IllegalPerformance` is content-identical with a few cherry-pick copies in its history —
-**force-push is forbidden, so they stay**).
+**★ 性能线 `IllegalPerformance` 已按用户点令删除**（2026-10-14，本地 + 远端）：它**只有
+wasm64 按官方 fork 管线做到生产级之后**才是"脱离官方树的开发"，在那之前开线没有用 ⇒
+本仓当前**两线**；wasm64 生产级后**重建**该线。原线对象**不删**（本仓铁律），
+钉在 tag `archive/ilperf-f283610`。
+
+**Both lines are in place and content-synchronized** (`master` / `wasm32`) —
+`git diff master <line> --stat` must be empty (`wasm32` is the very same commit as `master`).
 
 
 ## 事实系统（Einfacht，反幻觉）
@@ -125,18 +127,19 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 `-Oz` 把 web 档 omc **91.4 MB → 74.6 MB（−18.4%）**，验收仍全绿。
 （早先"同页不可行"的结论已**翻案**：那是测量方法的错，见 `build/retractions.json`。）
 
-⚠️ **wasm64 仍是双缺**：上游 CMake 无路径 **且 Rust 侧没有 `wasm64-unknown-unknown` target**
-⇒ 编译器主体编不成 wasm64（姊妹仓的 Emscripten `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+⚠️ **wasm64 的边界**（2026-10-14 更正，见 `build/retractions.json` 的 `R-02-1`）：
+**工具链侧可做** —— `cargo build --target wasm64-unknown-unknown -Zbuild-std=core,alloc`
+**8.8 秒编成**（可行件 `build/113/build-w64-spike.sh`，5 条自证），纯度闸门认档 wasm64、
+反向断言正确红；⚠️ **缺的只是上游 CMake 路径**（`rust_omc.cmake` 0 命中 wasm64）
+——"上游还没接进构建系统"，**不是"编不出来"**。
 
-**`IllegalPerformance` 线已开工**（2026-10-14）：基线已立（`build/113/ilperf-baseline.sh`）——
-产物 74.6 MB、**SIMD 5876 处 + post-MVP 23,451 处已在产物里**、features 九项、memory 导出形态。
-**★ wasm64 工具链侧可做**（同日实测更正）：`cargo build --target wasm64-unknown-unknown
--Zbuild-std=core,alloc` **8.8 秒编成**（可行件 `build/113/build-w64-spike.sh`，5 条自证），
-纯度闸门认档 wasm64、反向断言正确红。⚠️ **缺的只是上游 CMake 路径**
-（`rust_omc.cmake` 0 命中 wasm64）——"上游还没接进构建系统"，**不是"编不出来"**。
-线内**不动默认线**；性能候选按"A/B 差分门 + 负判决也是资产"推进。
+**★ 性能线 `IllegalPerformance` 已按用户点令删除**（2026-10-14）：它**只有 wasm64 按官方
+fork 管线做到生产级之后**才是"脱离官方树的开发"，在那之前开线没有用 ⇒ 本仓回到两线；
+wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实保留（它是重建的前置）。
+（基线件 `build/113/ilperf-baseline.sh` 与可行件 `build/113/build-w64-spike.sh` 仍在仓里 ——
+前者量到的 SIMD/post-MVP 指令面是**当前产物**的事实，后者是**重建该线**的可行性前置。）
 
-**下一步 = 需求 F**（`Octave-UI` 集成）/ 性能候选逐条验。
+**下一步 = 需求 F**（`Octave-UI` 集成）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
@@ -162,16 +165,16 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `.gitignore` (5085 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
-- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3818 bytes)
+- `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3998 bytes)
 - `.scratch/open-questions/issues/03-simulate-needs-host-solver.md` (6171 bytes)
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3672 bytes)
-- `AGENTS.md` (8090 bytes)
+- `AGENTS.md` (8412 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (38136 bytes)
+- `HISTORY.md` (39888 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (10709 bytes)
-- `README.zh.md` (9379 bytes)
-- `STATE.md` (14672 bytes)
+- `README.de.md` (11031 bytes)
+- `README.zh.md` (9569 bytes)
+- `STATE.md` (15248 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -187,14 +190,14 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `bridge/omc_submit.m` (1492 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
 - `build/113/build-omc-wasm.sh` (23539 bytes)
-- `build/113/build-w64-spike.sh` (7866 bytes)
-- `build/113/check-lane-purity.py` (20889 bytes)
+- `build/113/build-w64-spike.sh` (8265 bytes)
+- `build/113/check-lane-purity.py` (21192 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
-- `build/113/ilperf-baseline.sh` (5003 bytes)
+- `build/113/ilperf-baseline.sh` (5422 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (10081 bytes)
+- `build/FACTS.json` (10144 bytes)
 - `build/gates-selftest.sh` (3859 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
@@ -205,9 +208,9 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `build/upstream-lock.json` (2909 bytes)
 - `build/upstream-pins.json` (2957 bytes)
 - `docs/EINFACHT-INTEGRATION.md` (9200 bytes)
-- `docs/FORK-PIPELINE-AND-LESSONS.md` (10802 bytes)
-- `docs/LANES-AND-MEMORY-MODEL.md` (7638 bytes)
-- `docs/REQUIREMENTS.md` (21499 bytes)
+- `docs/FORK-PIPELINE-AND-LESSONS.md` (11094 bytes)
+- `docs/LANES-AND-MEMORY-MODEL.md` (7994 bytes)
+- `docs/REQUIREMENTS.md` (22373 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
 - `docs/agents/issue-tracker.md` (3217 bytes)
@@ -217,8 +220,9 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `doctor.json` (645 bytes)
 - `gates-selftest.sh` (13572 bytes)
 - `mail/001-extra-content-port-promotion.md` (5431 bytes)
+- `mail/002-re-port-promotion.md` (9957 bytes)
 - `mail/README.md` (1713 bytes)
-- `maintaince.md` (6300 bytes)
+- `maintaince.md` (6799 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
 - `reflect-hooks/Einfacht.env.example` (1606 bytes)
 - `reflect-hooks/einfacht-env.sh` (4231 bytes)
@@ -265,7 +269,7 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (18022 bytes)
+- `zreflect/measure_openmodelica.py` (19152 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

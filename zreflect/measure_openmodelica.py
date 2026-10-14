@@ -69,14 +69,22 @@ def measure():
             return []
 
     br = _branches()
-    want = ["IllegalPerformance", "master", "wasm32"]
+    # ★ 2026-10-14 用户点令：**删掉 IllegalPerformance 线**（本地 + 远端）。
+    #   理由（用户原话）：IP 线只有 wasm64 目标**按官方 fork 管线做到生产级**之后才是
+    #   "脱离官方树的开发"；在那之前开线做出来的东西**没有用**。⇒ 本仓回到**两线**：
+    #   `master`（wasm64 目标，暂出 wasm32 产物）+ `wasm32`（wasm32）。
+    #   ⚠️ 原 IP 线的提交**不删**（本仓铁律）：钉在 tag `archive/ilperf-f283610` 上
+    #   （f283610 及其祖先永久可达）。wasm64 生产级后**重建该线**（不是"续用旧线"）。
+    want = ["master", "wasm32"]
     facts["lane_branches_present"] = fact(
         sum(1 for w in want if w in br),
         # ⚠️ 用 awk 不用 grep -c：`grep -c` 零命中**退出 1** ⇒ 复跑闸门把它当"命令报错"。
         #    这条实测踩到过（建仓第一次提交时，分支还没 refs ⇒ 0 命中 ⇒ rc=1 ⇒ 提交被拦）。
         "git -C %s branch --list --format='%%(refname:short)' | "
-        "awk '/^(master|wasm32|IllegalPerformance)$/{n++} END{print n+0}'" % REPO,
-        "build/FACTS.json", "三线分支齐备数（一线一架构：master=wasm64 / wasm32 / IllegalPerformance）")
+        "awk '/^(master|wasm32)$/{n++} END{print n+0}'" % REPO,
+        "build/FACTS.json",
+        "两线分支齐备数（master=wasm64 目标 / wasm32；IP 线已按用户点令删除，"
+        "wasm64 生产级后重建 —— 原线对象钉在 tag archive/ilperf-f283610）")
 
     # 白名单规则数（白名单仓库的硬约束）
     gi = os.path.join(REPO, ".gitignore")
@@ -126,8 +134,9 @@ def measure():
     # 判据：产物身份证存在且 verdict==ok。没有身份证 ⇒ 这条事实不写（宁可缺席，不许冒充）。
     # ⚠️ 本仓产物真名是 **`OpenModelicaCompiler_bg.wasm`**（wasm-bindgen 出包），不是 `omc.wasm`
     #    （官方树里 omc.wasm 只出现在注释里）。⇒ 除 sha 外再量"字节数"与"web 包文件数"。
-    for lane, sub in (("w64", "omc-out-w64"), ("wasm32", "omc-out-wasm32"),
-                      ("ilperf", "omc-out-ilperf")):
+    # ⚠️ 原 IP 线（`omc-out-ilperf`）**已删**（用户点令 2026-10-14）⇒ 不再量它的产物；
+    #    wasm64 生产级后重建该线时再加回（届时的目录名由构建脚本定，不在这里猜）。
+    for lane, sub in (("w64", "omc-out-w64"), ("wasm32", "omc-out-wasm32")):
         ident = os.path.join(BUILD, sub, "omc.build.json")
         if not _exists(ident):
             continue                       # 未构建：**不写这条**（缺席 ≠ 0）
@@ -229,7 +238,9 @@ def measure():
                 d["verdict"], "python3 -c \"import json;print(json.load(open('%s'))['verdict'])\"" % web_verdict,
                 "build/omc-out-web/omc.build.json", "web 档产物身份证 verdict")
 
-    # ── IllegalPerformance 线：wasm64 可行件（2026-10-14）────────────────────────
+    # ── wasm64 可行件（2026-10-14）──────────────────────────────────────────────
+    # ⚠️ 承载它的 `IllegalPerformance` 线**已按用户点令删除**（同日），但这条事实**保留**：
+    #    它是"wasm64 做到生产级后重建该线"的**前置**，不是"线已在"的证据。
     # 判据物：`build/113/build-w64-spike.sh --json`（编成才写；没编过 ⇒ 这条不写，缺席≠0）
     w64 = os.path.join(BASE, "build", "omc-out-wasm32", "artifacts", "w64-spike.json")
     if _exists(w64):

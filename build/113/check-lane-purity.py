@@ -12,7 +12,10 @@
 # ── 本仓的档表（一线一架构）──────────────────────────────────────────────────
 #   master 线              → 产物 wasm64，只编 wasm64
 #   wasm32 线              → 产物 wasm32，只编 wasm32
-#   IllegalPerformance 线  → 性能线；其产物档由 `--lane ilperf-host` 单独断言（见下）
+#   ⚠️ 2026-10-14 用户点令：原 `IllegalPerformance`（性能）线**已删除** ——
+#      性能线只有在 wasm64 做到生产级后才是"脱离官方树的开发"。线删了，但
+#      **档表里的 `ilperf` 档名保留**：wasm64 生产级后重建该线时用它（档 = wasm64，
+#      性能优化不改架构）。今天没有任何现役产物喂这个档名。
 #
 # ⚠️ 与姊妹仓的差异：那边查的是 `.oct`（dlopen 的 side module）；本仓查的是
 #    **宿主 wasm + 附属 wasm 模块**（omc.wasm / coderuntime / FMU 之类）。
@@ -34,7 +37,7 @@ LANE_EXPECT = {
     "wasm64": "wasm64",
     "master": "wasm64",
     "w64-base": "wasm64",
-    "ilperf": "wasm64",            # 本仓 IP 线的**产物**是 wasm64（性能优化，不是改架构）
+    "ilperf": "wasm64",            # 原 IP 线的**产物**档（性能优化不改架构）；线已删，档名留给重建
     "wasm32": "wasm32",
     "wasm32-final": "wasm32",
     "product": "wasm32",

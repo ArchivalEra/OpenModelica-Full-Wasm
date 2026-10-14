@@ -168,7 +168,10 @@
 |---|---|---|
 | `master` | wasm64 | wasm64 |
 | `wasm32` | wasm32 | wasm32 |
-| `IllegalPerformance` | 性能线（SIMD/线程/优化库） | 视档 |
+
+★ **`IllegalPerformance`（性能线）已按用户点令删除**（本仓 2026-10-14）：它**只有 wasm64
+按官方 fork 管线做到生产级之后**才是"脱离官方树的开发"⇒ 本仓回到两线，wasm64 生产级后重建。
+（原线对象钉在 tag `archive/ilperf-f283610`，不删。）
 
 **判据可执行**：架构纯度闸门 —— 宿主 / 车道模块 / 站点**本档专属**目录三处同档；
 错档逐条点名、rc=1。**零值守卫**：别把基础档目录喂进去（多档站里它们合法装着另一档的模块，
@@ -205,6 +208,6 @@ sh build/promote-*.sh --selftest
 | 供给 | `build/provision-upstream.sh`（容器 + `.upstream-pin` stamp） |
 | 工具链 | **Rust + `wasm32-wasip1` + wasi-libc + wasm-ld**（官方 CMake 目标；**不是 emsdk**） |
 | 产物自证 | `omc.build.json`（`verdict=="ok"` 才可部署） |
-| 受管辖入口 | `build/promote-*.sh`（三线各一） |
-| 三线 | `master`(wasm64) / `wasm32` / `IllegalPerformance` |
+| 受管辖入口 | `build/promote-*.sh`（两线各一） |
+| 两线 | `master`(wasm64) / `wasm32`（`IllegalPerformance` 已按用户点令删除，wasm64 生产级后重建） |
 | 白名单 | `.gitignore`（本仓已建，`*` + `!路径`） |

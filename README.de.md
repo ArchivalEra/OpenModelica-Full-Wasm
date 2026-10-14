@@ -54,18 +54,22 @@ Same-Origin-Hosting", **dieselbe Art Repository wie `Octave-Full-Wasm`**
 
 ## Drei Linien (eine Linie, eine Architektur)
 
-    master              → Artefakt wasm64, kompiliert nur wasm64
+    master              → Artefakt wasm64, kompiliert nur wasm64 (⚠️ Upstream hat keinen Pfad; vorerst wasm32-Artefakt)
     wasm32              → Artefakt wasm32, kompiliert nur wasm32
-    IllegalPerformance  → Performance-Linie (SIMD / Threads / optimierte Bibliotheken)
 
 Kriterium = `python3 build/113/check-lane-purity.py` (Host / Module / linienspezifisches
 Site-Verzeichnis — alle drei gleich; falsche Linie wird namentlich gemeldet, rc=1;
 Gegenprobe: falsches Artefakt muss rot werden).
 
-**Alle drei Linien sind vorhanden und inhaltlich synchronisiert** (`master` / `wasm32` /
-`IllegalPerformance`) — `git diff master <Linie> --stat` muss leer sein (`wasm32` ist derselbe
-Commit wie `master`; `IllegalPerformance` ist inhaltlich identisch, hat aber einige
-Cherry-pick-Kopien in der Historie — **kein force-push erlaubt, also bleiben sie**).
+**★ Die Performance-Linie `IllegalPerformance` wurde auf Anweisung des Nutzers gelöscht**
+(2026-10-14, lokal + remote): Sie ist erst dann "Entwicklung abseits des Upstream-Baums",
+wenn das wasm64-Ziel **über die offizielle Fork-Pipeline produktionsreif** ist; vorher ist
+eine eröffnete Linie nutzlos ⇒ das Repo hat jetzt **zwei Linien**; nach wasm64-Produktionsreife
+wird die Linie **neu aufgebaut**. Die alten Objekte werden **nicht gelöscht** (Repo-Regel),
+sie hängen am Tag `archive/ilperf-f283610`.
+
+**Beide Linien sind vorhanden und inhaltlich synchronisiert** (`master` / `wasm32`) —
+`git diff master <Linie> --stat` muss leer sein (`wasm32` ist derselbe Commit wie `master`).
 
 
 ## Fakten-System (Einfacht, Antihalluzination)
@@ -145,23 +149,23 @@ der `.mat`-Handshake passiert dort (Prüfbefehl `sh test/browser/run-samepage.sh
 alle Abnahmen bleiben grün. (Die frühere Aussage "gleiche Seite nicht machbar" ist **widerlegt** —
 das war ein Messfehler, siehe `build/retractions.json`.)
 
-⚠️ **wasm64 fehlt doppelt**: kein Pfad im Upstream-CMake **und kein `wasm64-unknown-unknown`-Target
-auf Rust-Seite** ⇒ der Compiler-Kern lässt sich nicht als wasm64 bauen (das `-sMEMORY64=1` des
-Schwester-Repos ist ein C/C++-Pfad und nicht übertragbar).
-
-**Die `IllegalPerformance`-Linie ist gestartet** (2026-10-14): Baseline steht
-(`build/113/ilperf-baseline.sh`) — Artefakt 74,6 MB, **SIMD 5876 Ops + Post-MVP 23.451 Ops
-bereits enthalten**, neun Features, Export-Form des Speichers.
-**★ wasm64 ist auf der Toolchain-Seite machbar** (noch am selben Tag gemessen und korrigiert):
-`cargo build --target wasm64-unknown-unknown -Zbuild-std=core,alloc` baut in **8,8 s** ein
-wasm64-Artefakt (Machbarkeitsstück `build/113/build-w64-spike.sh`, 5 Selbsttests),
-das Purity-Gate erkennt die Spur als wasm64, die Gegenprobe wird korrekt rot.
-⚠️ **Es fehlt nur der Upstream-CMake-Pfad** (`rust_omc.cmake` 0 Treffer für wasm64) —
+⚠️ **Die Grenze von wasm64** (2026-10-14 korrigiert, siehe `build/retractions.json`, `R-02-1`):
+**auf der Toolchain-Seite machbar** — `cargo build --target wasm64-unknown-unknown
+-Zbuild-std=core,alloc` baut in **8,8 s** (Machbarkeitsstück `build/113/build-w64-spike.sh`,
+5 Selbsttests), das Purity-Gate erkennt wasm64, die Gegenprobe wird korrekt rot;
+⚠️ **es fehlt nur der Upstream-CMake-Pfad** (`rust_omc.cmake` 0 Treffer für wasm64) —
 "Upstream hat es noch nicht in das Build-System eingehängt", **nicht "nicht baubar"**.
-Die Linie **ändert die Standardlinie nicht**; Performance-Kandidaten laufen nach der Regel
-"A/B-Differenztor + negative Befunde sind auch Vermögen".
 
-**Nächster Schritt = Anforderung F** (Octave-UI) / Performance-Kandidaten einzeln prüfen.
+**★ Die Performance-Linie `IllegalPerformance` wurde auf Anweisung des Nutzers gelöscht**
+(2026-10-14): Sie ist erst dann "Entwicklung abseits des Upstream-Baums", wenn wasm64 über die
+offizielle Fork-Pipeline produktionsreif ist; vorher ist eine eröffnete Linie nutzlos ⇒
+zurück zu zwei Linien; nach wasm64-Produktionsreife wird die Linie **neu aufgebaut**.
+Der Befund "wasm64 auf der Toolchain-Seite machbar" bleibt erhalten (er ist die Voraussetzung
+für den Neuaufbau). (Baseline `build/113/ilperf-baseline.sh` und Machbarkeitsstück
+`build/113/build-w64-spike.sh` bleiben im Repo — Ersteres misst den **aktuellen** Artefakt,
+Letzteres ist die Voraussetzung für den Neuaufbau.)
+
+**Nächster Schritt = Anforderung F** (Octave-UI).
 
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend

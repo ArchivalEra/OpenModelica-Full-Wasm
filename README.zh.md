@@ -47,19 +47,21 @@ OpenModelica **官方主仓**有第一方 wasm 构建目标（`OMCompiler/Compil
 ⇒ **本仓照这条走** —— 也就是"上游 submodule + 自己交叉编 + 同源托管"，
 **与 `Octave-Full-Wasm` 是同一种仓库**（区别只在工具链：本仓 **Rust + wasm32-wasip1**）。
 
-## 三条线（一线一架构）
+## 两条线（一线一架构）
 
-    master              → 产物 wasm64，只编 wasm64
+    master              → 产物 wasm64，只编 wasm64（⚠️ 上游未接路径，暂出 wasm32 产物）
     wasm32              → 产物 wasm32，只编 wasm32
-    IllegalPerformance  → 性能线（SIMD / 多线程 / 优化库）
 
 判据 = `python3 build/113/check-lane-purity.py`（宿主 / 模块 / 站点本档专属目录三处同档；
 错档逐条点名、rc=1；反向断言：喂错档必须红）。
 
-**三条线已在位**（`master` / `wasm32` / `IllegalPerformance`），且**内容已同步** ——
-`git diff master <线> --stat` 应为空（`wasm32` 与 master **同一提交**；
-`IllegalPerformance` 内容一致、历史上有几个 cherry-pick 副本，**不许 force-push ⇒ 保留**）。
-判据 = `python3 build/113/check-lane-purity.py`（宿主 / 附属模块 / 站点专属目录三处同档）。
+**★ 性能线 `IllegalPerformance` 已按用户点令删除**（2026-10-14，本地 + 远端）：它**只有
+wasm64 按官方 fork 管线做到生产级之后**才是"脱离官方树的开发"，在那之前开线没有用 ⇒
+本仓当前**两线**；wasm64 生产级后**重建**该线。原线对象**不删**（本仓铁律），
+钉在 tag `archive/ilperf-f283610`。
+
+**两条线已在位**（`master` / `wasm32`），且**内容已同步** ——
+`git diff master <线> --stat` 应为空（`wasm32` 与 master **同一提交**）。
 
 
 ## 事实系统（Einfacht，反幻觉）
@@ -125,18 +127,19 @@ Octave 的 `load` 认 MAT4 格式但不产生 `h`/`v`（变量名在 `name` 矩�
 `-Oz` 把 web 档 omc **91.4 MB → 74.6 MB（−18.4%）**，验收仍全绿。
 （早先"同页不可行"的结论已**翻案**：那是测量方法的错，见 `build/retractions.json`。）
 
-⚠️ **wasm64 仍是双缺**：上游 CMake 无路径 **且 Rust 侧没有 `wasm64-unknown-unknown` target**
-⇒ 编译器主体编不成 wasm64（姊妹仓的 Emscripten `-sMEMORY64=1` 是 C/C++ 路径，不能照搬）。
+⚠️ **wasm64 的边界**（2026-10-14 更正，见 `build/retractions.json` 的 `R-02-1`）：
+**工具链侧可做** —— `cargo build --target wasm64-unknown-unknown -Zbuild-std=core,alloc`
+**8.8 秒编成**（可行件 `build/113/build-w64-spike.sh`，5 条自证），纯度闸门认档 wasm64、
+反向断言正确红；⚠️ **缺的只是上游 CMake 路径**（`rust_omc.cmake` 0 命中 wasm64）
+——"上游还没接进构建系统"，**不是"编不出来"**。
 
-**`IllegalPerformance` 线已开工**（2026-10-14）：基线已立（`build/113/ilperf-baseline.sh`）——
-产物 74.6 MB、**SIMD 5876 处 + post-MVP 23,451 处已在产物里**、features 九项、memory 导出形态。
-**★ wasm64 工具链侧可做**（同日实测更正）：`cargo build --target wasm64-unknown-unknown
--Zbuild-std=core,alloc` **8.8 秒编成**（可行件 `build/113/build-w64-spike.sh`，5 条自证），
-纯度闸门认档 wasm64、反向断言正确红。⚠️ **缺的只是上游 CMake 路径**
-（`rust_omc.cmake` 0 命中 wasm64）——"上游还没接进构建系统"，**不是"编不出来"**。
-线内**不动默认线**；性能候选按"A/B 差分门 + 负判决也是资产"推进。
+**★ 性能线 `IllegalPerformance` 已按用户点令删除**（2026-10-14）：它**只有 wasm64 按官方
+fork 管线做到生产级之后**才是"脱离官方树的开发"，在那之前开线没有用 ⇒ 本仓回到两线；
+wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实保留（它是重建的前置）。
+（基线件 `build/113/ilperf-baseline.sh` 与可行件 `build/113/build-w64-spike.sh` 仍在仓里 ——
+前者量到的 SIMD/post-MVP 指令面是**当前产物**的事实，后者是**重建该线**的可行性前置。）
 
-**下一步 = 需求 F**（`Octave-UI` 集成）/ 性能候选逐条验。
+**下一步 = 需求 F**（`Octave-UI` 集成）。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是

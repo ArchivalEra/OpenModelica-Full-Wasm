@@ -43,16 +43,20 @@ wasm 路径不需要 OMBootstrapping。
 ⚠️ 已知断点（首批实测）：Node 侧编译器**前端全通**（`loadFile` true、
 `getClassNames` → `{BouncingBall}`），`simulate()` 停在"要宿主注入 JS 回调"
 （`rt_host_lin_solve`）⇒ 这正是第二步要接的胶水。
-### 第三步：三线（`master`=wasm64 / `wasm32` / `IllegalPerformance`）+ 架构纯度闸门（需求 C）
+### 第三步：两线（`master`=wasm64 / `wasm32`）+ 架构纯度闸门（需求 C）
 ⚠️ `master` 线的 wasm64 目标**上游不支持**（悬案 02）；`wasm32` 线首批产物已出。
+★ 原性能线 `IllegalPerformance` **已按用户点令删除**（2026-10-14）—— 见下「分支模型」。
 ### 第四步：与 Octave 引擎的 `.mat` 握手（需求 D）+ MATLAB 语义桥 `omc_*`（需求 E）
 ### 第五步：`Octave-UI` 第二档集成（需求 F）
 
-## 分支模型（三线独立，一线一架构）
+## 分支模型（两线独立，一线一架构）
 
     master              → wasm64，只编 wasm64（⚠️ 上游不支持，见悬案 02；暂出 wasm32 产物）
     wasm32              → wasm32，只编 wasm32（首批产物线）
-    IllegalPerformance  → 性能线（SIMD / 多线程 / 优化库）
+
+★ **性能线 `IllegalPerformance` 已删**（用户点令 2026-10-14，本地 + 远端）：它**只有 wasm64
+按官方 fork 管线做到生产级之后**才是"脱离官方树的开发"，在那之前开线没有用 ⇒
+wasm64 生产级后**重建**该线（不续用旧线）。原线对象**不删**，钉在 tag `archive/ilperf-f283610`。
 
 判据 = `build/113/check-lane-purity.py`（宿主 / 附属模块 / 站点本档专属目录三处同档）。
 **2026-10-13 加固**：wasm 文件**没有** `Arch:` 头 ⇒ 闸门加 memory64 标志判据；
@@ -95,4 +99,6 @@ side module（dylink.0，无 memory 段）改成"必须与宿主同档"+ 报告�
 `omc_simulate_model('BouncingBall')` 在**真 Octave 引擎**里返回 **628×7 数据矩阵**
 （11 PASS / 0 FAIL）。桥是**两段式**（`.m` 提交即返回、宿主驱动）—— `.m` 侧忙等会死锁。
 
-### 第五步：需求 C 的性能线（`IllegalPerformance`）/ 需求 F（`Octave-UI` 集成）
+### 第五步：需求 F（`Octave-UI` 集成）
+★ 原「需求 C 的性能线（`IllegalPerformance`）」**已按用户点令删除** —— 性能线推迟到
+wasm64 做到生产级之后（见上「分支模型」）。

@@ -31,9 +31,12 @@
 
 ## 线划分 = 一线一架构（沿用姊妹仓用户点令 2026-10-12）
 
-    master 线              → 产物 wasm64，**只编 wasm64**
+    master 线              → 产物 wasm64，**只编 wasm64**（⚠️ 上游未接路径，暂出 wasm32 产物）
     wasm32 线              → 产物 wasm32，**只编 wasm32**
-    IllegalPerformance 线  → 性能线（SIMD / 多线程 / 优化库）
+
+★ **性能线（`IllegalPerformance`）已按用户点令删除**（2026-10-14）：它**只有 wasm64 目标
+按官方 fork 管线做到生产级之后**才是"脱离官方树的开发"；在那之前开线没有用。
+⇒ 本仓当前**两线**；wasm64 生产级后**重建**该线（原线对象钉在 tag `archive/ilperf-f283610`）。
 
 **判据可执行**：`python3 build/113/check-lane-purity.py --lane <档> --host <wasm> --mod <目录…>`
 （① 宿主 ② 车道模块 ③ 站点**本档专属**目录；错档逐条点名、rc=1）。

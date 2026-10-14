@@ -116,10 +116,16 @@ index-3 → index-1 的**指标约简是符号处理**（Pantelides），**正�
 
 ### 需求 C · 三线（wasm32 / wasm64 / IllegalPerformance）
 
+> ⚠️ **2026-10-14 用户点令：性能线 `IllegalPerformance` 删除**（本地 + 远端）⇒ 本需求**现为两线**。
+> 理由（用户原话）：IP 线**只有 wasm64 目标按官方 fork 管线做到生产级之后**才是"脱离官方树的
+> 开发"；在那之前开线做出来的东西**没有用**。⇒ wasm64 生产级后**重建**该线（不续用旧线）；
+> 原线对象**不删**，钉在 tag `archive/ilperf-f283610`（本仓铁律：不删 git 对象）。
+> 下面的 C1 原文保留（它记的是"当初要什么"），**C1 第三条已失效**。
+
 **C1 线划分 = 一线一架构**（沿用 `Octave-Full-Wasm` 的用户点令，2026-10-12）：
 - `master` 线 → 产物 **wasm64**，只编 wasm64；⚠️ **2026-10-13 实测：上游不支持**（见 §7 修正记录 R1）；
 - `wasm32` 线 → 产物 **wasm32**，只编 wasm32；
-- `IllegalPerformance` 线 → 性能线（SIMD / 多线程 / 优化 BLAS 之类）。
+- ~~`IllegalPerformance` 线 → 性能线（SIMD / 多线程 / 优化 BLAS 之类）~~ **【2026-10-14 用户点令删除】**。
 **C2 判据可执行**：照 `Octave-Full-Wasm/build/113/check-lane-purity.py` 的形状写本仓的
 **架构纯度闸门**（宿主 / `.oct` 等价物 / 站点本档专属目录三处同档；错档逐条点名、rc=1）。
 **C3 反向断言**：喂错档产物 ⇒ **必须红**。
@@ -228,7 +234,10 @@ gh api "repos/modelica/ModelicaStandardLibrary/contents/Modelica" --jq '.[]|sele
   `-Zbuild-std=core,alloc` **8.8 秒**就能编出 wasm64；Node 实例化成功（BigInt 参数是 64 位特征）；
   本仓纯度闸门认档 wasm64 且反向断言正确。
 - **⇒ 边界应表述为**："工具链侧可行；**上游 CMake 尚未提供 wasm64 路径**"
-  ⇒ `IllegalPerformance` 线的 wasm64 工作 = **等上游接路径**（或本仓自建一条路径，另立工单）。
+  ⇒ wasm64 工作 = **等上游接路径**（或本仓自建一条路径，另立工单）。
+  ⚠️ **2026-10-14 用户点令**：承接 wasm64 的那条线（原 `IllegalPerformance`）**已删** ——
+  wasm64 按官方 fork 管线做到生产级后**重建**该线；本 R7 记的"工具链侧可做"这条事实**保留**，
+  它是"重建该线"的前置。
 
 ### R1（2026-10-13）· C1 的「master 线 → wasm64」今天不可达：**上游零支持**
 

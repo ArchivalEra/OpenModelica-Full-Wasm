@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# OpenModelica-Full-Wasm — **wasm64 可行性可行件**（IllegalPerformance 线；2026-10-14）
+# OpenModelica-Full-Wasm — **wasm64 可行性可行件**（2026-10-14）
 # Copyright (C) 2026 ArchivalEra · SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# ⚠️ **线的状态（2026-10-14 用户点令）**：原 `IllegalPerformance` 线**已删除** ——
+#   性能线只有在 wasm64 做到生产级后才是"脱离官方树的开发"。
+#   **本脚本保留为资产**：它钉的是"wasm64 在工具链侧**可做**"这条事实，
+#   即"wasm64 做到生产级后重建该线"的**前置**（不是"线已在"的证据）。
 #
 # 一句话：**在本机把 Rust 编成 wasm64 并验档**（可复跑、可证伪）。
 #
@@ -114,7 +119,7 @@ if [ "$JSON" = 1 ]; then
   printf '{"schema":1,"lane":"wasm64","wasm":"%s","bytes":%s,"sha256":"%s","gate_rc":%s,"reverse_rc":%s,"channel":"%s"}\n' \
     "$W" "$BYTES" "$SHA" "$G" "$RG" "$CHANNEL"
 else
-  echo "== wasm64 可行件（IllegalPerformance 线）=="
+  echo "== wasm64 可行件（原 IP 线的前置；该线已删，wasm64 生产级后重建）=="
   echo "   通道      : $CHANNEL（-Zbuild-std=core,alloc 自建 std）"
   echo "   产物      : $W"
   echo "   字节      : $BYTES"
