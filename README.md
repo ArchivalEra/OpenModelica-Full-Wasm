@@ -90,7 +90,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `AGENTS.md` | 给 agent 的硬规矩 |
 | `CONTEXT.md` | 术语表（每词一条定义 + 一行复跑证据） |
 | `HISTORY.md` | 历史（append-only） |
-| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。端口往来：`001`（额外内容仓推广 content-list）+ `002`（本仓回：暂无内容可报、缺席是合法行为）+ `003`（额外内容仓确认）+ `004`（产地已裁决：`consumer` 轴采纳、能力层 `content` 留空） |
+| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。端口往来：`001`（额外内容仓推广 content-list）+ `002`（本仓回：暂无内容可报、缺席是合法行为）+ `003`（额外内容仓确认）+ `004`（产地已裁决：`consumer` 轴采纳、能力层 `content` 留空）+ `005`（产地第二批答复：无直接影响） |
 
 ## 现行状态
 
@@ -172,8 +172,8 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `CONTEXT.md` (6458 bytes)
 - `HISTORY.md` (39888 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (11425 bytes)
-- `README.zh.md` (9843 bytes)
+- `README.de.md` (11500 bytes)
+- `README.zh.md` (9895 bytes)
 - `STATE.md` (15672 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
@@ -223,6 +223,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `mail/002-re-port-promotion.md` (9957 bytes)
 - `mail/003-re-port-promotion.md` (8436 bytes)
 - `mail/004-re-rulings.md` (3826 bytes)
+- `mail/005-re-rulings-2.md` (3009 bytes)
 - `mail/README.md` (1713 bytes)
 - `maintaince.md` (6799 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
