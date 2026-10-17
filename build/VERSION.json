@@ -1,0 +1,36 @@
+{
+  "_comment": "版本身份证（v0.1.0-wasm32）。数字不手抄：sha/字节从产物读，验收判据见 STATE 的 AUTO 块。上游 pin 出处 = build/upstream-pins.json + .upstream-pin stamp（witness 每提交核对）。",
+  "version": "0.1.0",
+  "lane": "wasm32",
+  "codename": "first-light",
+  "date": "2026-10-17",
+  "upstream": {
+    "openmodelica": "cbff5eb753e7d33422712a0eea6b7a0ae0d044ab",
+    "omcompiler-3rdparty": "ae7e482a88906b418d8ad57a5d8a804f33eb81fa"
+  },
+  "toolchain": {
+    "clang": "24.0.0 (55ea1f4ebea23d0355d5cdb075f1e12f28ab82d0)",
+    "rustc": "1.98.0-nightly (nightly-2026-05-31)"
+  },
+  "artifacts": {
+    "web_wasm": {
+      "file": "omc/OpenModelicaCompiler_bg.wasm",
+      "bytes_ledger": "omc_web_wasm_bytes",
+      "sha256_ledger": "omc_web_wasm_sha"
+    },
+    "node_wasm": {
+      "file": "pkg-nodejs/OpenModelicaCompiler_bg.wasm",
+      "bytes_ledger": "omc_wasm32_bytes",
+      "sha256_ledger": "omc_wasm32_sha"
+    }
+  },
+  "acceptance": {
+    "omc_page": "sh test/browser/run-omc-page.sh -> 10 PASS / 0 FAIL (no-COI verified)",
+    "samepage": "sh test/browser/run-samepage.sh -> 8 PASS / 0 FAIL (no-COI verified)",
+    "mat_handshake": "sh test/browser/run-mat-handshake.sh -> 14 PASS / 0 FAIL",
+    "omc_bridge": "sh test/browser/run-omc-bridge.sh -> 11 PASS / 0 FAIL",
+    "node_getversion": "sh test/node/run.sh test/node/accept-omc-getversion.mjs -> 9 PASS / 0 FAIL",
+    "build_verify": "bash build/113/build-omc-wasm.sh --verify -> verdict=ok"
+  },
+  "notes": "无 COI 依赖（omc_web_atomic_ops=0）；站点 13 附属模块全 wasm32（site_wasm32_mods）；master 线的 wasm64/多线程目标卡上游（悬案 02），本版本只发 wasm32 档。"
+}

@@ -522,3 +522,17 @@ E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱�
 fmi 的 `js-component-bindgen-component.core2.wasm` 被假报"读不到架构"。修后自证 24/0
 （新增 4 条回归用例：双 name wasm32/wasm64 + 端到端正/反），全站点纯度**真绿**：
 宿主 + 13 附属模块全 wasm32（`site_wasm32_mods` = 13）。
+
+## 5.r 首发：v0.1.0-wasm32（2026-10-17，用户点令「仅发布 wasm32 线一个版本」）
+
+- **版本号定第**：`v0.1.0-wasm32`（codename first-light）—— 首个发布版；上游 pin
+  `openmodelica@cbff5eb7` + `omcompiler-3rdparty@ae7e482a`，工具链 clang 24.0.0(55ea1f4) +
+  rustc 1.98.0-nightly(nightly-2026-05-31)，全部记在版本身份证 `build/VERSION.json`。
+- **master 标注当前适用档 = wasm32**（STATE 线表 + 三语 README 同批）：master 的
+  wasm64/多线程目标卡上游（悬案 02），上游接路径即翻面 —— 按用户点令别想太多，
+  先发布能发的这一档。
+- **发布件**：`build/VERSION.json`（身份：版本/档/pin/工具链/指纹台账键/验收判据）+
+  `docs/RELEASE-v0.1.0-wasm32.md`（说明：能力表/指纹表/纯度/已知边界，数字全部引台账键）。
+- **台账上键**：`release_version` = 0.1.0（从 VERSION.json 读出，不手抄）⇒ 26 条事实。
+- **发布动作**：annotated git tag `v0.1.0-wasm32` 钉在发布提交上（两线同内容）+
+  GitHub Release（附 web/node 两份 wasm 的 sha256 与字节，数字从台账取）。

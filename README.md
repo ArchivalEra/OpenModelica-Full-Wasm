@@ -63,6 +63,11 @@ wasm64 按官方 fork 管线做到生产级之后**才是"脱离官方树的开�
 **Both lines are in place and content-synchronized** (`master` / `wasm32`) —
 `git diff master <line> --stat` must be empty (`wasm32` is the very same commit as `master`).
 
+**★ 当前发布 = 仅 wasm32 线一个版本**（2026-10-17）：`v0.1.0-wasm32`（codename first-light）
+—— 版本身份证 `build/VERSION.json`、发布说明 `docs/RELEASE-v0.1.0-wasm32.md`、
+git tag `v0.1.0-wasm32`。master 线**当前适用档 = wasm32**（wasm64/多线程卡上游，
+悬案 02，上游接路径即翻面）。
+
 
 ## 事实系统（Einfacht，反幻觉）
 
@@ -174,7 +179,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (5085 bytes)
+- `.gitignore` (5297 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3998 bytes)
@@ -182,11 +187,11 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3672 bytes)
 - `AGENTS.md` (8412 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (41657 bytes)
+- `HISTORY.md` (42820 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (12494 bytes)
-- `README.zh.md` (10798 bytes)
-- `STATE.md` (18020 bytes)
+- `README.de.md` (12899 bytes)
+- `README.zh.md` (11142 bytes)
+- `STATE.md` (18540 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -209,7 +214,8 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `build/113/ilperf-baseline.sh` (5422 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (11379 bytes)
+- `build/FACTS.json` (11789 bytes)
+- `build/VERSION.json` (1714 bytes)
 - `build/gates-selftest.sh` (3859 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
@@ -222,6 +228,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `docs/EINFACHT-INTEGRATION.md` (10086 bytes)
 - `docs/FORK-PIPELINE-AND-LESSONS.md` (11106 bytes)
 - `docs/LANES-AND-MEMORY-MODEL.md` (8003 bytes)
+- `docs/RELEASE-v0.1.0-wasm32.md` (3162 bytes)
 - `docs/REQUIREMENTS.md` (22373 bytes)
 - `docs/agents/domain.md` (3359 bytes)
 - `docs/agents/fact-system.md` (14131 bytes)
@@ -284,7 +291,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (23462 bytes)
+- `zreflect/measure_openmodelica.py` (24160 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

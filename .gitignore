@@ -28,6 +28,8 @@
 !docs/EINFACHT-INTEGRATION.md
 !docs/FORK-PIPELINE-AND-LESSONS.md
 !docs/LANES-AND-MEMORY-MODEL.md
+# 发布说明（v0.1.0-wasm32 首发起草；引用台账键，不手抄数字）
+!docs/RELEASE-*.md
 !docs/agents/*
 !docs/agents/**
 
@@ -86,6 +88,8 @@ __pycache__/
 !build/*.py
 !build/113/*
 !build/README.md
+# 发布版本身份（v0.1.0-wasm32 首发起；数字从产物/台账读，不手抄）
+!build/VERSION.json
 
 # ── 测试与探针（浏览器侧验收）───────────────────────────────────────────────
 !test/browser/*.mjs
