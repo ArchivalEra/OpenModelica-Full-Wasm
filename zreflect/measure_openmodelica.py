@@ -319,6 +319,18 @@ def measure():
             except Exception:
                 pass
 
+    # ── 发布版本身份（2026-10-17 首发后上键）：从 build/VERSION.json 读，不手抄 ──────
+    #   版本号是**人的决定**（写在身份证里），但"它确实在身份证里"是可量的事实。
+    verf = os.path.join(REPO, "build", "VERSION.json")
+    if _exists(verf):
+        d = _read_json(verf) or {}
+        if d.get("version"):
+            facts["release_version"] = fact(
+                d["version"],
+                "python3 -c \"import json;print(json.load(open('%s'))['version'])\"" % verf,
+                "build/VERSION.json",
+                "当前发布版本号（v0.1.0-wasm32 首发；发布说明 docs/RELEASE-v0.1.0-wasm32.md）")
+
     # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
     ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
     if _exists(ver_id):

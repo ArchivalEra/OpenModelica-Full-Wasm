@@ -63,6 +63,11 @@ wasm64 按官方 fork 管线做到生产级之后**才是"脱离官方树的开�
 **两条线已在位**（`master` / `wasm32`），且**内容已同步** ——
 `git diff master <线> --stat` 应为空（`wasm32` 与 master **同一提交**）。
 
+**★ 当前发布 = 仅 wasm32 线一个版本**（2026-10-17）：`v0.1.0-wasm32`（codename first-light）
+—— 版本身份证 `build/VERSION.json`、发布说明 `docs/RELEASE-v0.1.0-wasm32.md`、
+git tag `v0.1.0-wasm32`。master 线**当前适用档 = wasm32**（wasm64/多线程卡上游，
+悬案 02，上游接路径即翻面）。
+
 
 ## 事实系统（Einfacht，反幻觉）
 

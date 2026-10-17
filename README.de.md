@@ -71,6 +71,12 @@ sie hängen am Tag `archive/ilperf-f283610`.
 **Beide Linien sind vorhanden und inhaltlich synchronisiert** (`master` / `wasm32`) —
 `git diff master <Linie> --stat` muss leer sein (`wasm32` ist derselbe Commit wie `master`).
 
+**★ Aktuelle Veröffentlichung = nur die wasm32-Linie, eine Version** (2026-10-17):
+`v0.1.0-wasm32` (Codename first-light) — Versionsidentität `build/VERSION.json`,
+Release-Notizen `docs/RELEASE-v0.1.0-wasm32.md`, Git-Tag `v0.1.0-wasm32`.
+Die master-Linie hat **aktuell den gültigen Ziel-Arch = wasm32** (wasm64/Multithreading
+blockiert upstream, Fall 02; kippt, sobald upstream den Pfad liefert).
+
 
 ## Fakten-System (Einfacht, Antihalluzination)
 
