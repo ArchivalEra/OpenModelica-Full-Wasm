@@ -114,13 +114,18 @@ def _wasm_arch(path):
                 return None
             p2_end = pos + size
             for _ in range(n_imp):
-                # name: uleb(len) + bytes
-                if p2 >= p2_end:
-                    break
-                ln, p2 = _uleb(p2)
-                if ln is None or p2 + ln > p2_end:
-                    break
-                p2 += ln
+                # import 条目 = **两个** name（module + 字段名）+ kind + 类型（spec §5.5.3）。
+                # ⚠️ 只读一个 name 会错位（实测踩到：fmi 的
+                #   js-component-bindgen-component.core2.wasm —— 38 个导入全在段里，
+                #   只读一个 name 时字段错位漂移到 kind 字节 ⇒ 遇"未知 kind" break ⇒
+                #   第 37 个 env.memory import 没被看到 ⇒ 闸门假红"读不到架构"）。
+                for _names in range(2):               # module 名 + 字段名
+                    if p2 >= p2_end:
+                        break
+                    ln, p2 = _uleb(p2)
+                    if ln is None or p2 + ln > p2_end:
+                        break
+                    p2 += ln
                 if p2 >= p2_end:
                     break
                 kind = data[p2]; p2 += 1
@@ -378,6 +383,46 @@ def _selftest():
     tmp += [sm32, sm64]
     ok.append(("★ wasm 判据：side module ⇒ 标记 SIDE（由宿主档定，不瞎猜）",
                arch_of(sm32) == "SIDE"))
+
+    # ★★ import-memory 形态（2026-10-15 真产物暴露的解析 bug 回归用例）：
+    #   fmi-simulator/vendor/js-component-bindgen-component.core2.wasm import 了
+    #   env.memory（flags=0x00）⇒ 架构应从 **import 段**读出。旧解析**漏读第二个
+    #   name**（spec：每条 import = module 名 + 字段名**两个**字符串）⇒ 字段错位
+    #   ⇒ 遇"未知 kind" break ⇒ env.memory 永远读不到 ⇒ 闸门假红"读不到架构"。
+    #   用同形字节夹具钉住：多导入 + 双 name + import memory 在**最后**一条。
+    def _import_mem_bytes(memory64=False, n_func_imports=3):
+        """造一个 import 段里既有函数导入又有 memory 导入的最小 wasm（无 memory 段）。"""
+        imps = b""
+        # 函数导入垫背：module="wasi:io/streams@0.2.3" name="f<i>"（**两个 name**）
+        for i in range(n_func_imports):
+            mod = b"wasi:io/streams@0.2.3"
+            nm = b"f%d" % i
+            imps += bytes([len(mod)]) + mod + bytes([len(nm)]) + nm + b"\x00\x00"  # kind=func, typeidx=0
+        # memory 导入：module="env" name="memory" kind=0x02 limits
+        mflags = 0x01 | (0x04 if memory64 else 0)      # has_max (+ memory64)
+        mem = b"\x03env\x06memory" + b"\x02" + bytes([mflags, 0x01, 0x01])  # min=1,max=1
+        imps += mem
+        body = bytes([1 + n_func_imports]) + imps      # 导入计数（uleb 单字节）
+        sec = bytes([0x02]) + bytes([len(body)]) + body
+        # type 段垫底（func typeidx=0 要存在才算同形；判据不读它，只为形状真）
+        #   段体 = count(1) + 0x60(params=0)(results=0)
+        tsec = bytes([0x01, 0x04, 0x01, 0x60, 0x00, 0x00])
+        return b"\x00asm\x01\x00\x00\x00" + tsec + sec
+    im32 = os.path.join(d, "impmem32.wasm"); im64 = os.path.join(d, "impmem64.wasm")
+    with open(im32, "wb") as fh: fh.write(_import_mem_bytes(memory64=False))
+    with open(im64, "wb") as fh: fh.write(_import_mem_bytes(memory64=True))
+    tmp += [im32, im64]
+    ok.append(("★ wasm 判据：import 段 memory（双 name）⇒ 读成 wasm32（core2.wasm 假红的回归用例）",
+               arch_of(im32) == "wasm32"))
+    ok.append(("★ wasm 判据：import 段 memory 带 memory64 标志 ⇒ 读成 wasm64",
+               arch_of(im64) == "wasm64"))
+    # 端到端：import-memory 模块配 wasm32 档 ⇒ 不报（它自己的架构读得出来了）
+    p_im, _ = check("wasm32", f32, [im32], arch_of_=arch_of)
+    ok.append(("★ 端到端：import-memory 模块 + wasm32 档 ⇒ 不报", not p_im))
+    # 反向：import-memory **wasm64** 模块喂 wasm32 档 ⇒ 必须报
+    p_im64, _ = check("wasm32", f32, [im64], arch_of_=arch_of)
+    ok.append(("★ 反向：import-memory wasm64 模块喂 wasm32 档 ⇒ 必须报", bool(p_im64)))
+
     # 端到端：side module 配同档宿主 ⇒ 不报；且 stats 里能看出"这是靠宿主档推的"
     p_side, st_side = check("wasm32", f32, [sm32], arch_of_=arch_of)
     ok.append(("★ 端到端：side module + wasm32 宿主 ⇒ 不报（同档要求满足）", not p_side))

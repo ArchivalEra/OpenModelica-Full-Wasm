@@ -497,3 +497,28 @@ E2 判据 = 在 Octave 里拿到**数据矩阵**；E3 边界 = 只做命令驱�
 - **顺手抓到的旧假话**：README 三语里"wasm64 仍是**双缺**：上游无路径 **且 Rust 侧没有
   `wasm64-unknown-unknown` target**"—— 后半句正是**已翻案**的 `R-02-1`（查错了表：
   `rustup target list` ≠ `rustc --print target-list`）。三语同批改掉，改成 R-02-1 的结论。
+
+## 5.s 两线验收状态实测（2026-10-15）
+
+**wasm32 线 = 无 COI 可用（实测）**：
+- 判据物三件：产物 0 原子指令（`omc_web_atomic_ops` = 0，带校准样本钉住仪器真认 atomic）、
+  0 线程导入、0 共享 memory；上游 `omc_worker.js` 头注逐字 "needs no SharedArrayBuffer /
+  cross-origin isolation"。
+- **直接证据**：普通 `python3 -m http.server`（零 COI 头）服务站点 ⇒
+  `run-omc-page.sh` **10/0** + `run-samepage.sh` **8/0** 全绿；
+  另两套在姊妹仓站点（8761）：mat-handshake **14/0** + omc-bridge **11/0**。
+  Node 侧 9/0 + `build-omc-wasm.sh --verify` verdict=ok。
+- 如实记：无 COI 时 `omc_enable_cancel_poll` / `progress_sink` / `fmu_aot` 降级（SAB 控制块），
+  主链路不受影响。
+
+**master 线 = wasm64 + 多线程双双卡上游（查实）**：
+- wasm64：结算件 `check-wasm64-upstream.sh` → NOT-YET（悬案 02 判据不变）。
+- 多线程：上游 wasm 面**没有**运行期线程路径 —— `RUST_OMC_THREADS` 是 rustc 编译期并行；
+  OpenModelica.rs 无 wasm-bindgen-rayon / wasi-threads；toolchain targets 仅 wasm32×2；
+  coi_server 说的 "threaded builds" 是 Qt 前端那条线（`/opt/Qt/6.11.2/wasm_singlethread`）。
+
+**顺手修掉纯度闸门一个真 bug（core2.wasm 假红暴露）**：import 段每条 = **module 名 + 字段名
+两个字符串**（spec §5.5.3），旧解析只读一个 ⇒ 字段错位 ⇒ `env.memory` import 永远读不到 ⇒
+fmi 的 `js-component-bindgen-component.core2.wasm` 被假报"读不到架构"。修后自证 24/0
+（新增 4 条回归用例：双 name wasm32/wasm64 + 端到端正/反），全站点纯度**真绿**：
+宿主 + 13 附属模块全 wasm32（`site_wasm32_mods` = 13）。

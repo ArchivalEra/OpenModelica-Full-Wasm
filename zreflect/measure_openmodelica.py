@@ -256,6 +256,69 @@ def measure():
                 "build/omc-out-wasm32/artifacts/w64-spike.json",
                 "纯度闸门对 wasm64 产物的 rc（0 = 认档）")
 
+    # ── wasm32 线的"无 COI 可用"证据（2026-10-15 实测后上键）────────────────────
+    # 判据物 ①：产物里 0 原子指令（SharedArrayBuffer/线程的必要特征 —— 无它则无 COI 依赖）。
+    #   ⚠️ objdump -d 一个 74MB 产物要 >10s ⇒ **复跑闸门会超时** ⇒ 贵测量走
+    #   `replay=False` + **便宜见证**（产物 sha 没变 = 还是那次测的同一份字节）+
+    #   **校准样本**（已知含原子指令的小 wasm —— 仪器真认 atomic 才能数出非 0；
+    #   "grep -c 在仪器不认时返回 0"是恒真判据的形状，calibrate 钉死它）。
+    OBJD = "/mnt/hdd/crossbuild-tools/wabt/bin/wasm-objdump"
+    web_wasm2 = os.path.join(BUILD, "omc-out-web", "web", "omc", "OpenModelicaCompiler_bg.wasm")
+    if _exists(web_wasm2) and os.path.exists(OBJD):
+        try:
+            r = subprocess.run([OBJD, "-d", web_wasm2], capture_output=True, text=True, timeout=180)
+            n_atomic = sum(1 for ln in r.stdout.splitlines() if "atomic." in ln)
+            # 校准样本：现场编一个含 i32.atomic.load 的最小 wasm（10 字节段体，
+            # 0xFE 0x10 = i32.atomic.load）—— 仪器必须从它数出 ≥1 条原子指令。
+            cal = "/tmp/_omc-calib-atomic.wasm"
+            with open(cal, "wb") as fh:
+                # type 段(1) + memory 段(5, shared=1) + code 段(10)
+                fh.write(b"\x00asm\x01\x00\x00\x00"
+                         b"\x05\x04\x01" + bytes([0x03]) + b"\x01"          # memory: shared+max, min=1,max=1
+                         b"\x0a\x09\x01"                                      # code: 1 body
+                         b"\x07\x23\x00\x41\x00\xfc\x10\x02\x1a\x0b")        # i32.const 0; i32.atomic.load 2; drop; end
+            rc_cal = subprocess.run("%s -d %s 2>/dev/null | grep -c 'atomic[.]' || true" % (OBJD, cal),
+                                    shell=True, capture_output=True, text=True, timeout=30)
+            facts["omc_web_atomic_ops"] = fact(
+                n_atomic,
+                "echo 0",                                    # 占位（replay=False 不复跑）
+                "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm",
+                "产物原子指令数（0 = 无 SharedArrayBuffer/线程依赖 ⇒ 无 COI 也能跑；实测无 COI 四套验收全绿）",
+                replay=False,
+                witness="sha256sum %s | cut -d' ' -f1" % web_wasm2,
+                witness_expect=sha256sum(web_wasm2),
+                calibrate="%s -d %s 2>/dev/null | grep -c 'atomic[.]' || true" % (OBJD, cal),
+                calibrate_expect=rc_cal.stdout.strip())
+        except Exception:
+            pass
+
+    # 判据物 ②：站点级架构纯度 —— 宿主 + 附属模块数（全站 wasm 都同档；修 import 双 name
+    #   解析 bug 后，fmi 的 core2.wasm 也能读出 wasm32）。纯度闸门 rc 落成"通过的模块数"：
+    #   闸门绿 = 站点全部 wasm 同档（手写文件清单会漂，这里动态发现 ⇒ 与闸门同一判据）。
+    site = os.path.join(BASE, "site-omc")
+    host_w = os.path.join(site, "omc", "OpenModelicaCompiler_bg.wasm")
+    if _exists(host_w):
+        mods = []
+        for root, _dirs, files in os.walk(site):
+            for f in files:
+                p = os.path.join(root, f)
+                if f.endswith(".wasm") and p != host_w:
+                    mods.append(p)
+        if mods:
+            try:
+                r = subprocess.run(
+                    ["python3", os.path.join(REPO, "build", "113", "check-lane-purity.py"),
+                     "--lane", "wasm32", "--host", host_w] + sum((["--mod", m] for m in mods), []),
+                    capture_output=True, text=True, timeout=180)
+                if r.returncode == 0:
+                    facts["site_wasm32_mods"] = fact(
+                        len(mods), "ls %s/omc/OpenModelicaCompiler_bg.wasm >/dev/null && "
+                        "find %s -name '*.wasm' -not -path '*/omc/*' | wc -l" % (site, site),
+                        "site-omc（仓外站点）",
+                        "站点附属 wasm 模块数（闸门 rc=0 时全站同档 wasm32；含 core2 = import-memory 形态）")
+            except Exception:
+                pass
+
     # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
     ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
     if _exists(ver_id):

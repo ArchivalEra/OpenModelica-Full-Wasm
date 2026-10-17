@@ -167,6 +167,20 @@ Letzteres ist die Voraussetzung für den Neuaufbau.)
 
 **Nächster Schritt = Anforderung F** (Octave-UI).
 
+### Abnahme-Status der beiden Linien (2026-10-15 gemessen)
+
+- **wasm32-Linie: braucht kein COI (gemessen)** — Artefakt mit 0 Atomar-Befehlen /
+  0 Thread-Imports / 0 Shared Memory (Ledger `omc_web_atomic_ops` = 0); mit einem
+  **gewöhnlichen http.server (null COI-Header)** waren die Browser-Abnahmen **alle grün**
+  (omc-page 10/0, samepage 8/0; die anderen beiden 14/0, 11/0).
+  Site-Reinheit: Host + 13 Nebenmodule alle wasm32 (Ledger `site_wasm32_mods`).
+  Ehrlich notiert: ohne COI degradieren cancel-poll / progress-sink / FMU-AOT (SAB-Kontrollblock).
+- **master-Linie: wasm64 und Multithreading blockieren beide upstream (nachgewiesen)** —
+  wasm64-Prüfstück NOT-YET (Fall 02); der Upstream-wasm-Stack hat **keinen Laufzeit-Thread-Pfad**
+  (`RUST_OMC_THREADS` ist Compile-Zeit-Parallelismus; kein rayon/wasi-threads; die
+  "threaded builds" in coi_server meinen das Qt-Frontend) ⇒ die master-Linie liefert
+  vorerst wasm32-Artefakte; beide Ziele warten auf den Upstream-Pfad.
+
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend
 geändert): Die von der `master`-Linie geforderte **wasm64-Unterstützung existiert upstream

@@ -141,6 +141,18 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 
 **下一步 = 需求 F**（`Octave-UI` 集成）。
 
+### 两条线的验收状态（2026-10-15 实测）
+
+- **wasm32 线：不需要 COI（实测）** —— 产物 0 原子指令 / 0 线程导入 / 0 共享 memory
+  （台账 `omc_web_atomic_ops` = 0）；用**普通 http.server（零 COI 头）**服务站点，
+  浏览器验收**全绿**（omc-page 10/0、samepage 8/0；另两套 14/0、11/0）。
+  站点纯度：宿主 + 13 附属模块全 wasm32（台账 `site_wasm32_mods`）。
+  如实记：无 COI 时 cancel-poll / progress-sink / FMU-AOT 三个增强面降级（SAB 控制块）。
+- **master 线：wasm64 与多线程都卡上游（查实）** —— wasm64 结算件 NOT-YET（悬案 02）；
+  上游 wasm 面无运行期线程路径（`RUST_OMC_THREADS` 是编译期并行；无 rayon/wasi-threads；
+  coi_server 说的 "threaded builds" 指 Qt 前端）⇒ master 线暂出 wasm32 产物，
+  两个目标都在等上游接路径。
+
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
 **`OpenModelicaCompiler_bg.wasm`**（不是 `omc.wasm`）；一步式配方缺
