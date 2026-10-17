@@ -126,6 +126,9 @@
   **生产者**（自出表，不从 lock 派生）—— **首个 import MSL 的模型落地时**才出表
   （今天运行期不取任何外部内容：产物里嵌的是语言内建，不是 MSL）；**工具链件不进表**
   （clang/rust 是构建期依赖，站点里零 clang/rust 文件，运行期永不拉）。
+  ★ `v0.1.0-wasm32` 发版经对方**规范核查 = 合规**（`mail/006`，"不出表"即记录在案的正确
+  行为）；将来出 MSL 表时**两个可选新字段**建议带上：`description`（上游 README 首段现成）
+  + `links`（不带也合规，但 UI 面板对 Forge/MSL 同一套渲染）。
 
 <!-- AUTO:FACTS -->
 > 本区块由 `zreflect/facts.py --render-doc` 从 `FACTS.json` 渲染，**不要手改**（pre-commit 会重算并 `git add`）。
