@@ -90,7 +90,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `AGENTS.md` | 给 agent 的硬规矩 |
 | `CONTEXT.md` | 术语表（每词一条定义 + 一行复跑证据） |
 | `HISTORY.md` | 历史（append-only） |
-| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。已回 `Octave-Extra-Content` 的 content-list 端口推广信（`mail/002`）：本仓是**生产者**（首个 import MSL 的模型落地时出表；工具链件不进表） |
+| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。端口往来：`001`（额外内容仓推广 content-list）+ `002`（本仓回：暂无内容可报、缺席是合法行为）+ `003`（额外内容仓确认）+ `004`（产地已裁决：`consumer` 轴采纳、能力层 `content` 留空）+ `005`（产地第二批答复：无直接影响） |
 
 ## 现行状态
 
@@ -141,6 +141,18 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 
 **下一步 = 需求 F**（`Octave-UI` 集成）。
 
+### 两条线的验收状态（2026-10-15 实测）
+
+- **wasm32 线：不需要 COI（实测）** —— 产物 0 原子指令 / 0 线程导入 / 0 共享 memory
+  （台账 `omc_web_atomic_ops` = 0）；用**普通 http.server（零 COI 头）**服务站点，
+  浏览器验收**全绿**（omc-page 10/0、samepage 8/0；另两套 14/0、11/0）。
+  站点纯度：宿主 + 13 附属模块全 wasm32（台账 `site_wasm32_mods`）。
+  如实记：无 COI 时 cancel-poll / progress-sink / FMU-AOT 三个增强面降级（SAB 控制块）。
+- **master 线：wasm64 与多线程都卡上游（查实）** —— wasm64 结算件 NOT-YET（悬案 02）；
+  上游 wasm 面无运行期线程路径（`RUST_OMC_THREADS` 是编译期并行；无 rayon/wasi-threads；
+  coi_server 说的 "threaded builds" 指 Qt 前端）⇒ master 线暂出 wasm32 产物，
+  两个目标都在等上游接路径。
+
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
 **`OpenModelicaCompiler_bg.wasm`**（不是 `omc.wasm`）；一步式配方缺
@@ -170,11 +182,11 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3672 bytes)
 - `AGENTS.md` (8412 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (39888 bytes)
+- `HISTORY.md` (41657 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (11285 bytes)
-- `README.zh.md` (9777 bytes)
-- `STATE.md` (15672 bytes)
+- `README.de.md` (12494 bytes)
+- `README.zh.md` (10798 bytes)
+- `STATE.md` (18020 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -191,13 +203,13 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
 - `build/113/build-omc-wasm.sh` (23539 bytes)
 - `build/113/build-w64-spike.sh` (8265 bytes)
-- `build/113/check-lane-purity.py` (21192 bytes)
+- `build/113/check-lane-purity.py` (24569 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
 - `build/113/gen-runtime-sources-mo.sh` (7744 bytes)
 - `build/113/ilperf-baseline.sh` (5422 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
-- `build/FACTS.json` (10144 bytes)
+- `build/FACTS.json` (11379 bytes)
 - `build/gates-selftest.sh` (3859 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
@@ -221,6 +233,9 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `gates-selftest.sh` (13572 bytes)
 - `mail/001-extra-content-port-promotion.md` (5431 bytes)
 - `mail/002-re-port-promotion.md` (9957 bytes)
+- `mail/003-re-port-promotion.md` (8436 bytes)
+- `mail/004-re-rulings.md` (3826 bytes)
+- `mail/005-re-rulings-2.md` (3009 bytes)
 - `mail/README.md` (1713 bytes)
 - `maintaince.md` (6799 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
@@ -269,7 +284,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `zreflect/knobs.py` (13858 bytes)
 - `zreflect/ledger.py` (11552 bytes)
 - `zreflect/living.py` (3688 bytes)
-- `zreflect/measure_openmodelica.py` (19152 bytes)
+- `zreflect/measure_openmodelica.py` (23462 bytes)
 - `zreflect/registry.py` (26659 bytes)
 - `zreflect/render.py` (6408 bytes)
 - `zreflect/runner.py` (5210 bytes)

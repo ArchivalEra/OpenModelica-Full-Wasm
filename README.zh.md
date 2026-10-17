@@ -90,7 +90,7 @@ JS 堆峰值、编译耗时这类"每轮都变"的量，放进台账必然让复
 | `AGENTS.md` | 给 agent 的硬规矩 |
 | `CONTEXT.md` | 术语表（每词一条定义 + 一行复跑证据） |
 | `HISTORY.md` | 历史（append-only） |
-| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。已回 `Octave-Extra-Content` 的 content-list 端口推广信（`mail/002`）：本仓是**生产者**（首个 import MSL 的模型落地时出表；工具链件不进表） |
+| `mail/` | 跨 agent 通信收件箱（只追加）：其他仓写给本仓的信 + 本仓对外往来；规矩见 `mail/README.md`。端口往来：`001`（额外内容仓推广 content-list）+ `002`（本仓回：暂无内容可报、缺席是合法行为）+ `003`（额外内容仓确认）+ `004`（产地已裁决：`consumer` 轴采纳、能力层 `content` 留空）+ `005`（产地第二批答复：无直接影响） |
 
 ## 现行状态
 
@@ -140,6 +140,18 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 前者量到的 SIMD/post-MVP 指令面是**当前产物**的事实，后者是**重建该线**的可行性前置。）
 
 **下一步 = 需求 F**（`Octave-UI` 集成）。
+
+### 两条线的验收状态（2026-10-15 实测）
+
+- **wasm32 线：不需要 COI（实测）** —— 产物 0 原子指令 / 0 线程导入 / 0 共享 memory
+  （台账 `omc_web_atomic_ops` = 0）；用**普通 http.server（零 COI 头）**服务站点，
+  浏览器验收**全绿**（omc-page 10/0、samepage 8/0；另两套 14/0、11/0）。
+  站点纯度：宿主 + 13 附属模块全 wasm32（台账 `site_wasm32_mods`）。
+  如实记：无 COI 时 cancel-poll / progress-sink / FMU-AOT 三个增强面降级（SAB 控制块）。
+- **master 线：wasm64 与多线程都卡上游（查实）** —— wasm64 结算件 NOT-YET（悬案 02）；
+  上游 wasm 面无运行期线程路径（`RUST_OMC_THREADS` 是编译期并行；无 rayon/wasi-threads；
+  coi_server 说的 "threaded builds" 指 Qt 前端）⇒ master 线暂出 wasm32 产物，
+  两个目标都在等上游接路径。
 
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
