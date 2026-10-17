@@ -107,7 +107,7 @@ bei jedem Commit wörtlich ausführen. Jedes Gate muss **beweisen können, dass 
 | `AGENTS.md` | Harte Regeln für Agenten |
 | `CONTEXT.md` | Glossar (je Begriff eine Definition + ein Wiederholbefehl) |
 | `HISTORY.md` | Historie (append-only) |
-| `mail/` | Posteingang für Cross-Agent-Kommunikation (nur anhängen): Briefe anderer Repos an dieses Repo + eigene Außenkorrespondenz; Regeln in `mail/README.md`. Port-Korrespondenz: `001` (Octave-Extra-Content wirbt für die content-list) + `002` (Antwort: derzeit nichts zu melden, Fernbleiben ist legitimes Verhalten) + `003` (Bestätigung; die vorgeschlagene Achse `consumer` und der Enum-Wert `mo` wurden von der Herkunftsstätte entschieden: `consumer` wird aufgenommen, `content` bleibt bei der Fähigkeitsschicht leer) + `005` (zweite Antwort der Herkunftsstätte: keine direkten Auswirkungen) |
+| `mail/` | Posteingang für Cross-Agent-Kommunikation (nur anhängen): Briefe anderer Repos an dieses Repo + eigene Außenkorrespondenz; Regeln in `mail/README.md`. Port-Korrespondenz: `001` (Octave-Extra-Content wirbt für die content-list) + `002` (Antwort: derzeit nichts zu melden, Fernbleiben ist legitimes Verhalten) + `003` (Bestätigung; die vorgeschlagene Achse `consumer` und der Enum-Wert `mo` wurden von der Herkunftsstätte entschieden: `consumer` wird aufgenommen, `content` bleibt bei der Fähigkeitsschicht leer) + `005` (zweite Antwort der Herkunftsstätte: keine direkten Auswirkungen) + `006` (Normprüfung der Veröffentlichung v0.1.0-wasm32 = **konform**; künftige MSL-Einträge sollten `description`+`links` mitbringen) |
 
 ## Aktueller Stand
 
