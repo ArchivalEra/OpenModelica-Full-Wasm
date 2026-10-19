@@ -536,3 +536,37 @@ fmi 的 `js-component-bindgen-component.core2.wasm` 被假报"读不到架构"�
 - **台账上键**：`release_version` = 0.1.0（从 VERSION.json 读出，不手抄）⇒ 26 条事实。
 - **发布动作**：annotated git tag `v0.1.0-wasm32` 钉在发布提交上（两线同内容）+
   GitHub Release（附 web/node 两份 wasm 的 sha256 与字节，数字从台账取）。
+
+## 5.q 钓鱼执法信（mail/007+008）与缺陷 1 当日修复（2026-10-19）
+
+**收信**：007 = 首次肉眼验收凭据（四套 43/0 复现 + 四面亲验 + OMShell 从零跑到
+ChuaCircuit 仿真成功——我们脚本从未覆盖的面）；008 = 钓鱼执法轮（用户点令"故意使坏，
+只报不修"）——**一个发信级缺陷 + 全绿 ×10 + UX 事实 ×2 + 观察项 ×2**。
+
+**缺陷 1（Export FMU 全挂）根因链（每环实测）**：
+- 我们的 clang24 wasm-ld 给 `-shared` wasm 写 `dylink.0` **subsection 6**
+  （payload `06 "wasm32"` = tool-conventions 的 target-features 声明）；
+- FMU 导出走 wit-component 0.259（wasmparser 0.259）**只认子段 1–5** ⇒
+  `unrecognized dylink.0 subsection: 6` bail；
+- 官方 CI 的 clang 不写 6 ⇒ 上游无感；我们 14 个 blob 全带 ⇒ FMU 链接必炸 ⇒
+  FMI Simulator 对普通访客不可用。**"能编过 ≠ 能用了"又一实例**（子段 6 合法，
+  炸在白名单解析器）。
+
+**修法**：`build/113/strip-dylink-features.py`（10/0 自证，含真 clang24 端到端）剥
+subsection 6——语义无损（wasm32 是 dylink 默认档）。挂进构建脚本两处
+（stage1 交接件 + stage2 后）防回归；幂等（上游将来认 6 也不冲突）。
+关键操作序：**先剥 OUT_DIR 再让 cargo include_bytes!**（stamp 不看内容）——
+本次是剥完后增量重建 stage2，新编译器子段 6 签名 0 处（旧 14 处）。
+
+**实测**：新 web 档 74,579,404 B（sha 8287589e…，-Oz 后）；
+`run-export-fmu.sh` → **6/0**（Exported BouncingBall.fmu (me_cs) 654,894 B +
+下载触发 + ★反向断言）；全量回归 omc-page 10 + samepage 8 + mat 14 + bridge 11 +
+node 9 = **58 PASS / 0 FAIL**。三层 SHA 磁盘/HTTP 对齐，站点已发。
+
+**台账改口**（6 键显式放行）：omc_web_wasm_{sha,bytes}、samepage_{om,sum}_bytes、
+whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（witness 换新 sha）。
+
+**教训**：① 工具链比上游 CI 新 = 一类**版本错配缺陷**的温床（写侧新特性 × 读侧
+白名单）；② blob 是 include_bytes! 进编译器的 ⇒ **改 blob 必须重建编译器**，
+光改文件树没用；③ 对方钓鱼执法抓的缺陷比我们全部脚本验收加起来都深 ——
+外部验收是资产。

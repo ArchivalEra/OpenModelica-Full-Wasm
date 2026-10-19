@@ -158,6 +158,17 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
   coi_server 说的 "threaded builds" 指 Qt 前端）⇒ master 线暂出 wasm32 产物，
   两个目标都在等上游接路径。
 
+### 外部验收与 Export FMU 修复（2026-10-19，mail/007–009）
+
+- **外部肉眼验收**（收口方）：四套 43/0 复现 + 四面亲验 + **OMShell 端到端跑通
+  ChuaCircuit 仿真**（本仓脚本从未覆盖的面，对方从零跑到 `LOG_SUCCESS`）。
+- **★ 钓鱼执法抓的发信级缺陷已修**：Export FMU 全挂（`unrecognized dylink.0
+  subsection: 6`）—— 本仓 clang24 的 wasm-ld 写了 target-features 子段 6，而 FMU
+  链接器（wit-component 0.259）只认子段 1–5。修法 = `build/113/strip-dylink-features.py`
+  剥离（语义无损，挂进构建链防回归）。实测 `sh test/browser/run-export-fmu.sh`
+  → **6 PASS / 0 FAIL**（Exported BouncingBall.fmu 654,894 B + 下载触发）；
+  全量回归 **58 PASS / 0 FAIL**。新 web 档 sha 见台账 `omc_web_wasm_sha`。
+
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
 **`OpenModelicaCompiler_bg.wasm`**（不是 `omc.wasm`）；一步式配方缺

@@ -133,6 +133,8 @@ do_build() {
   #    "wasm 交接件"（wasi-libc PIC sysroot / sundials-wasm / blobs），这三样在 wasm 模式下
   #    一样能产（RUST_OMC_WASM_ARTIFACTS_OUT 就是为它们设计的）。
   #    RuntimeSources.mo 由上面那条单独生成（官方 CI 就是把它 stash 出来的，R3）。
+  # ★ mail/008 缺陷 1：stage1 产完 blobs 立即剥 dylink.0 subsection 6 —— 交接件是
+  #    stage2 的 include_bytes! 输入，脏字节从这进编译器（见 ③ 处的完整说明）。
   log "   源码树 $UPSTREAM"
   cmake -S "$UPSTREAM" -B "$S1" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
@@ -145,7 +147,12 @@ do_build() {
     > "$OUT/stage1.configure.log" 2>&1 || { err "FATAL: stage1 configure 失败（tail $OUT/stage1.configure.log）"; tail -30 "$OUT/stage1.configure.log" >&2; return 1; }
   cmake --build "$S1" --parallel "$JOBS" --target $STAGE1_TARGETS \
     > "$OUT/stage1.build.log" 2>&1 || { err "FATAL: stage1 build 失败（tail $OUT/stage1.build.log）"; tail -30 "$OUT/stage1.build.log" >&2; return 1; }
-  log "   ① stage1 完成"
+  # ★ 剥离点 1/2：交接件 blobs（stage2 的 rust build.rs 会把 $ART/blobs 拷进 OUT_DIR
+  #   并被 include_bytes!；cargo 的 stamp 只认 key 不认内容 ⇒ 这里剥 = stage2 拿到的就是干净的）
+  find "$ART" -name '*.wasm' -print0 2>/dev/null | xargs -0 -r \
+    python3 "$REPO/build/113/strip-dylink-features.py" >> "$OUT/strip-dylink.log" 2>&1 \
+    || { err "FATAL: 交接件 strip 失败（mail/008 修复链断）"; return 1; }
+  log "   ① stage1 完成（blobs 已剥 dylink.0 subsection 6）"
   [ -d "$ART/wasi-pic-sysroot" ] || { err "FATAL: 交接件缺 wasi-pic-sysroot（stage2 会缺 libc）"; return 1; }
 
   # ★★ 需求 B 的关键修补（2026-10-13 实测，逐字证据）：
@@ -180,6 +187,25 @@ do_build() {
   cmake --build "$S2" --parallel "$JOBS" --target install \
     > "$OUT/stage2.build.log" 2>&1 || { err "FATAL: stage2 build 失败（tail $OUT/stage2.build.log）"; tail -40 "$OUT/stage2.build.log" >&2; return 1; }
   log "   ② stage2 完成"
+
+  # ── ★ dylink.0 target-features 剥离（mail/008 缺陷 1 的修复；2026-10-19）────────
+  #   根因：本仓 clang24 的 wasm-ld 给 -shared wasm 的 dylink.0 写 subsection 6
+  #   （target-features 声明 "wasm32"），而 FMU 导出走 wit-component 0.259
+  #   （wasmparser 0.259）只认子段 1-5 ⇒ `unrecognized dylink.0 subsection: 6`
+  #   ⇒ Export FMU 全挂。修法 = 编后剥（语义无损：wasm32 是 dylink 默认档）。
+  #   ⚠️ 必须在【wasm-opt 压缩之前】剥：剥的对象是 stage2 出的 web 包 blobs +
+  #   编进编译器的 OUT_DIR 副本（后者在 stage2 构建时被 include_bytes! ——
+  #   cargo 的 stamp 不看 blob 内容，所以**构建前剥 OUT_DIR**（见 do_build 开头）
+  #   + **构建后再剥 web 包**（publish 拷贝的那份），两处都不能少）。
+  log "== ③ dylink.0 subsection 6 剥离（mail/008 缺陷 1）"
+  local STRIP="$REPO/build/113/strip-dylink-features.py"
+  find "$S2/OMCompiler/Compiler/web" "$ART/blobs" -name '*.wasm' -print0 2>/dev/null \
+    | xargs -0 -r python3 "$STRIP" > "$OUT/strip-dylink.log" 2>&1 \
+    || { err "FATAL: strip-dylink-features 失败（tail $OUT/strip-dylink.log）"; tail -20 "$OUT/strip-dylink.log" >&2; return 1; }
+  local DIRTY
+  DIRTY="$(find "$OUT" -name '*.wasm' -print0 | xargs -0 -r python3 "$STRIP" --check 2>&1 | grep -c '仍带' || true)"
+  [ "$DIRTY" = "0" ] || { err "FATAL: 剥离后仍有 $DIRTY 个 wasm 带 subsection 6（别发布）"; return 1; }
+  log "   ✅ 产物树全部 wasm 无 dylink.0 subsection 6"
 
   # ── ★ 产物压缩（本仓自己的 wasm-opt 步骤；WASM_OPT=ON 时生效）─────────────────
   #   为什么自己做而不是靠上游的 `RUST_OMC_WASM_OPT`：上游那条旗标清单在它自己的
