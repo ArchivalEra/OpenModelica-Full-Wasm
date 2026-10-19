@@ -158,6 +158,17 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
   coi_server 说的 "threaded builds" 指 Qt 前端）⇒ master 线暂出 wasm32 产物，
   两个目标都在等上游接路径。
 
+### 外部验收与 Export FMU 修复（2026-10-19，mail/007–009）
+
+- **外部肉眼验收**（收口方）：四套 43/0 复现 + 四面亲验 + **OMShell 端到端跑通
+  ChuaCircuit 仿真**（本仓脚本从未覆盖的面，对方从零跑到 `LOG_SUCCESS`）。
+- **★ 钓鱼执法抓的发信级缺陷已修**：Export FMU 全挂（`unrecognized dylink.0
+  subsection: 6`）—— 本仓 clang24 的 wasm-ld 写了 target-features 子段 6，而 FMU
+  链接器（wit-component 0.259）只认子段 1–5。修法 = `build/113/strip-dylink-features.py`
+  剥离（语义无损，挂进构建链防回归）。实测 `sh test/browser/run-export-fmu.sh`
+  → **6 PASS / 0 FAIL**（Exported BouncingBall.fmu 654,894 B + 下载触发）；
+  全量回归 **58 PASS / 0 FAIL**。新 web 档 sha 见台账 `omc_web_wasm_sha`。
+
 ⚠️ **需求书原文被实测推翻四处**（记在 `docs/REQUIREMENTS.md` §7，不静默改原文）：
 `master` 线要的 **wasm64 上游零支持** ⇒ 首批产物出 **wasm32**；产物真名是
 **`OpenModelicaCompiler_bg.wasm`**（不是 `omc.wasm`）；一步式配方缺
@@ -179,7 +190,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (5297 bytes)
+- `.gitignore` (5499 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3998 bytes)
@@ -187,11 +198,11 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3672 bytes)
 - `AGENTS.md` (8412 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (42820 bytes)
+- `HISTORY.md` (45164 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (13038 bytes)
-- `README.zh.md` (11251 bytes)
-- `STATE.md` (18855 bytes)
+- `README.de.md` (13992 bytes)
+- `README.zh.md` (12088 bytes)
+- `STATE.md` (21879 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
 - `bridge/omc_call_internal.m` (3755 bytes)
@@ -206,7 +217,7 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `bridge/omc_simulate_model.m` (1790 bytes)
 - `bridge/omc_submit.m` (1492 bytes)
 - `build/113/build-clang24-builtins.sh` (6408 bytes)
-- `build/113/build-omc-wasm.sh` (23539 bytes)
+- `build/113/build-omc-wasm.sh` (25832 bytes)
 - `build/113/build-w64-spike.sh` (8265 bytes)
 - `build/113/check-lane-purity.py` (24569 bytes)
 - `build/113/check-wasm64-upstream.sh` (4054 bytes)
@@ -214,9 +225,10 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `build/113/ilperf-baseline.sh` (5422 bytes)
 - `build/113/measure-samepage-cost.sh` (8980 bytes)
 - `build/113/provision-toolchain.sh` (13684 bytes)
+- `build/113/strip-dylink-features.py` (9881 bytes)
 - `build/FACTS.json` (11789 bytes)
 - `build/VERSION.json` (1714 bytes)
-- `build/gates-selftest.sh` (3859 bytes)
+- `build/gates-selftest.sh` (3905 bytes)
 - `build/lib/gate.py` (7246 bytes)
 - `build/pins.json` (971 bytes)
 - `build/promote-site.sh` (6134 bytes)
@@ -244,6 +256,9 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `mail/004-re-rulings.md` (3826 bytes)
 - `mail/005-re-rulings-2.md` (3009 bytes)
 - `mail/006-re-v0.1.0-compliance.md` (2935 bytes)
+- `mail/007-extra-content-visual-acceptance.md` (4075 bytes)
+- `mail/008-extra-content-fishing-report.md` (4461 bytes)
+- `mail/009-re-fishing-fixed.md` (6866 bytes)
 - `mail/README.md` (1713 bytes)
 - `maintaince.md` (6799 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)
@@ -254,10 +269,12 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `reflect-hooks/pre-push` (3790 bytes)
 - `site/omc-bridge.html` (5956 bytes)
 - `site/samepage.html` (14655 bytes)
+- `test/browser/accept-export-fmu.mjs` (4735 bytes)
 - `test/browser/accept-mat-handshake.mjs` (9671 bytes)
 - `test/browser/accept-omc-bridge.mjs` (18075 bytes)
 - `test/browser/accept-omc-page.mjs` (5493 bytes)
 - `test/browser/accept-samepage.mjs` (6594 bytes)
+- `test/browser/run-export-fmu.sh` (1125 bytes)
 - `test/browser/run-mat-handshake.sh` (2414 bytes)
 - `test/browser/run-omc-bridge.sh` (1146 bytes)
 - `test/browser/run-omc-page.sh` (1175 bytes)

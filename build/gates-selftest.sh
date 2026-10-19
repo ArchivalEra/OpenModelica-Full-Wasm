@@ -26,6 +26,7 @@ cat >"$LIST" <<'EOF'
 .githooks/check-state.py --selftest
 .githooks/witness-upstream-pin.py --selftest
 build/113/check-lane-purity.py --selftest
+build/113/strip-dylink-features.py --selftest
 build/113/provision-toolchain.sh --selftest
 build/113/build-clang24-builtins.sh --selftest
 build/113/build-omc-wasm.sh --selftest

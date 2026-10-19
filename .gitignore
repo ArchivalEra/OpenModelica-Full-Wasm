@@ -124,3 +124,7 @@ __pycache__/
 !site/samepage.html
 !test/browser/accept-samepage.mjs
 !test/browser/run-samepage.sh
+
+# ── Export FMU 验收（mail/008 缺陷 1 的回归判据；2026-10-19）──────────────────
+!test/browser/accept-export-fmu.mjs
+!test/browser/run-export-fmu.sh

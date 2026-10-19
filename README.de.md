@@ -187,6 +187,19 @@ Letzteres ist die Voraussetzung für den Neuaufbau.)
   "threaded builds" in coi_server meinen das Qt-Frontend) ⇒ die master-Linie liefert
   vorerst wasm32-Artefakte; beide Ziele warten auf den Upstream-Pfad.
 
+### Externe Abnahme und Export-FMU-Fix (2026-10-19, mail/007–009)
+
+- **Externe Sichtprüfung** (durch die Sammelstelle): vier Suiten 43/0 reproduziert +
+  vier Interaktionsflächen + **OMShell end-to-end mit erfolgreicher ChuaCircuit-Simulation**
+  (eine von unseren Skripten nie abgedeckte Fläche, von Null bis `LOG_SUCCESS`).
+- **★ Der durch gezieltes Fehlverhalten (Fishing) gefundene sendereife Defekt ist behoben**:
+  Export FMU schlug überall fehl (`unrecognized dylink.0 subsection: 6`) — unser clang24
+  wasm-ld schreibt die Target-Features-Subsection 6, der FMU-Linker (wit-component 0.259)
+  kennt nur 1–5. Fix = `build/113/strip-dylink-features.py` (semantisch verlustfrei,
+  in die Build-Kette eingebaut). Gemessen: `sh test/browser/run-export-fmu.sh` →
+  **6 PASS / 0 FAIL** (Exported BouncingBall.fmu, 654.894 B + Download ausgelöst);
+  Vollregression **58 PASS / 0 FAIL**. Neue web-Artefakt-sha im Ledger `omc_web_wasm_sha`.
+
 ⚠️ **Zwei Stellen des Anforderungsdokuments wurden durch Messungen widerlegt**
 (dokumentiert in `docs/REQUIREMENTS.md` §7 — der Originaltext wird nicht stillschweigend
 geändert): Die von der `master`-Linie geforderte **wasm64-Unterstützung existiert upstream
