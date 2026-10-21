@@ -268,9 +268,12 @@ def measure():
         try:
             r = subprocess.run([OBJD, "-d", web_wasm2], capture_output=True, text=True, timeout=180)
             n_atomic = sum(1 for ln in r.stdout.splitlines() if "atomic." in ln)
-            # 校准样本：现场编一个含 i32.atomic.load 的最小 wasm（10 字节段体，
-            # 0xFE 0x10 = i32.atomic.load）—— 仪器必须从它数出 ≥1 条原子指令。
-            cal = "/tmp/_omc-calib-atomic.wasm"
+            # 校准样本：一个含 i32.atomic.load 的 26 字节最小 wasm（0xFE 0x10 = i32.atomic.load）
+            # —— 仪器必须从它数出 ≥1 条原子指令。
+            # ⚠️ 2026-10-21 实测踩坑：最初放 /tmp（被清 ⇒ calibrate 变 0 ⇒ 复跑闸门红）⇒
+            #    **校准件是判据的一部分，必须钉在仓库里**（受白名单管辖、随仓走）。
+            cal = os.path.join(REPO, "build", "fixtures", "calib-atomic.wasm")
+            os.makedirs(os.path.dirname(cal), exist_ok=True)
             with open(cal, "wb") as fh:
                 # type 段(1) + memory 段(5, shared=1) + code 段(10)
                 fh.write(b"\x00asm\x01\x00\x00\x00"

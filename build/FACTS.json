@@ -1,29 +1,29 @@
 {
  "schema": 1,
- "generated": "2026-10-19T19:02:09+0800",
+ "generated": "2026-10-21T12:20:22+0800",
  "_why": "事实台账：每条 = 一个**测出来**的值 + 复跑命令 + 出处。别手改，跑 zreflect/facts.py。",
  "facts": {
   "lane_branches_present": {
    "value": 2,
    "cmd": "git -C /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm branch --list --format='%(refname:short)' | awk '/^(master|wasm32)$/{n++} END{print n+0}'",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "两线分支齐备数（master=wasm64 目标 / wasm32；IP 线已按用户点令删除，wasm64 生产级后重建 —— 原线对象钉在 tag archive/ilperf-f283610）"
   },
   "whitelist_rules": {
-   "value": 81,
+   "value": 83,
    "cmd": "grep -c '^!' /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/.gitignore",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
-   "first_seen": "2026-10-19",
+   "measured_at": "2026-10-21T12:19:37+0800",
+   "first_seen": "2026-10-21",
    "note": "白名单放行规则数（新增文件必须同步加白线，否则 pre-commit 拒）"
   },
   "docs_present": {
    "value": 3,
    "cmd": "ls /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/REQUIREMENTS.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/EINFACHT-INTEGRATION.md /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/docs/FORK-PIPELINE-AND-LESSONS.md 2>/dev/null | wc -l",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-13",
    "note": "三份经验文档齐备数（用户点令）"
   },
@@ -31,7 +31,7 @@
    "value": 4,
    "cmd": "python3 -c \"import json,sys;d=json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/upstream-pins.json'));print(len(d['pins']))\"",
    "source": "build/FACTS.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-13",
    "note": "上游 pin 条数（0 = 尚未接入；接入后 2 tree + 2 toolchain 四条）"
   },
@@ -39,7 +39,7 @@
    "value": "24.0.0",
    "cmd": "/mnt/hdd/openmodelica-wasm-build/tools/bin/clang --version | head -1 | grep -oE '24\\.[0-9]+\\.[0-9]+' | head -1",
    "source": "build/113/provision-toolchain.sh",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-13",
    "note": "C 侧交叉编大版本（用户点令：clang 24）"
   },
@@ -47,7 +47,7 @@
    "value": 117704,
    "cmd": "stat -c%s /mnt/hdd/openmodelica-wasm-build/tools/clang-resource/lib/wasi/libclang_rt.builtins-wasm32.a",
    "source": "build/113/build-clang24-builtins.sh",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-13",
    "note": "wasm32 builtins 字节数（clang24 同源精编；上游 configure 的硬前置）"
   },
@@ -55,7 +55,7 @@
    "value": "ok",
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json')).get('verdict'))\"",
    "source": "build/omc-out-wasm32/omc.build.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-13",
    "note": "产物身份证 verdict（只有 ok 才可部署）"
   },
@@ -63,7 +63,7 @@
    "value": "0d9866928e02b2e87f9d185158632c00a479c2289ec885d642f48a7db4b475cf",
    "cmd": "sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1",
    "source": "build/omc-out-wasm32/omc.build.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "产物 sha256（路径从身份证读出）"
   },
@@ -71,7 +71,7 @@
    "value": 91152188,
    "cmd": "stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/web/pkg-nodejs/OpenModelicaCompiler_bg.wasm",
    "source": "build/omc-out-wasm32/omc.build.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "产物字节数"
   },
@@ -79,7 +79,7 @@
    "value": 11,
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['measured']['web_files'])\"",
    "source": "build/omc-out-wasm32/omc.build.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-13",
    "note": "web 包文件数（布局收口完整性）"
   },
@@ -87,7 +87,7 @@
    "value": 25729,
    "cmd": "stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat",
    "source": "build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "OM 仿真结果 .mat（MAT4）字节数（需求 D 的输入件，可复跑产出）"
   },
@@ -95,7 +95,7 @@
    "value": "f13495579741d6162811eaa434ebe4f7b2619b0bceb959c2f9b37bda6afdc3d5",
    "cmd": "sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/BouncingBall_res.mat | cut -d' ' -f1",
    "source": "build/omc-out-wasm32/artifacts/OmcHandshakeDemo_res.mat",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "结果 .mat 的 sha256"
   },
@@ -103,7 +103,7 @@
    "value": 74579404,
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['om_wasm_bytes'])\"",
    "source": "build/omc-out-wasm32/artifacts/samepage-cost.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-19",
    "note": "OM 产物体积（同页口径）"
   },
@@ -111,7 +111,7 @@
    "value": 29632229,
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['octave_wasm_bytes'])\"",
    "source": "build/omc-out-wasm32/artifacts/samepage-cost.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "Octave 产物体积（同页口径）"
   },
@@ -119,7 +119,7 @@
    "value": 104211633,
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['sum_wasm_bytes'])\"",
    "source": "build/omc-out-wasm32/artifacts/samepage-cost.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-19",
    "note": "两引擎 wasm 字节合计"
   },
@@ -127,7 +127,7 @@
    "value": 33554432,
    "cmd": "python3 -c \"import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['js_heap_peak_bytes'];u=16*1024*1024\nwhile u < int(x): u *= 2\nprint(u)\"",
    "source": "build/omc-out-wasm32/artifacts/samepage-cost.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "同页 JS 堆峰值**上界档**（向上取整到 2 的幂 MiB；原始值逐轮波动 23–31MB）"
   },
@@ -135,7 +135,7 @@
    "value": 500,
    "cmd": "python3 -c \"import json;x=json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/samepage-cost.json'))['compile_ms_total'];u=500;print(((int(x)+u-1)//u)*u)\"",
    "source": "build/omc-out-wasm32/artifacts/samepage-cost.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "两引擎同页编译总耗时**粗档**（向上取整到 500ms；原始值逐轮波动 242–306ms）"
   },
@@ -143,7 +143,7 @@
    "value": 74579404,
    "cmd": "stat -c%s /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm",
    "source": "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-19",
    "note": "web 档 omc wasm 字节数（需求 B 的产物；浏览器内跑）"
   },
@@ -151,7 +151,7 @@
    "value": "8287589ebdb53b4cc37c337c2ae88f798d8889f7ac3c29d693ca12e539b8d001",
    "cmd": "sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1",
    "source": "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-19",
    "note": "web 档产物 sha256"
   },
@@ -159,7 +159,7 @@
    "value": "ok",
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-web/omc.build.json'))['verdict'])\"",
    "source": "build/omc-out-web/omc.build.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "web 档产物身份证 verdict"
   },
@@ -167,7 +167,7 @@
    "value": 353,
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['bytes'])\"",
    "source": "build/omc-out-wasm32/artifacts/w64-spike.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "wasm64 可行件产物字节（-Zbuild-std 编出；证明工具链侧可做）"
   },
@@ -175,7 +175,7 @@
    "value": 0,
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/artifacts/w64-spike.json'))['gate_rc'])\"",
    "source": "build/omc-out-wasm32/artifacts/w64-spike.json",
-   "measured_at": "2026-10-19T19:01:25+0800",
+   "measured_at": "2026-10-21T12:19:37+0800",
    "first_seen": "2026-10-14",
    "note": "纯度闸门对 wasm64 产物的 rc（0 = 认档）"
   },
@@ -183,20 +183,20 @@
    "value": 0,
    "cmd": "echo 0",
    "source": "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm",
-   "measured_at": "2026-10-19T19:02:09+0800",
+   "measured_at": "2026-10-21T12:20:21+0800",
    "first_seen": "2026-10-17",
    "note": "产物原子指令数（0 = 无 SharedArrayBuffer/线程依赖 ⇒ 无 COI 也能跑；实测无 COI 四套验收全绿）",
    "replay": false,
    "witness": "sha256sum /mnt/hdd/openmodelica-wasm-build/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm | cut -d' ' -f1",
    "witness_expect": "8287589ebdb53b4cc37c337c2ae88f798d8889f7ac3c29d693ca12e539b8d001",
-   "calibrate": "/mnt/hdd/crossbuild-tools/wabt/bin/wasm-objdump -d /tmp/_omc-calib-atomic.wasm 2>/dev/null | grep -c 'atomic[.]' || true",
+   "calibrate": "/mnt/hdd/crossbuild-tools/wabt/bin/wasm-objdump -d /mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/fixtures/calib-atomic.wasm 2>/dev/null | grep -c 'atomic[.]' || true",
    "calibrate_expect": "1"
   },
   "site_wasm32_mods": {
    "value": 13,
    "cmd": "ls /mnt/hdd/openmodelica-wasm-build/site-omc/omc/OpenModelicaCompiler_bg.wasm >/dev/null && find /mnt/hdd/openmodelica-wasm-build/site-omc -name '*.wasm' -not -path '*/omc/*' | wc -l",
    "source": "site-omc（仓外站点）",
-   "measured_at": "2026-10-19T19:02:09+0800",
+   "measured_at": "2026-10-21T12:20:22+0800",
    "first_seen": "2026-10-17",
    "note": "站点附属 wasm 模块数（闸门 rc=0 时全站同档 wasm32；含 core2 = import-memory 形态）"
   },
@@ -204,7 +204,7 @@
    "value": "0.1.0",
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm/build/VERSION.json'))['version'])\"",
    "source": "build/VERSION.json",
-   "measured_at": "2026-10-19T19:02:09+0800",
+   "measured_at": "2026-10-21T12:20:22+0800",
    "first_seen": "2026-10-17",
    "note": "当前发布版本号（v0.1.0-wasm32 首发；发布说明 docs/RELEASE-v0.1.0-wasm32.md）"
   },
@@ -212,7 +212,7 @@
    "value": "\"-rust\"",
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['probe'].strip())\"",
    "source": "build/omc-out-wasm32/omc.build.json",
-   "measured_at": "2026-10-19T19:02:09+0800",
+   "measured_at": "2026-10-21T12:20:22+0800",
    "first_seen": "2026-10-13",
    "note": "Node 里 getVersion() 的实测输出（需求 A3）"
   },
@@ -220,7 +220,7 @@
    "value": "1.98.0-nightly",
    "cmd": "python3 -c \"import json;print(json.load(open('/mnt/hdd/openmodelica-wasm-build/build/omc-out-wasm32/omc.build.json'))['tool']['rustc'])\"",
    "source": "build/omc-out-wasm32/omc.build.json",
-   "measured_at": "2026-10-19T19:02:09+0800",
+   "measured_at": "2026-10-21T12:20:22+0800",
    "first_seen": "2026-10-13",
    "note": "工具链身份（从产物身份证读，不手抄）"
   }
