@@ -88,6 +88,9 @@ __pycache__/
 !build/*.py
 !build/113/*
 !build/README.md
+# 校准样本（omc_web_atomic_ops 的仪器校准件；判据的一部分，钉在仓里不许进 /tmp）
+!build/fixtures/
+!build/fixtures/*
 # 发布版本身份（v0.1.0-wasm32 首发起；数字从产物/台账读，不手抄）
 !build/VERSION.json
 

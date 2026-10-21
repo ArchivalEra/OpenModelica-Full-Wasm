@@ -570,3 +570,22 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
 白名单）；② blob 是 include_bytes! 进编译器的 ⇒ **改 blob 必须重建编译器**，
 光改文件树没用；③ 对方钓鱼执法抓的缺陷比我们全部脚本验收加起来都深 ——
 外部验收是资产。
+
+## 5.p mail/010–012：复验结案 + 011 两问（2026-10-21）
+
+- **010 收讫**：缺陷 1 复验收执——对方独立复验全成立（215 wasm 干净 / sha 两处一致 /
+  6/0 判据 / 全链 FMI Simulator 跑通：自产 FMU → 装载 1232ms → 1695 samples）⇒ **结案**。
+- **011 两问逐题实测后答**（mail/012）：
+  · **A1（MSL 产物化）= 会**：下载链实测（官方索引 196 库 → Modelica 4.1.0+maint.om 的
+    `8df0769a` zip，20,362,007 B，sha256 `ba66dd3a…`——注意上游索引的 sha 字段是**版本串**
+    不是字节 sha）；官方管道 `omc_vfs_load_zip` 在产物导出面（"One fetch + this call
+    stages a whole Modelica library"）⇒ 站内 zip 一次 fetch 即离线装库。落点
+    `site-omc/assets/omc/`，**随下一个产物批次**（改产物必全量回归的纪律），落好回信。
+  · **A2（进度钩子）= 半只**：`omc_enable_progress_sink` + `__omcReportProgress(permille,
+    phase)` 在产物（permille 0..=1000/-1 不定；phase 0–5 含 PHASE_SIMULATE）；覆盖面
+    **源码实测**：解析每文件（ParserExt.rs:398）/实例化（NFInst.mo:165）/FMU 导出每平台
+    （CevalScriptBackend.mo:4556）有上报；**simulate 主链 0 命中**（simulate_fn/sim_driver
+    无 report_progress）——上游备了语义位但仿真循环没人上报。UI 对 simulate 回落
+    （不定胶囊）是唯一诚实形态；装库/编译阶段可接真数据（在役参考 omc_worker.js:63）。
+- 浏览器探针实测确认：simulator 页主线程**不收**进度消息（控制块是 SAB 直读非消息），
+  status 的「build Xms + sim Yms」分相计时是页面自己记的账。
