@@ -1,11 +1,31 @@
 # OpenModelica-Full-Wasm
 
+[![readme-sync](https://img.shields.io/github/actions/workflow/status/ArchivalEra/OpenModelica-Full-Wasm/readme-sync?branch=main&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/actions/workflows/readme-sync.yml)
+[![facts](https://img.shields.io/github/actions/workflow/status/ArchivalEra/OpenModelica-Full-Wasm/facts?branch=main&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/actions/workflows/facts.yml)
+[![release](https://img.shields.io/github/v/tag/ArchivalEra/OpenModelica-Full-Wasm?include_prereleases&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/releases)
+[![license](https://img.shields.io/github/license/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](LICENSE)
+[![stars](https://img.shields.io/github/stars/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/stargazers)
+[![forks](https://img.shields.io/github/forks/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/network/members)
+[![issues](https://img.shields.io/github/issues/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/issues)
+[![pull requests](https://img.shields.io/github/issues-pr/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/pulls)
+[![last commit](https://img.shields.io/github/last-commit/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/commits)
+[![commit activity](https://img.shields.io/github/commit-activity/m/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/commits)
+[![repo size](https://img.shields.io/github/repo-size/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm)
+[![code size](https://img.shields.io/github/languages/code-size/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm)
+[![engine](https://img.shields.io/badge/Modelica-engine-orange?style=flat-square)](docs/REQUIREMENTS.md)
+[![target](https://img.shields.io/badge/wasm32-lane-blue?style=flat-square)](STATE.md)
+[![COI](https://img.shields.io/badge/COI-not%20required-success?style=flat-square)](STATE.md)
+[![toolchain](https://img.shields.io/badge/clang24%20%2B%20Rust%20nightly-toolchain-informational?style=flat-square)](build/113/provision-toolchain.sh)
+[![assertions](https://img.shields.io/badge/assertions-rerunnable-blueviolet?style=flat-square)](STATE.md)
+[![facts](https://img.shields.io/badge/Einfacht-powered-purple?style=flat-square)](https://github.com/ArchivalEra/Einfacht)
+
+
 [English](README.md) · [中文](README.zh.md) · [Deutsch](README.de.md)
 
 **OpenModelica**（Modelica 编译器 + 仿真运行时）→ **WebAssembly**，跑在浏览器里，
 **纯客户端计算、无服务端执行端点**。
 
-> 🔒 本仓是 **private**。姊妹仓 [`Octave-Full-Wasm`](https://github.com/ArchivalEra/Octave-Full-Wasm)
+> 姊妹仓（轴① 语言 + 轴② 块图）：[`Octave-Full-Wasm`](https://github.com/ArchivalEra/Octave-Full-Wasm) · 上游事实系统：[`Einfacht`](https://github.com/ArchivalEra/Einfacht)
 > 是**平级**的另一半（那个跑 MATLAB 语法那一侧）。
 
 ---
@@ -190,7 +210,9 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.githooks/update-readme.py` (2270 bytes)
 - `.githooks/update-state.py` (5884 bytes)
 - `.githooks/witness-upstream-pin.py` (15708 bytes)
-- `.gitignore` (5642 bytes)
+- `.github/workflows/facts.yml` (2429 bytes)
+- `.github/workflows/readme-sync.yml` (2090 bytes)
+- `.gitignore` (5742 bytes)
 - `.gitmodules` (122 bytes)
 - `.scratch/open-questions/issues/01-omc-wasm-buildable.md` (3536 bytes)
 - `.scratch/open-questions/issues/02-wasm64-unsupported.md` (3998 bytes)
@@ -198,10 +220,10 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `.scratch/open-questions/issues/04-samepage-memory-cost.md` (3672 bytes)
 - `AGENTS.md` (8412 bytes)
 - `CONTEXT.md` (6458 bytes)
-- `HISTORY.md` (46869 bytes)
+- `HISTORY.md` (48673 bytes)
 - `LICENSE` (34523 bytes)
-- `README.de.md` (14070 bytes)
-- `README.zh.md` (12252 bytes)
+- `README.de.md` (17021 bytes)
+- `README.zh.md` (15146 bytes)
 - `STATE.md` (22986 bytes)
 - `THIRD-PARTY-NOTICES.md` (2149 bytes)
 - `bridge/omc_bridge.js` (7217 bytes)
@@ -263,6 +285,8 @@ wasm64 生产级后**重建**该线。**wasm64 工具链侧可做**这条事实�
 - `mail/010-extra-content-re-fishing-fixed-verified.md` (3080 bytes)
 - `mail/011-extra-content-msl-and-progress.md` (2000 bytes)
 - `mail/012-re-msl-and-progress.md` (7630 bytes)
+- `mail/013-extra-content-re-012.md` (1856 bytes)
+- `mail/014-extra-content-omc-channel-opening.md` (3907 bytes)
 - `mail/README.md` (1713 bytes)
 - `maintaince.md` (6799 bytes)
 - `reflect-hooks/Einfacht.env` (1995 bytes)

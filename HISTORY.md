@@ -589,3 +589,25 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
     （不定胶囊）是唯一诚实形态；装库/编译阶段可接真数据（在役参考 omc_worker.js:63）。
 - 浏览器探针实测确认：simulator 页主线程**不收**进度消息（控制块是 SAB 直读非消息），
   status 的「build Xms + sim Yms」分相计时是页面自己记的账。
+
+## 5.o 转公开准备（2026-10-21）：CI 面接上 + README 公开门面 + 18 badges
+
+- **用户点令**：本仓（OpenModelica-Full-Wasm）转为**公开**做准备；Einfacht 是收 issue 的
+  上游（**零触碰**），vendored 接入在本仓自己配。
+- **★ 三语 README 钩子的 CI 面接上**：本仓此前**没有** .github/workflows/ —— pre-push
+  注释里承诺的"CI 跑同一条判据"是空头支票。补上两份（vendored Einfacht 形态、适配本仓）：
+  · `readme-sync.yml`——三语同批的 CI 落点（check_readme_sync.py --changed，与
+    pre-push 同源）；
+  · `facts.yml`——**可移植子集**并诚实声明取舍：名录对账 / 机器块一致 / 白名单 /
+    平台模块自证 / 纯夹具自证（check_readme_sync、check-lane-purity）；产物锚定的
+    闸门（复跑 cmd、pin 见证锚在产物树）**留在装钩子有产物的机器**上由
+    pre-commit/pre-push 正面执行 —— CI 不假装查过。
+- **README 公开门面**（三语同批，18 枚 badge 全部可验真）：
+  · CI×2（readme-sync/facts）+ release（v0.1.0-wasm32 tag）+ license（AGPL-3.0）；
+  · GitHub 动态×8（stars/forks/issues/prs/last-commit/commit-activity/repo-size/code-size）；
+  · 语义×6（Modelica engine / wasm32 lane / COI-not-required / clang24+Rust nightly
+    toolchain / assertions-rerunnable / Einfacht-powered）；
+  · 「🔒 本仓是 private」行删除（三语），换成姊妹仓 + Einfacht 指引。
+- **转公开前置审计**：git grep 秘密扫描（3 命中全误报：GPL 原文/正则名/散文）⇒ 无泄漏；
+  本机代理端口（127.0.0.1:2080）出现在文档属构建事实，无害。
+- whitelist +2（!.github/ !.github/**）⇒ 85 条；台账 whitelist_rules 改口放行。

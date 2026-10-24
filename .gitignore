@@ -13,6 +13,9 @@
 !README.md
 !README.zh.md
 !README.de.md
+# CI 面（vendored Einfacht 的 readme-sync / facts 判据的正面落点）
+!.github/
+!.github/**
 !LICENSE
 !THIRD-PARTY-NOTICES.md
 !AGENTS.md

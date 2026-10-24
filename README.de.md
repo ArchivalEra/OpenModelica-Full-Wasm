@@ -1,11 +1,31 @@
 # OpenModelica-Full-Wasm
 
+[![readme-sync](https://img.shields.io/github/actions/workflow/status/ArchivalEra/OpenModelica-Full-Wasm/readme-sync?branch=main&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/actions/workflows/readme-sync.yml)
+[![facts](https://img.shields.io/github/actions/workflow/status/ArchivalEra/OpenModelica-Full-Wasm/facts?branch=main&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/actions/workflows/facts.yml)
+[![release](https://img.shields.io/github/v/tag/ArchivalEra/OpenModelica-Full-Wasm?include_prereleases&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/releases)
+[![license](https://img.shields.io/github/license/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](LICENSE)
+[![stars](https://img.shields.io/github/stars/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/stargazers)
+[![forks](https://img.shields.io/github/forks/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/network/members)
+[![issues](https://img.shields.io/github/issues/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/issues)
+[![pull requests](https://img.shields.io/github/issues-pr/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/pulls)
+[![last commit](https://img.shields.io/github/last-commit/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/commits)
+[![commit activity](https://img.shields.io/github/commit-activity/m/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/commits)
+[![repo size](https://img.shields.io/github/repo-size/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm)
+[![code size](https://img.shields.io/github/languages/code-size/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm)
+[![engine](https://img.shields.io/badge/Modelica-engine-orange?style=flat-square)](docs/REQUIREMENTS.md)
+[![target](https://img.shields.io/badge/wasm32-lane-blue?style=flat-square)](STATE.md)
+[![COI](https://img.shields.io/badge/COI-not%20required-success?style=flat-square)](STATE.md)
+[![toolchain](https://img.shields.io/badge/clang24%20%2B%20Rust%20nightly-toolchain-informational?style=flat-square)](build/113/provision-toolchain.sh)
+[![assertions](https://img.shields.io/badge/assertions-rerunnable-blueviolet?style=flat-square)](STATE.md)
+[![facts](https://img.shields.io/badge/Einfacht-powered-purple?style=flat-square)](https://github.com/ArchivalEra/Einfacht)
+
+
 [English](README.md) · [中文](README.zh.md) · [Deutsch](README.de.md)
 
 **OpenModelica** (Modelica-Compiler + Simulationslaufzeit) → **WebAssembly**, läuft im Browser,
 **reine Client-Berechnung, kein serverseitiger Ausführungsendpunkt**.
 
-> 🔒 Dieses Repository ist **private**. Schwester-Repository
+> Schwester-Repository (Achse ① Sprache + ② Blockdiagramme): [`Octave-Full-Wasm`](https://github.com/ArchivalEra/Octave-Full-Wasm) · Faktensystem: [`Einfacht`](https://github.com/ArchivalEra/Einfacht)
 > [`Octave-Full-Wasm`](https://github.com/ArchivalEra/Octave-Full-Wasm) ist die **gleichrangige**
 > andere Hälfte (dort läuft die MATLAB-Syntax-Seite).
 
