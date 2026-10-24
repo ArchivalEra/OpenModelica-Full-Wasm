@@ -1,9 +1,6 @@
 # OpenModelica-Full-Wasm
 
-[![readme-sync](https://img.shields.io/github/actions/workflow/status/ArchivalEra/OpenModelica-Full-Wasm/readme-sync?branch=main&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/actions/workflows/readme-sync.yml)
-[![facts](https://img.shields.io/github/actions/workflow/status/ArchivalEra/OpenModelica-Full-Wasm/facts?branch=main&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/actions/workflows/facts.yml)
 [![release](https://img.shields.io/github/v/tag/ArchivalEra/OpenModelica-Full-Wasm?include_prereleases&style=flat-square)](https://github.com/ArchivalEra/OpenModelica-Full-Wasm/releases)
-[![license](https://img.shields.io/github/license/ArchivalEra/OpenModelica-Full-Wasm?style=flat-square)](LICENSE)
 [![lane](https://img.shields.io/badge/wasm32-lane-blue?style=flat-square)](STATE.md)
 [![COI](https://img.shields.io/badge/COI-not%20required-success?style=flat-square)](STATE.md)
 
