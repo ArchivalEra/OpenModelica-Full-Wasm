@@ -16,13 +16,12 @@ REPO=$(CDPATH= cd -- "$HERE/.." && pwd)
 cd "$REPO"
 GH="$REPO/.githooks"
 
-# ── ⓪ README 的 AUTO:FILES（git 跟踪文件清单 + 字节数）—— 平台不管这块 ─────────
+# ── ⓪ （AUTO:FILES 文件清单已移除 —— 2026-10-24 用户点令：README 底部的
+#    自动文件清单是噪音，update-readme.py 已删。文档地图节的表格足够。）────────
 # ⚠️ 本仓**暂不接** `update-state.py`（部署态机器块）：它读站点/回归/交付包三类事实，
 #   而本仓**骨架期还没有部署件** ⇒ 接了它只会得到一个"读不到"三连 + `check-state.py`
 #   的零值守卫（"闸门空转"）。按本仓一贯做法：**输入不存在的闸门不接**（与 locks/pins
 #   同款）—— 等第一个可部署产物出来再接，那时 `check-state.py` 也才有东西可断言。
-python3 "$GH/update-readme.py"
-git add README.md
 
 # ── ① 平台机器块重渲染（AUTO:FACTS + AUTO:GATES）───────────────────────────────
 #    ⚠️ 这里**只渲染，不重测**：重测由人负责 —— python3 zreflect/facts.py

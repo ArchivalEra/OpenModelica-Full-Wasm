@@ -70,7 +70,6 @@
 ## §2 提交前的固定动作（每批）
 
 ```bash
-python3 .githooks/update-readme.py        # 先刷新（**再** git add —— 顺序错了 pre-push 会判陈旧）
 python3 .githooks/update-handoff.py       # HANDOFF 的 AUTO:STATE 机器块
 python3 zreflect/facts.py --render-doc STATE.md   # 台账 → 事实块（改了数字就要刷）
 sh build/gates-selftest.sh                # ★ 每个闸门先证明自己"会红"
@@ -123,7 +122,6 @@ git add -A && git commit …                # pre-commit 会把上面全部再�
 |---|---|---|
 | `STATE.md` 的 `AUTO:FACTS` | `zreflect/facts.py --render-doc` | 测出来的数字（唯一产地） |
 | `HANDOFF.md` 的 `AUTO:STATE` | `.githooks/update-handoff.py` | 部署件 sha/体积、最近一次全绿回归 |
-| `README.md` 的 `AUTO:FILES` | `.githooks/update-readme.py` | 文件清单 |
 
 **文档分层**（闸门只查活状态）：`HANDOFF.md` = 活状态（断言必须与产物一致）；
 `build/113/PLAN-*.md` = 带日期的批次记录（允许"当时如此"）；`HISTORY.md` = append-only 历史
