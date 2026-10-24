@@ -17,7 +17,7 @@ DOC=${REFLECT_DOC:-STATE.md}
 if [ -f "$DOC" ]; then
   python3 zreflect/facts.py --check "$DOC"
 fi
-python3 "$GH/update-readme.py" --check
+# （update-readme --check 已随 AUTO:FILES 清单一并移除 —— 2026-10-24 用户点令）
 
 # ── ② 平台闸门：执行面唯一产地（上游 C1；与 pre-commit 同源，别再 glob）───────
 # ⚠️ 本仓**不内联** REFLECT_LOCKS/REFLECT_PINS：那两份规格本仓还没有（不配就不跑）。
