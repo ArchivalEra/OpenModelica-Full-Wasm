@@ -1,0 +1,48 @@
+# 事实系统在 CI 上的**可移植子集**（vendored Einfacht）：
+#   ① 名录对账（闸门声明行 ⇒ 缺声明 / 孤儿 / 旗标错 / 幻影旋钮）
+#   ② 机器块 ↔ 台账一致（facts --check：文档裸数字 / 坏引用 / 块漂移）
+#   ③ 白名单（git ls-files 必须被 .gitignore 显式放行）
+#   ④ 平台模块自证（facts/guard/knobs/ledger/registry/render/runner）
+#   ⑤ 纯夹具自证（check_readme_sync / check-lane-purity 等不碰产物的闸门）
+#
+# ★ 为什么不是「全部闸门」——诚实说明，不假装查过：
+#   本仓的台账 cmd 锚定**产物树**（/mnt/hdd/openmodelica-wasm-build：omc wasm、
+#   站点、上游 pin 树），那不进 git、CI 上不存在 ⇒ 复跑闸门 / pin 见证 /
+#   site_wasm32_mods 这些「产物在盘才可复跑」的判据留在**装了钩子、有产物的机器**
+#   上，由 pre-commit / pre-push 正面执行（reflect-hooks/，同名判据同一产地面）。
+#   CI 承担的是「文档/台账/名录/白名单」这一层 —— 它们恰好是纯 git 内容。
+name: facts
+
+on:
+  push: {}
+
+jobs:
+  facts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          check-latest: true      # 钉小版本解析最新 patch（uTLS-Gone issue #4）
+      - name: 旋钮语境（reflect-hooks/Einfacht.env = 唯一可复现来源）
+        run: |
+          set -a; . reflect-hooks/Einfacht.env; set +a
+          echo "REFLECT_FACTS=$REFLECT_FACTS"
+      - name: 名录对账 + 机器块一致 + 白名单
+        run: |
+          set -a; . reflect-hooks/Einfacht.env; set +a
+          python3 zreflect/registry.py --gates >/dev/null
+          python3 zreflect/facts.py --check "$REFLECT_DOC"
+          python3 .githooks/check-whitelist.py
+      - name: 平台模块自证（发现式名录派生，手写清单会漂）
+        run: |
+          set -a; . reflect-hooks/Einfacht.env; set +a
+          for m in $(python3 zreflect/registry.py --selftest-modules); do
+            echo "--- $m"; python3 "$m" --selftest || exit 1
+          done
+      - name: 纯夹具闸门自证（不碰产物树的那批）
+        run: |
+          set -a; . reflect-hooks/Einfacht.env; set +a
+          python3 zreflect/check_readme_sync.py --selftest
+          python3 build/113/check-lane-purity.py --selftest
