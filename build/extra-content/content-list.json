@@ -1,0 +1,28 @@
+{
+  "schema": 2,
+  "octave": "11.3.0",
+  "producer": {
+    "id": "openmodelica-full-wasm",
+    "pin": "release:v0.1.0-wasm32"
+  },
+  "note": "本仓作为 MSL 出表方发布的 producer 态 content-list（mail/017 §3 字段指导）。只含一条：Modelica 标准库 4.1.0+maint.om（name 用全称，见 mail/018 §4 命名申辩；若收口方裁定用 msl 则改回）。引擎产物（OpenModelicaCompiler_bg.wasm）不进本表——那是引擎契约，走 release asset 渠道。",
+  "entries": [
+    {
+      "name": "modelica-standard-library",
+      "version": "4.1.0+maint.om",
+      "form": "file",
+      "sha256": "a97d8d94ca7f7960f7f1c209613a35d65bcfa2426660e5052617e71326308535",
+      "url": "assets/msl/msl-4.1.0-maint.om.zip",
+      "upstream_url": "https://github.com/OpenModelica/OpenModelica-ModelicaStandardLibrary/archive/8df0769a9cee6ad04ddfff95faee64cd70f662ec.zip",
+      "size": 19482938,
+      "content": [],
+      "consumer": [
+        "omc"
+      ],
+      "role": "package",
+      "license": "BSD-3-Clause (Modelica Association); sublibrary licenses in Modelica/Resources/Licenses/",
+      "deps": [],
+      "note": "Modelica 标准库（跨域物理域）。挂载配方：omc_vfs_load_zip('/.openmodelica/libraries', zip) 一次调用即装（MODELICAPATH 经 omc_set_env 不生效，实测）；判据 loadModel(Modelica)=true / getVersion(Modelica)=\"4.1.0\" / 反向 loadModel(NoSuchPackageXYZ) 必败。版本锚 8df0769a（上游索引版本串）。安装形状重打包，与 GitHub 源 zip 字节不等（源是仓库快照）。"
+    }
+  ]
+}

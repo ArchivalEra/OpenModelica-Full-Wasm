@@ -3,7 +3,7 @@
 <head><meta charset="utf-8"><title>MSL 站内 zip 实测（mail/012 A1）</title>
 <style>body{font:14px/1.6 system-ui;margin:16px;max-width:900px}pre{background:#f6f6f6;padding:8px;overflow:auto}#s{font-weight:600}.ok{color:#0a7a0a}.bad{color:#b00}</style></head>
 <body>
-<h2>MSL 站内资产实测：assets/omc zip → omc_vfs_load_zip → loadModel(Modelica)</h2>
+<h2>MSL 站内资产实测：assets/msl zip → omc_vfs_load_zip → loadModel(Modelica)</h2>
 <p>判据（mail/012 A1）：站内 zip 一次 fetch + 官方管道装库，离线可用（不走 GitHub 运行时拉）。
 实测修正两条（相对 mail/012 原文）：① GitHub 源 zip 是仓库快照（顶层带 hash 目录）⇒ 站内资产
 为安装形状重打包；② MODELICAPATH 经 omc_set_env 不生效（loader 用默认
@@ -14,7 +14,7 @@
 const L=[];const log=(x)=>{L.push(x);document.getElementById('log').textContent=L.join('\n')};
 const st=(s,ok)=>{document.getElementById('s').textContent=s;document.getElementById('s').className=ok===true?'ok':ok===false?'bad':''};
 window.__msl={ready:false,error:'',steps:[],version:'',loadMs:0};
-const ZIP='./assets/omc/msl-4.1.0-maint.om.zip';
+const ZIP='./assets/msl/msl-4.1.0-maint.om.zip';
 try{
   st('① 拉站内 zip…');
   const t0=performance.now();
