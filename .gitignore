@@ -128,6 +128,7 @@ __pycache__/
 
 # ── 同页集成（wasm32 双引擎；用户点令 2026-10-14）─────────────────────────────
 !site/samepage.html
+!site/msl-local.html
 !test/browser/accept-samepage.mjs
 !test/browser/run-samepage.sh
 
