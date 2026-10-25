@@ -633,3 +633,21 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
 - 回信 016（逐项 + 复跑命令）。台账 26→28 条；whitelist 86；闸门全绿。
 - 踩坑两枚：measure 的 `%` 格式串少参数（TypeError 现场修）；文件名带 8df0769a 会触发
   check_stale 的 sha 出处断言（含 AUTO 块 cmd 里的）⇒ 资产文件名不带长 hash（身份在台账键）。
+
+## 5.m mail/017→018：MSL 落位修正 + 出表 + 渠道挂 asset（2026-10-25）
+
+- **017 三件全办**：
+  1. **落位修正**（我原先违规）：`assets/omc/` → `assets/msl/`——收口方新裁定 MSL 不许落
+     引擎条目的树目录（会把引擎 `form:"tree"` 的字节和从 74.7MB 虚胀到 94MB+）。
+     迁移后端到端判据重跑仍 PASS。
+  2. **出表**：`build/extra-content/content-list.json`（producer 态一条 MSL；
+     form=file / consumer=["omc"] / role=package / sha 取台账键）；新自证件
+     `build/113/check-msl-content-list.py`（11 自证；宿主校验器在盘时真跑它，
+     producer+site 两模式都 ok；反向五类正确红；不在盘时跑本地等价判据并明说）。
+  3. **渠道**：MSL zip 挂 release `v0.1.0-wasm32` asset（GitHub digest 与台账逐字一致，
+     等于第三方复核；引擎 asset 未动）。
+- **命名申辩**：不同意 `name:"msl"`（缩写不可检索，且会进机器产物成为 UI 面板键）——
+  建议 `modelica-standard-library`；命名权在收口方，其裁定即改。
+- 反向用例设计的一课：我第一版拿「sha 值改成全 0」当反向用例 ⇒ 校验器 rc=0（它只验形状
+  不验字节，这是**对的**）⇒ 是我用例设计错了，换成 sha 格式非法 / 站点态绝对 URL 才真红。
+  **"该报的必须报"要先确认它真的该报**。

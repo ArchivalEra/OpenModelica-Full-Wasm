@@ -91,6 +91,9 @@ __pycache__/
 !build/*.py
 !build/113/*
 !build/README.md
+# MSL 出表（producer 态 content-list；mail/017 §3）
+!build/extra-content/
+!build/extra-content/*
 # 校准样本（omc_web_atomic_ops 的仪器校准件；判据的一部分，钉在仓里不许进 /tmp）
 !build/fixtures/
 !build/fixtures/*
