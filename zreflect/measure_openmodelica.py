@@ -334,6 +334,20 @@ def measure():
                 "build/VERSION.json",
                 "当前发布版本号（v0.1.0-wasm32 首发；发布说明 docs/RELEASE-v0.1.0-wasm32.md）")
 
+    # ── MSL 站内资产（2026-10-25 落地；mail/012 A1 的承诺兑现）──────────────────
+    #   落点 site-omc/assets/omc/（仓外站点）；**安装形状**重打包（GitHub 源 zip 是
+    #   仓库快照：顶层带 hash 目录，vfs_load_zip 原样落盘后 loadModel 找不到包）。
+    msl = os.path.join(BASE, "site-omc", "assets", "omc", "msl-4.1.0-maint.om.zip")
+    if _exists(msl):
+        facts["msl_asset_bytes"] = fact(
+            os.path.getsize(msl), "stat -c%s " + msl,
+            "site-omc/assets/omc/msl-4.1.0-maint.om.zip",
+            "MSL 站内资产字节数（安装形状 zip；判据 site/msl-local.html → MSL-LOCAL PASS）")
+        facts["msl_asset_sha"] = fact(
+            sha256sum(msl), "sha256sum %s | cut -d' ' -f1" % msl,
+            "site-omc/assets/omc/msl-4.1.0-maint.om.zip",
+            "MSL 站内资产 sha256（≠ GitHub 源 zip 的 sha ba66dd3a…：那是仓库快照，这是安装形状重打包；来源同 8df0769a 版本串锚定）")
+
     # 版本串：产物探针实际吐出来的那句（需求 A3 的判据物）
     ver_id = os.path.join(BUILD, "omc-out-wasm32", "omc.build.json")
     if _exists(ver_id):
