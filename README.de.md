@@ -70,6 +70,7 @@ Jede Anforderung hat ein wiederholbares Abnahmekriterium, alles aktuell grün (E
 | D `.mat`-Handshake mit Octave | `sh test/browser/run-mat-handshake.sh` | 14 PASS / 0 FAIL |
 | E MATLAB-Semantikbrücke `omc_*` | `sh test/browser/run-omc-bridge.sh` | 11 PASS / 0 FAIL |
 | Gleiche Seite (zwei Engines, eine Seite) | `sh test/browser/run-samepage.sh` | 8 PASS / 0 FAIL |
+| MSL-Anlage vor Ort (Offline-Bibliothek, mail/016) | `site/msl-local.html` (Site 8765) | MSL-LOCAL PASS |
 | Export FMU (extern gefundener Defekt, behoben) | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 
 - Artefakt: Web-Variante 74,6 MB (nach `-Oz`, sha im Ledger `omc_web_wasm_sha`); kein COI nötig (0 Atomar-Befehle / 0 Thread-Imports, ein gewöhnlicher http.server genügt).
