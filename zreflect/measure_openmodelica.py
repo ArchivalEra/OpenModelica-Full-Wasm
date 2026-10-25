@@ -230,6 +230,24 @@ def measure():
         facts["omc_web_wasm_sha"] = fact(
             sha256sum(web_wasm), "sha256sum %s | cut -d' ' -f1" % web_wasm,
             "build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm", "web 档产物 sha256")
+
+    # ── JS 胶水件（2026-10-25，mail/020 提单）：`files[]` 投影的产地 ────────────────
+    #   为什么需要：UI 运行期只认表（`files[]` 逐件 sha），而 `files[]` 的唯一产地 =
+    #   生产者台账（宿主只投影不另算，见 mail/012 定的「不造第二产地」原则）。
+    #   bg.wasm 已有键（omc_web_wasm_sha）；JS 胶水件此前**没有键** ⇒ UI 里硬编码的
+    #   sha（56c399bd…）是**无产地的孤儿事实**。补这两键后链条通：
+    #   本仓台账 → 宿主装配投影进表 files[] → UI 运行期从表取（删硬编码）。
+    #   ⚠️ `.d.ts` 两件**不建键**（不在浏览器下载闭包；收口方 mail/020 裁定第 ② 条）。
+    web_js = os.path.join(BASE, "site-omc", "omc", "OpenModelicaCompiler.js")
+    if _exists(web_js):
+        facts["omc_web_js_bytes"] = fact(
+            os.path.getsize(web_js), "stat -c%s " + web_js,
+            "site-omc/omc/OpenModelicaCompiler.js",
+            "JS 胶水件字节数（浏览器下载闭包内；mail/020 提单：files[] 投影的产地）")
+        facts["omc_web_js_sha"] = fact(
+            sha256sum(web_js), "sha256sum %s | cut -d' ' -f1" % web_js,
+            "site-omc/omc/OpenModelicaCompiler.js",
+            "JS 胶水件 sha256（同上；UI 硬编码 56c399bd… 的产地，补键后 UI 可删硬编码）")
     web_verdict = os.path.join(BUILD, "omc-out-web", "omc.build.json")
     if _exists(web_verdict):
         d = _read_json(web_verdict) or {}

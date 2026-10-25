@@ -72,6 +72,7 @@ wasm32              → 产物 wasm32，只编 wasm32
 | 同页集成（双引擎一页面） | `sh test/browser/run-samepage.sh` | 8 PASS / 0 FAIL |
 | MSL 站内资产（离线装库，mail/016） | `site/msl-local.html`（8765 站点） | MSL-LOCAL PASS |
 | MSL 出表（producer 态 content-list） | `python3 build/113/check-msl-content-list.py` | producer ok / site ok |
+| JS 胶水件产地（`files[]` 投影） | 台账 `omc_web_js_sha` / `omc_web_js_bytes` | 30 条事实逐字复跑 |
 | Export FMU（外部验收抓到的缺陷，已修） | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 
 - 产物：web 档 74.6 MB（`-Oz` 后，sha 见台账 `omc_web_wasm_sha`）；无 COI 依赖（0 原子指令 / 0 线程导入，普通 http.server 就能服务）。
