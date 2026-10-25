@@ -70,6 +70,7 @@ wasm32              → 产物 wasm32，只编 wasm32
 | D 与 Octave 的 `.mat` 握手 | `sh test/browser/run-mat-handshake.sh` | 14 PASS / 0 FAIL |
 | E MATLAB 语义桥 `omc_*` | `sh test/browser/run-omc-bridge.sh` | 11 PASS / 0 FAIL |
 | 同页集成（双引擎一页面） | `sh test/browser/run-samepage.sh` | 8 PASS / 0 FAIL |
+| MSL 站内资产（离线装库，mail/016） | `site/msl-local.html`（8765 站点） | MSL-LOCAL PASS |
 | Export FMU（外部验收抓到的缺陷，已修） | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 
 - 产物：web 档 74.6 MB（`-Oz` 后，sha 见台账 `omc_web_wasm_sha`）；无 COI 依赖（0 原子指令 / 0 线程导入，普通 http.server 就能服务）。

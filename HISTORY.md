@@ -611,3 +611,25 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
 - **转公开前置审计**：git grep 秘密扫描（3 命中全误报：GPL 原文/正则名/散文）⇒ 无泄漏；
   本机代理端口（127.0.0.1:2080）出现在文档属构建事实，无害。
 - whitelist +2（!.github/ !.github/**）⇒ 85 条；台账 whitelist_rules 改口放行。
+
+## 5.n mail/013–016：MSL 站内资产落地 + 渠道①收口（2026-10-25）
+
+- **013 收讫**（三项声明对方亲验全成立）；唯一待办 = 落 MSL zip ⇒ **落地并实测闭环**：
+  `site-omc/assets/omc/msl-4.1.0-maint.om.zip`（安装形状 19,482,938 B / sha `a97d8d94…`，
+  台账键 msl_asset_{bytes,sha}）。判据 `site/msl-local.html` + playwright → **MSL-LOCAL
+  PASS**（fetch 48ms → vfs_load_zip 4376 文件 → loadModel true / 版本 4.1.0 / ★反向
+  loadModel(NoSuchPackageXYZ) fail-ok）。
+- **两条对 mail/012 A1 原文的实测修正**（判据跟着实测走）：
+  ① GitHub 源 zip 是仓库快照（顶层 hash 目录）⇒ 站内资产为安装形状重打包
+  （sha a97d8d94… ≠ 源 zip ba66dd3a…，同 8df0769a 版本串锚定——对账对版本串不对字节）；
+  ② MODELICAPATH 经 omc_set_env 传不进 loader（实测仍用默认 /.openmodelica/libraries）
+  ⇒ 正确接法 = vfs_load_zip 直接落默认库目录，一次 fetch 一个调用。`.d.ts` 契约的
+  "point MODELICAPATH at mount" 在本产物不成立，记档。
+- 旁证（Node 同产物）：官方 installPackage 链喂站内 zip + 索引也能离线走通（pending-download
+  协议的 cache 槽位喂入即装，"Package installed successfully (SHA 8df0769a…)"）——两条路都通。
+- **014 裁决**：用户已选①并执行（仓 PUBLIC）；我补 asset 无认证全量下载对账：sha
+  `8287589e…b001` 与 site-omc 产物逐字一致 ✓。UI 越界处置同意收口方裁定（结果对程序错，
+  下不为例）。**015 收讫**（球在 UI）。
+- 回信 016（逐项 + 复跑命令）。台账 26→28 条；whitelist 86；闸门全绿。
+- 踩坑两枚：measure 的 `%` 格式串少参数（TypeError 现场修）；文件名带 8df0769a 会触发
+  check_stale 的 sha 出处断言（含 AUTO 块 cmd 里的）⇒ 资产文件名不带长 hash（身份在台账键）。

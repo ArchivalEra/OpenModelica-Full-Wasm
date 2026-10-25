@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh">
+<head><meta charset="utf-8"><title>MSL 站内 zip 实测（mail/012 A1）</title>
+<style>body{font:14px/1.6 system-ui;margin:16px;max-width:900px}pre{background:#f6f6f6;padding:8px;overflow:auto}#s{font-weight:600}.ok{color:#0a7a0a}.bad{color:#b00}</style></head>
+<body>
+<h2>MSL 站内资产实测：assets/omc zip → omc_vfs_load_zip → loadModel(Modelica)</h2>
+<p>判据（mail/012 A1）：站内 zip 一次 fetch + 官方管道装库，离线可用（不走 GitHub 运行时拉）。
+实测修正两条（相对 mail/012 原文）：① GitHub 源 zip 是仓库快照（顶层带 hash 目录）⇒ 站内资产
+为安装形状重打包；② MODELICAPATH 经 omc_set_env 不生效（loader 用默认
+/.openmodelica/libraries）⇒ mount 点直接用默认库目录。</p>
+<p id="s">未开始</p>
+<pre id="log"></pre>
+<script type="module">
+const L=[];const log=(x)=>{L.push(x);document.getElementById('log').textContent=L.join('\n')};
+const st=(s,ok)=>{document.getElementById('s').textContent=s;document.getElementById('s').className=ok===true?'ok':ok===false?'bad':''};
+window.__msl={ready:false,error:'',steps:[],version:'',loadMs:0};
+const ZIP='./assets/omc/msl-4.1.0-maint.om.zip';
+try{
+  st('① 拉站内 zip…');
+  const t0=performance.now();
+  const res=await fetch(ZIP);
+  if(!res.ok)throw new Error('fetch '+res.status);
+  const buf=new Uint8Array(await res.arrayBuffer());
+  window.__msl.loadMs=Math.round(performance.now()-t0);
+  log(`① 站内 zip ${buf.length} 字节，${window.__msl.loadMs}ms`);
+  window.__msl.steps.push('fetch:'+buf.length);
+
+  st('② 起 omc…');
+  const mod=await import('./omc/OpenModelicaCompiler.js');
+  await mod.default();
+  mod.omc_set_env('OPENMODELICAHOME','/usr');
+  mod.omc_init();
+  mod.omc_set_inwasm_driver(1);
+  log('② omc init，version='+String(mod.omc_eval('getVersion()')));
+  window.__msl.steps.push('omc-init');
+
+  st('③ omc_vfs_load_zip 装进默认库目录…');
+  const n=mod.omc_vfs_load_zip('/.openmodelica/libraries',buf);
+  if(typeof n==='string')throw new Error('vfs_load_zip: '+n);
+  log(`③ 装入 ${n} 个文件`);
+  window.__msl.steps.push('vfs:'+n);
+
+  st('④ loadModel(Modelica)…');
+  const lm=String(mod.omc_eval('loadModel(Modelica)')).trim();
+  const ver=String(mod.omc_eval('getVersion(Modelica)')).trim();
+  log(`④ loadModel → ${lm}；Modelica 版本 = ${ver}`);
+  window.__msl.steps.push('loadModel:'+lm);
+  window.__msl.version=ver;
+
+  st('⑤ 反向：无库时 loadModel 必须失败（判据可证伪）');
+  // 反向做法：默认库目录已被 ③ 填充 ⇒ 用一个不存在的包名验证（不破坏已装库）
+  const bad=String(mod.omc_eval('loadModel(NoSuchPackageXYZ)')).trim();
+  const badOk=/false/i.test(bad);
+  log('⑤ loadModel(NoSuchPackageXYZ) → '+bad.slice(0,60)+(badOk?'（正确失败）':'（★ 居然成功？）'));
+  window.__msl.steps.push('reverse:'+(badOk?'fail-ok':'FAIL'));
+
+  const allOk = lm==='true' && ver.includes('4.1.0') && badOk && typeof n==='number' && n>4000;
+  window.__msl.ready=true;
+  st(allOk?'完成：站内 zip + 官方管道 = 离线装库闭环': '部分异常，看日志', allOk);
+}catch(e){
+  window.__msl.error=String(e).slice(0,300);
+  st('失败：'+window.__msl.error,false);
+  log('ERROR '+window.__msl.error);
+}
+</script>
+</body></html>
