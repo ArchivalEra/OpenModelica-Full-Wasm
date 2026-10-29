@@ -73,6 +73,7 @@ Jede Anforderung hat ein wiederholbares Abnahmekriterium, alles aktuell grün (E
 | MSL-Anlage vor Ort (Offline-Bibliothek, mail/016) | `site/msl-local.html` (Site 8765) | MSL-LOCAL PASS |
 | MSL-Eintrag (Producer-Content-List) | `python3 build/113/check-msl-content-list.py` | producer ok / site ok |
 | JS-Glue-Herkunft (`files[]`-Projektion) | Ledger `omc_web_js_sha` / `omc_web_js_bytes` | 30 Fakten wörtlich wiederholt |
+| E-Linien-Brücke (Produktmodus, ohne Injektion) | `sh test/browser/run-omc-bridge-product.sh <URL>` | vor Montage 5 PASS/3 FAIL, nachher 8/0 |
 | Export FMU (extern gefundener Defekt, behoben) | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 
 - Artefakt: Web-Variante 74,6 MB (nach `-Oz`, sha im Ledger `omc_web_wasm_sha`); kein COI nötig (0 Atomar-Befehle / 0 Thread-Imports, ein gewöhnlicher http.server genügt).
