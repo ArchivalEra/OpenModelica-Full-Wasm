@@ -49,28 +49,44 @@
   }
 
   // 命令分发（纯函数式：给 omc 模块 + FS 读写器 ⇒ 返回 {ok, payload}）
+  //
+  // ★★ 三条承重语义（全部实测过；宿主 Octave-Full-Wasm mail/024 §2 点名要求
+  //    把它们放进**交付模块**而不是只留在测试里 —— 下面 ①②③ 就是那三条）：
+  //   ① cd：omc 的**仿真输出目录跟着 cwd 走**。不先 cd 到一个确定目录，
+  //      `resultFile` 会为空（实测）。
+  //   ② loadFile 必须**搬字节**：路径是 Octave 侧的，而 omc 是**另一个 wasm**，
+  //      它的 VFS 里没有那个文件（实测 wasi_path_open → -1）⇒ 从 Octave MEMFS 读出来、
+  //      写进 omc VFS，再 loadFile。
+  //   ③ simulate 结果要**回搬**：结果 .mat 在 omc 的 VFS 里 ⇒ 读出来写回 Octave MEMFS，
+  //      并以 `MAT <path>` 告诉 Octave 侧（它再用 omc_mat_load 解析）。
   async function dispatch(cmd, ctx) {
     // 约定：`writeFile`/`readFile` 可以是同步也可以是返回 Promise 的（await 两种都吞）。
-    const { omc, writeFile, modelFileOf } = ctx;
+    const { omc, writeFile, readFile, modelFileOf } = ctx;
     // ① getVersion()
     let m = cmd.match(/^getVersion\(\)\s*$/);
     if (m) {
       const v = omc.omc_eval('getVersion()');
       return { ok: true, payload: String(v) };
     }
-    // ② loadFile("<path>")
+    // ①b cd("<path>")（承重语义 ①）
+    m = cmd.match(/^cd\("([^"]+)"\)\s*$/);
+    if (m) return { ok: true, payload: String(omc.omc_eval(`cd("${m[1]}")`)) };
+    // ② loadFile("<path>")（承重语义 ②：搬字节）
     m = cmd.match(/^loadFile\("([^"]+)"\)\s*$/);
     if (m) {
-      // 模型源码由宿主写进 VFS（浏览器里用户给的 .mo；测试里由夹具给）
+      const src = readFile ? await readFile(m[1]) : null;
+      if (!src || !src.length) return { ok: false, payload: 'Octave 侧读不到 ' + m[1] };
+      omc.wasi_write_file(m[1], new TextEncoder().encode(src));
       const r = omc.omc_eval(`loadFile("${m[1]}")`);
       const err = String(omc.omc_eval('getErrorString()') || '').trim();
-      if (!/^"?true"?$/.test(String(r)) && err) return { ok: false, payload: err };
+      if (!/^"?true"?$/.test(String(r).trim()) && err) return { ok: false, payload: err };
       return { ok: true, payload: String(r) };
     }
-    // ③ simulate(Class, stopTime=<t>)
+    // ③ simulate(Class, stopTime=<t>)（承重语义 ①③）
     m = cmd.match(/^simulate\(\s*([A-Za-z_][A-Za-z0-9_.]*)\s*,\s*stopTime=([0-9.eE+-]+)\s*\)\s*$/);
     if (m) {
       const cls = m[1], stop = Number(m[2]);
+      omc.omc_eval('cd("/tmp")');            // 承重语义 ①：钉死输出目录
       const out = String(omc.omc_simulate(cls, stop, 500, 1e-6, 'dassl', ''));
       const rf = (out.match(/resultFile\s*=\s*"([^"]*)"/) || [])[1] || '';
       if (!rf) return { ok: false, payload: out.slice(0, 400) };
@@ -80,9 +96,39 @@
       let bytes;
       try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
       if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
-      // 写进 Octave 能看到的路径（Octave 的 MEMFS；宿主侧 writeFile 由调用方给，
-      // ⚠️ 可以是**异步**的 —— Node 侧驱动时它走 page.evaluate，见 accept-omc-bridge.mjs）
+      // 写进 Octave 能看到的路径（Octave 的 MEMFS；承重语义 ③）
       const dest = modelFileOf(cls);
+      await writeFile(dest, bytes);
+      return { ok: true, payload: 'MAT ' + dest };
+    }
+    // ④ simulateModel(Class, stopTime=<t>) —— 需求 E2 判据的一步到位形式
+    //    （合成"找模型源 + loadFile + simulate + 取结果"四件事，模型源按约定路径找）
+    m = cmd.match(/^simulateModel\(\s*([A-Za-z_][A-Za-z0-9_.]*)\s*,\s*stopTime=([0-9.eE+-]+)\s*\)\s*$/);
+    if (m) {
+      const cls = m[1], stop = Number(m[2]);
+      let src = '';
+      for (const cand of [`/tmp/${cls}.mo`, `/${cls}.mo`]) {
+        src = readFile ? (await readFile(cand)) : '';
+        if (src && src.length) {
+          omc.wasi_write_file(`/tmp/${cls}.mo`, new TextEncoder().encode(src));
+          const lf = omc.omc_eval(`loadFile("/tmp/${cls}.mo")`);
+          if (!/^"?true"?$/.test(String(lf).trim())) {
+            return { ok: false, payload: 'loadFile 失败：' + String(omc.omc_eval('getErrorString()')).slice(0, 200) };
+          }
+          break;
+        }
+      }
+      if (!src || !src.length) return { ok: false, payload: `找不到模型源（试过 /tmp/${cls}.mo）` };
+      omc.omc_eval('cd("/tmp")');
+      const out = String(omc.omc_simulate(cls, stop, 500, 1e-6, 'dassl', ''));
+      const rf = (out.match(/resultFile\s*=\s*"([^"]*)"/) || [])[1] || '';
+      if (!rf) return { ok: false, payload: out.slice(0, 300) };
+      const fd = omc.wasi_path_open(rf);
+      if (!(typeof fd === 'number' && fd >= 0)) return { ok: false, payload: 'VFS 打不开 ' + rf };
+      let bytes;
+      try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
+      if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
+      const dest = `/tmp/${cls}_res.mat`;
       await writeFile(dest, bytes);
       return { ok: true, payload: 'MAT ' + dest };
     }
