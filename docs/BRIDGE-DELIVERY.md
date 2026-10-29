@@ -85,6 +85,20 @@ await OmcBridge.serve({
 });
 ```
 
+**引擎句柄怎么拿（ESM 形态，宿主 mail/027 §3 实测纠正）**：本仓 web 档产物是
+wasm-bindgen **ESM**，**没有** Emscripten 那套全局工厂（`createOpenModelicaCompiler` /
+`OpenModelicaCompiler` / `createOmc` 三个都不存在）。真实形态：
+
+```js
+// omc/OpenModelicaCompiler.js
+export { initSync, __wbg_init as default };
+export function omc_init / omc_eval / omc_abi / omc_request_cancel / omc_enable_*
+// 初始化：default({ module_or_path }) —— module_or_path 传站点上的 _bg.wasm URL
+```
+
+⇒ 用动态 `import()`，**说明符必须是绝对 URL**（相对串报
+`Failed to resolve module specifier`）。拿到的命名空间就是 `serve()` 要的 `omc`。
+
 四条实测教训（**宿主必须知道，否则会重踩**，全部来自
 `test/browser/accept-omc-bridge.mjs` 的架构注释与实测）：
 

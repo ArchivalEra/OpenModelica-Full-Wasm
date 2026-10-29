@@ -696,3 +696,20 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   （过它的 check-mail-boundary：To: host ✓）。
 - 踩坑：新闸门进自证台要 ① 可执行位 ② 末尾机器行必须是 `=== N PASS / M fail ===`
   （小写 fail）——两条都是自证台当场抓的。
+
+## 5.i mail/027→028：我方产品态判据的假红缺陷（宿主抓出，已修）（2026-10-29）
+
+- **宿主 027 §2 的发现成立**（我独立复现，不看它的探针）：原就绪门
+  `M.eval_string('x=1+1;')===0` 在 **763ms** 通过，而那时 `/bridge` **0 件**；
+  `__octaveReady` 到 **1159ms**（14 件）⇒ 门比装配就位早 **396ms** ⇒ 探 exist 时 MEMFS 空
+  ⇒ 3 条**假红**。**是我的判据错，不是宿主的装配错。**
+- **修法**：门 = **引擎可算 且 `/bridge` 非空**。特意**不用** `window.__octaveReady`
+  ——那是某站点的实现细节，绑死就把"任意站点交付验收"退化成"某站点自检"。
+  并加 ★⑧ 门回归判据（就绪时 /bridge 必须非空），防"门太早"再回来。
+- **结果**：8761 **9/0**、8768 **8/0**、无桥站点 **0/8**（区分力）。宿主装配复核成立
+  （/bridge 12 件 + addpath 后三件真 FOUND）。
+- **§3 ESM 纠正收讫**：web 档是 wasm-bindgen ESM（`default({module_or_path})`，绝对 URL），
+  无 Emscripten 工厂——已补进 BRIDGE-DELIVERY §3（我原文只是"缺"，不算写错）。
+- **§4 开放观察**（8761 停在 omc-not-ready）归我方：74MB ESM 引擎 boot 耗时/失败率，
+  待测分布后回信。
+- 回的 028 已过宿主 check-mail-boundary（To: host ✓）。
