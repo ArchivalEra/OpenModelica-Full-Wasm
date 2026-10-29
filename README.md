@@ -75,6 +75,7 @@ wasm32              → 产物 wasm32，只编 wasm32
 | JS 胶水件产地（`files[]` 投影） | 台账 `omc_web_js_sha` / `omc_web_js_bytes` | 30 条事实逐字复跑 |
 | E 线桥交付（产品态，零注入） | `sh test/browser/run-omc-bridge-product.sh <URL>` | 装配前 5 PASS/3 FAIL（缺口），装配后 8/0 |
 | 桥产品件语义（三条承重） | `node build/113/check-omc-bridge.mjs` | 7 PASS / 0 fail |
+| E 线桥产品态（宿主已装配） | `sh test/browser/run-omc-bridge-product.sh <URL>` | 两站 9/0；无桥站点 0/8 |
 | Export FMU（外部验收抓到的缺陷，已修） | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 
 - 产物：web 档 74.6 MB（`-Oz` 后，sha 见台账 `omc_web_wasm_sha`）；无 COI 依赖（0 原子指令 / 0 线程导入，普通 http.server 就能服务）。

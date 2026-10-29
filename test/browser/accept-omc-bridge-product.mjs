@@ -29,19 +29,32 @@ function t(name, cond, detail) {
   page.setDefaultTimeout(180000);
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
 
-  // 等 Octave 引擎就绪（与既有套件同一判据：eval_string 能算）
-  let ready = false;
+  // ── 就绪门（2026-10-29 修：原门早了 ~400ms，导致 3 条假红）────────────────────
+  // ★ 宿主 mail/027 §2 实测（我独立复现）：`x=1+1` 在 763ms 就通过，而那时 `/bridge`
+  //   里 0 件；`__octaveReady` 到 1159ms（`/bridge` 14 件）⇒ 原门比"装配就位"早 ~400ms，
+  //   于是在 MEMFS 还空着时探 exist() ⇒ 3 条必然 MISSING（假红）。
+  // 新门用**本桥的装配定义**（不依赖某个站点的全局标志）：
+  //   ① 引擎可算（eval_string 能跑）——必要条件；
+  //   ② /bridge 在 MEMFS 里且非空——**这是"装配就位"的直接定义**。
+  // 兼容：若站点自己暴露 `window.__octaveReady`，它也必须在（双条件取交集的一个软项，
+  //   不作硬要求——别的站点可能没有这个变量，硬要就把判据绑死在某个实现上）。
+  let ready = false, gateInfo = {};
   const t0 = Date.now();
-  while (Date.now() - t0 < 120000) {
-    ready = await page.evaluate(() => {
+  while (Date.now() - t0 < 180000) {
+    gateInfo = await page.evaluate(() => {
       const M = window.Module || (window.__octaveHosts && window.__octaveHosts[0] && window.__octaveHosts[0].mod);
-      if (!M || typeof M.eval_string !== 'function') return false;
-      try { return M.eval_string('x=1+1;') === 0; } catch { return false; }
-    }).catch(() => false);
-    if (ready) break;
-    await new Promise(r => setTimeout(r, 500));
+      let canEval = false;
+      try { canEval = !!(M && typeof M.eval_string === 'function' && M.eval_string('x=1+1;') === 0); } catch {}
+      let bridgeFiles = 0;
+      try { bridgeFiles = M && M.FS ? M.FS.readdir('/bridge').filter((n) => n !== '.' && n !== '..').length : 0; } catch { bridgeFiles = 0; }
+      return { canEval, bridgeFiles, octaveReady: window.__octaveReady === true };
+    }).catch(() => ({ canEval: false, bridgeFiles: 0, octaveReady: false }));
+    // 门 = 能算 且 /bridge 非空（装配就位）
+    if (gateInfo.canEval && gateInfo.bridgeFiles > 0) { ready = true; break; }
+    await new Promise(r => setTimeout(r, 250));
   }
-  t('① Octave 引擎就绪', ready);
+  t('① 就绪（引擎可算 + /bridge 在 MEMFS 里非空）', ready,
+    `files=${gateInfo.bridgeFiles} octaveReady=${gateInfo.octaveReady}`);
 
   // ★ 关键：**只 addpath**，不注入任何文件
   const addOk = await page.evaluate(() => {
@@ -86,6 +99,12 @@ function t(name, cond, detail) {
   t('★⑥ 对照：内建 sin 判 FOUND（正例）', has('sin'));
   t('★⑦ 对照：不存在的名字判 MISSING（探针能区分）', /^__omc_absent_xyz__ MISSING$/m.test(probe));
   t('⑥ 探针脚本自身跑通（source 返回 rc=0）', probeOk);
+
+  // ★⑧ 门自证（本轮缺陷的回归）：就绪门必须包含"/bridge 非空"这一条，
+  //   否则会退回"引擎能算就算就绪"⇒ MEMFS 空着时探 exist ⇒ 3 条假红（2026-10-29 实测）。
+  //   这里直接从 gateInfo 判：真到了就绪时 /bridge 必须非空（若门只等高能算，这个值会是 0）。
+  t('★⑧ 门自证：就绪时 /bridge 非空（防"门太早"回归）',
+    gateInfo.bridgeFiles > 0, `bridgeFiles=${gateInfo.bridgeFiles}`);
 
   await browser.close();
   console.log(`\n=== BRIDGE-PRODUCT ${PASS.length} PASS / ${FAIL.length} FAIL ===`);
