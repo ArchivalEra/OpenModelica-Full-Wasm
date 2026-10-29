@@ -680,3 +680,19 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   `accept-omc-bridge-product.mjs`（零注入产品态，含对照组）。真站点实测
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
+
+## 5.j mail/024→026：宿主抓出「桥零调用方」+ 桥扶正为产品件（2026-10-29）
+
+- **宿主两条新事实（都成立，我复核）**：
+  ① `omc_bridge.js` **零调用方**——产品站从未 import 它（`grep -rl OmcBridge site-omc/`
+     只命中它自己）；② 三条承重语义只活在验收套件里，交付件里**缺 `cd`**（resultFile 会空）
+     与 **`simulateModel`**。
+- **处置**：`omc_bridge.js` **扶正为产品件**——三条语义写进 `dispatch()` 本体（连注释），
+  新增 `cd` 处理与 `simulateModel` 一步到位；新闸门 `check-omc-bridge.mjs`（7 条自证，
+  含反向「未知命令必须拒绝」）锁住它们，**语义丢了就红**。自证台 18→19 件。
+- **形态纠宿主一条**：它建议「站点铺 `omc/bridge/` + addpath」——**不够**（addpath 走
+  MEMFS，站点 HTTP 路径不在其中；实测铺满 11 件后 exist 仍 0）。正确形态 = **两段**：
+  站点落字节（provision 渠道）+ **运行期写 MEMFS 再 addpath**。回信 026 投宿主收件箱
+  （过它的 check-mail-boundary：To: host ✓）。
+- 踩坑：新闸门进自证台要 ① 可执行位 ② 末尾机器行必须是 `=== N PASS / M fail ===`
+  （小写 fail）——两条都是自证台当场抓的。

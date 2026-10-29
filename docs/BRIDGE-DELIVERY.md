@@ -28,7 +28,7 @@
 | **FS 助手** | `omc_fs_write.m` | 宿主 → MEMFS 写数值数组 |
 | | `omc_fs_write_b64.m` | 宿主 → MEMFS 写 base64 文本 |
 | | `omc_fs_read.m` | MEMFS → 宿主，base64 分块回读 |
-| **宿主侧** | `omc_bridge.js` | `OmcBridge.serve({omc, writeFile, readFile, intervalMs})` —— 轮询 MEMFS 请求队列并驱动 omc |
+| **宿主侧（产品件）** | `omc_bridge.js` | `OmcBridge.serve({omc, writeFile, readFile, intervalMs})` —— 轮询 MEMFS 请求队列并驱动 omc。**三条承重语义已内建**（见下），由 `build/113/check-omc-bridge.mjs` 7 条自证守着 |
 
 ## 2. 装配形态 —— **必须写进 MEMFS，不是"铺到站点目录"**（实测定案）
 
@@ -59,6 +59,19 @@ await new Promise(r => M.eval_string("addpath('/bridge');") === 0 && r());
 **协议路径是写死的**（两侧同名常量，改一处必须改两处）：
 `/tmp/omc_req.txt`（请求）/ `/tmp/omc_res.txt`（应答）/ `/tmp/omc_seq.txt`（序号）。
 宿主只要保证这三个路径在 Octave 的 MEMFS 里可读写即可。
+
+## 2b. 三条承重语义（宿主 mail/024 §2 要求：放进交付模块，不只留在测试里）
+
+这三条是 `omc_bridge.js` 的**全部难点**，现在是该模块的内建行为（不是测试夹具的私货）：
+
+1. **`cd`**：omc 的仿真输出目录**跟着 cwd 走**——不先 `cd` 到确定目录，`resultFile` 为空（实测）；
+2. **`loadFile` 必须搬字节**：路径是 Octave 侧的，omc 是**另一个 wasm**，它的 VFS 里没有
+   那个文件（实测 `wasi_path_open → -1`）⇒ 从 Octave MEMFS 读出、写进 omc VFS，再 loadFile；
+3. **`simulate` 结果要回搬**：`.mat` 在 omc 的 VFS ⇒ 读出写回 Octave MEMFS，回 `MAT <path>`。
+
+承重语义放在**代码里**（`dispatch()` 的注释与实现），并由
+`build/113/check-omc-bridge.mjs`（7 条自证，含反向：未知命令必须拒绝）每提交复跑——
+所以它不会因为改一次桥就悄悄丢掉。
 
 ## 3. 宿主前提：`omc_bridge.js` 的启动时序
 
