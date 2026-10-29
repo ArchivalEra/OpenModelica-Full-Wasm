@@ -664,3 +664,19 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   补键后链条通：本仓台账 → 宿主投影 → UI 从表取（它 #3 删硬编码条件齐）。
   `.d.ts` 不建键（不在下发闭包，采纳其裁定第 ② 条）。
 - 台账 28→30 条；复跑闸门 30 条逐字一致。
+
+## 5.k mail/107→023：E 线桥「从未交付」被外仓抓出（2026-10-29）
+
+- **107 的实测成立**：Octave 产品里 `omc_simulate` / `omc_mat_load` / `omc_collect` **不存在**。
+  根因：我的验收是**运行时注入**（`accept-omc-bridge.mjs` 逐件 injectFile + addpath），
+  验的是桥本身，不是交付 ——「测到了 ≠ 交付了」的又一实例。我认账。
+- **★ 装配形态实测定案（我第一版也写错了）**：以为「站点目录铺 bridge/ + addpath」就行，
+  实测**不行** —— `addpath` 走 MEMFS，MEMFS 根只有 tmp/home/dev/proc/fonts/src/usr，
+  站点 HTTP 路径不在里面（铺满 11 件后 `exist()` 仍 0）。正确形态 =
+  **`M.FS.writeFile('/bridge/…')` 写进 MEMFS** 再 addpath（实测：三件全 FOUND，
+  对照组 sin FOUND / 假名 MISSING）。被自己的产品态验收件抓出来的。
+- **落地**：`docs/BRIDGE-DELIVERY.md`（清单/装配/时序/判据）+ `bridge/manifest.json`
+  （12 件 bytes+sha）+ `check-bridge-manifest.py`（11 自证，登记后共 18 件）+
+  `accept-omc-bridge-product.mjs`（零注入产品态，含对照组）。真站点实测
+  **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
+- 回信 023（三问逐答 + 给宿主的五行装配代码）。
