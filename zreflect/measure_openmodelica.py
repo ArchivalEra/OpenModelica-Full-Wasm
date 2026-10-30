@@ -441,7 +441,10 @@ def measure():
                 "build/omc-out-wasm32/artifacts/omc-boot-64mbit.json",
                 "64 Mbit 限速下引擎 boot 中位数**粗档**（向上取整到 5s；原始 17.9–18.2s）")
 
-    ch = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-64mbit-cache-revalidate.json")
+    # ⚠️ 2026-10-30 换源：先测的是宿主站（它当时不发任何缓存头 ⇒ 我用临时前置代理给的
+    #   213B）；宿主 mail/031 自己修成 `ETag + no-cache`，我仓 `serve-coi.py` 也补了同款
+    #   （含真实 304 路径）。现在量**我仓服务器**的产物（8896）。
+    ch = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-64mbit-etag-ours.json")
     if _exists(ch):
         c = _read_json(ch) or {}
         later = [r.get("wasm_net", {}).get("networkBytes") for r in (c.get("results") or [])[1:]
@@ -451,8 +454,8 @@ def measure():
                 max(later),
                 "python3 -c \"import json;d=json.load(open('%s'))['results'][1:];"
                 "print(max(r['wasm_net']['networkBytes'] for r in d if r.get('wasm_net')))\"" % ch,
-                "build/omc-out-wasm32/artifacts/omc-boot-64mbit-cache-revalidate.json",
-                "`Cache-Control: no-cache` 下第二次刷新的网络字节（213B = 304 重验；"
-                "74MB = 每次重下 ⇒ 头写错了）")
+                "build/omc-out-wasm32/artifacts/omc-boot-64mbit-etag-ours.json",
+                "`ETag + no-cache` 下第二次刷新的网络字节（几百 B = 304 重验；"
+                "74MB = 每次重下 ⇒ 头或 304 路径坏了）")
 
     return facts

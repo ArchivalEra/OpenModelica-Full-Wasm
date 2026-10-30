@@ -40,8 +40,13 @@ import os
 
 # ── 头逻辑（纯函数：自证可注入，不必起服务器）────────────────────────────────
 # 返回 [(名字, 值)] 的**有序**列表；`end_headers` 照单发送。
-def extra_headers(path):
-    ext = os.path.splitext((path or "").split("?")[0])[1].lower()
+def extra_headers(path, etag=None):
+    """返回 [(名字, 值)] 的**有序**列表；`end_headers` 照单发送。
+
+    `etag` 给了才发 `ETag` + `Cache-Control: no-cache` —— **二者成对**：
+    只发 `no-cache` 而浏览器没有可重验的凭据（ETag/Last-Modified），
+    每次仍是整份重传（宿主 mail/031 §2 实测 119.9 MB 每次都全量）。
+    """
     out = [
         # ★ 这三个头是硬要求（见文件头注释）
         ("Cross-Origin-Opener-Policy", "same-origin"),
@@ -49,10 +54,17 @@ def extra_headers(path):
         ("Cross-Origin-Resource-Policy", "cross-origin"),
         # 允许**受控的**跨源取件（同页集成时会用到两个站点；同源部署则用不到）
         ("Access-Control-Allow-Origin", "*"),
-        # ★ 必须重验、不许静默用缓存（理由见文件头）；**不许** no-store（会让 74 MB 每次重下）
-        ("Cache-Control", "no-cache"),
     ]
+    if etag:
+        # ★ 必须重验、不许静默用缓存（理由见文件头）；**不许** no-store（会让 74 MB 每次重下）
+        out.append(("ETag", etag))
+        out.append(("Cache-Control", "no-cache"))
     return out
+
+
+def etag_for(st):
+    """由 stat 结果派生的弱 ETag（size + mtime_ns）—— 不读文件内容（74 MB 不重复哈希）。"""
+    return 'W/"%x-%x"' % (st.st_size, st.st_mtime_ns)
 
 
 def content_type_override(path):
@@ -78,11 +90,12 @@ def selftest():
             fails.append(name)
             print("FAIL %s%s" % (name, ("  [" + detail + "]") if detail else ""))
 
-    # ① 正常：COI 三件 + no-cache，且**没有** no-store
-    h = dict(extra_headers("/omc/x_bg.wasm"))
+    # ① 正常：COI 三件 + ETag/no-cache，且**没有** no-store
+    h = dict(extra_headers("/omc/x_bg.wasm", etag='W/"1-2"'))
     chk("wasm 有 COOP", h.get("Cross-Origin-Opener-Policy") == "same-origin")
     chk("wasm 有 COEP", h.get("Cross-Origin-Embedder-Policy") == "require-corp")
     chk("wasm 有 CORP", h.get("Cross-Origin-Resource-Policy") == "cross-origin")
+    chk("给了 etag ⇒ 发 ETag", h.get("ETag") == 'W/"1-2"', "实得 %r" % h.get("ETag"))
     chk("Cache-Control 是 no-cache（必须重验）", h.get("Cache-Control") == "no-cache",
         "实得 %r" % h.get("Cache-Control"))
     chk("★ 反向：不许发 no-store（74 MB 每次重下的根因）",
@@ -93,15 +106,22 @@ def selftest():
         content_type_override("/x.mjs") == "text/javascript")
 
     # ② 该报的必须报：把断言套到**已知坏**的形状上，它必须红
-    bad = dict(extra_headers("/omc/x_bg.wasm")); bad["Cache-Control"] = "no-store"
+    bad = dict(extra_headers("/omc/x_bg.wasm", etag='W/"1-2"'))
+    bad["Cache-Control"] = "no-store"
     chk("★ 该报（坏头 no-store）必须被抓",
         not ("no-store" not in bad.get("Cache-Control", "")),
         "这条是自证仪器：坏了还报 ok 说明检查器恒真")
 
+    # ②b ★ 该报（只发 no-cache 却没有 ETag）必须被抓 —— 宿主 mail/031 §2 的实测形状：
+    #    没有可重验凭据 ⇒ 浏览器只能整份重传（119.9 MB 每次）。
+    honly = dict(extra_headers("/omc/x_bg.wasm", etag=None))
+    chk("★ 无 etag ⇒ 不发 Cache-Control（避免'让重验却没凭据'）",
+        "Cache-Control" not in honly, "实得 %r" % honly.get("Cache-Control"))
+
     # ③ 空输入必须报：路径为空/无扩展名时不能崩，也不能丢 COI 头
     for p in ("", None, "/", "/noext", "/x.wasm?v=1"):
         try:
-            hh = dict(extra_headers(p))
+            hh = dict(extra_headers(p, etag='W/"1-2"'))
         except Exception as e:
             chk("空输入 %r 不许崩" % (p,), False, repr(e))
             continue
@@ -113,8 +133,95 @@ def selftest():
     chk("空输入：查询串不干扰 MIME 判定",
         content_type_override("/omc/x_bg.wasm?v=1") == "application/wasm")
 
+    # ④ ★ 端到端：**真起一个服务、真发条件请求**。
+    #   为什么要这一组：前三类都是**纯字符串断言** —— 它们证明"头拼对了"，
+    #   却证明不了"客户端带 If-None-Match 时服务真的回 304、真的不传文件体"。
+    #   mail/031 §2 的教训正是这个形状：发了 no-cache 却没有 ETag/304 路径 ⇒
+    #   浏览器仍整份重传，而只看头的断言全绿。（"测了头 ≠ 测了行为"）
+    ok[0], fails = _selftest_over_http(chk, ok[0], fails)
+
     print("=== %d PASS / %d fail ===" % (ok[0], len(fails)))
     return 1 if fails else 0
+
+
+def _selftest_over_http(chk, ok, fails):
+    """起临时服务（127.0.0.1:0 随机端口）跑真实条件请求；返回 (ok, fails)。"""
+    import socket
+    import tempfile
+    import threading
+    import urllib.request
+
+    tmp = tempfile.mkdtemp()
+    body = os.path.join(tmp, "a.bin")
+    with open(body, "wb") as fh:
+        fh.write(b"hello-wasm-body")
+
+    class TH(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *a, **k):
+            super().__init__(*a, directory=tmp, **k)
+
+        def end_headers(self):
+            p = self.translate_path(self.path)
+            etag = etag_for(os.stat(p)) if os.path.isfile(p) else None
+            for name, value in extra_headers(self.path, etag):
+                self.send_header(name, value)
+            super().end_headers()
+
+        def send_head(self):
+            p = self.translate_path(self.path)
+            inm = self.headers.get("If-None-Match")
+            if inm and os.path.isfile(p):
+                cur = etag_for(os.stat(p))
+                if inm == cur:
+                    self.send_response(304)
+                    self.end_headers()
+                    return None
+            return super().send_head()
+
+        def log_message(self, *a):
+            pass
+
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), TH)
+    port = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = "http://127.0.0.1:%d/a.bin" % port
+    try:
+        # ④-1 首请求：200 + ETag + Content-Length
+        r1 = urllib.request.urlopen(base, timeout=10)
+        chk("端到端：首请求 200", r1.status == 200, "status=%s" % r1.status)
+        etag = r1.headers.get("ETag")
+        clen = int(r1.headers.get("Content-Length") or 0)
+        chk("端到端：响应带 ETag", bool(etag), "ETag=%r" % etag)
+        chk("端到端：no-cache", r1.headers.get("Cache-Control") == "no-cache")
+        chk("端到端：首请求真的传了文件体", clen == os.path.getsize(body), "len=%d" % clen)
+        chk("端到端：COI 三件齐",
+            r1.headers.get("Cross-Origin-Opener-Policy") == "same-origin"
+            and r1.headers.get("Cross-Origin-Embedder-Policy") == "require-corp")
+        r1.close()
+
+        # ④-2 条件请求带同 ETag ⇒ 必须 304 且**没有响应体**
+        req2 = urllib.request.Request(base, headers={"If-None-Match": etag})
+        try:
+            r2 = urllib.request.urlopen(req2, timeout=10)
+            status2, payload2 = r2.status, r2.read()
+            r2.close()
+        except urllib.error.HTTPError as e:
+            status2, payload2 = e.code, e.read()
+        chk("★ 端到端：同 ETag ⇒ 304（真回，不是头拼对）", status2 == 304, "status=%s" % status2)
+        chk("★ 端到端：304 不传文件体", len(payload2) == 0, "payload=%d B" % len(payload2))
+
+        # ④-3 反向：换了 ETag ⇒ 必须 200 且带体（否则"永远 304"会静默发老产物）
+        req3 = urllib.request.Request(base, headers={"If-None-Match": 'W/"bogus-0"'})
+        r3 = urllib.request.urlopen(req3, timeout=10)
+        chk("★ 反向：ETag 不匹配 ⇒ 200（不许恒 304）", r3.status == 200, "status=%s" % r3.status)
+        chk("★ 反向：换了 ETag 必须传新体", len(r3.read()) == os.path.getsize(body))
+        r3.close()
+    except Exception as e:
+        chk("端到端：跑通（异常 ⇒ 该红）", False, repr(e))
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    return ok, fails
 
 
 def main():
@@ -130,9 +237,35 @@ def main():
             super().__init__(*a, directory=root, **k)
 
         def end_headers(self):
-            for name, value in extra_headers(self.path):
+            p = self.translate_path(self.path)
+            etag = None
+            try:
+                if os.path.isfile(p):
+                    etag = etag_for(os.stat(p))
+            except OSError:
+                etag = None
+            for name, value in extra_headers(self.path, etag):
                 self.send_header(name, value)
             super().end_headers()
+
+        def send_head(self):
+            """补 304：带 If-None-Match 且与本文件当前 ETag 相同 ⇒ 只回 304，不传体。
+
+            ⚠️ 只 `send_response(304)`，**别**再发 ETag/Cache-Control —— `end_headers`
+            会按当前路径重发一遍（实测会出两份同名头）。
+            """
+            p = self.translate_path(self.path)
+            inm = self.headers.get("If-None-Match")
+            if inm and os.path.isfile(p):
+                try:
+                    cur = etag_for(os.stat(p))
+                except OSError:
+                    cur = None
+                if cur and inm == cur:
+                    self.send_response(304)
+                    self.end_headers()
+                    return None
+            return super().send_head()
 
         def guess_type(self, path):
             override = content_type_override(path)
