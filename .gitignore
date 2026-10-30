@@ -143,3 +143,6 @@ __pycache__/
 # E 线桥产品态验收（零注入；mail/107 §4）
 !test/browser/accept-omc-bridge-product.mjs
 !test/browser/run-omc-bridge-product.sh
+# 74 MB ESM 引擎 boot 分布（宿主 mail/027 §4 / 029 §5；2026-10-29）
+#   ★ `*.mjs` 在上面已通配，这里只补跑法（漏它 = pre-commit 白名单直接拒）
+!test/browser/run-measure-omc-boot.sh
