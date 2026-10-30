@@ -434,7 +434,7 @@ def measure():
         # ⚠️ boot 耗时**逐轮波动**（环回 1262–1424ms、64Mbit 17943–18033ms）⇒ 只上**粗档**：
         #   向上取整到 5000ms。500ms 档实测会翻（18033→18500 vs 17943→18000）。
         if er.get("p50"):
-            facts["omc_boot_64mbit_ms5000"] = fact(
+            facts["omc_boot_64mbit_p50_bucket"] = fact(
                 ((int(er["p50"]) + 4999) // 5000) * 5000,
                 "python3 -c \"import json;x=json.load(open('%s'))['engine_ready_ms']['p50'];"
                 "u=5000;print(((int(x)+u-1)//u)*u)\"" % ob,
