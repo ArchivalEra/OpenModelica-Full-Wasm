@@ -421,4 +421,38 @@ def measure():
                     passes, "同上，把每个套件的 PASS 相加", "sweep-logs/%s" % d)
                 break
 
+    # ── 74 MB ESM 引擎的 boot 分布 + 缓存头（宿主 mail/027 §4 / 029 §5）───────────
+    # 两条都量**浏览器侧行为**，不是文件内容 ⇒ 贵测量（要起浏览器 + 限速）
+    #   ⇒ `replay=False`（复跑闸门跳过；它跑一次要 ~18s×3）。
+    # ★ 为什么要上账而不是只写文档：宿主看到的 `8761 = omc-not-ready` 是**产品决定**
+    #   （74 MB 引擎该不该进开机路径）。这个决定只有在"要多等多久 / 会不会失败"被量过
+    #   之后谈才诚实 —— 手抄数字会烂，所以进台账。
+    ob = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-64mbit.json")
+    if _exists(ob):
+        d = _read_json(ob) or {}
+        er = d.get("engine_ready_ms") or {}
+        # ⚠️ boot 耗时**逐轮波动**（环回 1262–1424ms、64Mbit 17943–18033ms）⇒ 只上**粗档**：
+        #   向上取整到 5000ms。500ms 档实测会翻（18033→18500 vs 17943→18000）。
+        if er.get("p50"):
+            facts["omc_boot_64mbit_ms5000"] = fact(
+                ((int(er["p50"]) + 4999) // 5000) * 5000,
+                "python3 -c \"import json;x=json.load(open('%s'))['engine_ready_ms']['p50'];"
+                "u=5000;print(((int(x)+u-1)//u)*u)\"" % ob,
+                "build/omc-out-wasm32/artifacts/omc-boot-64mbit.json",
+                "64 Mbit 限速下引擎 boot 中位数**粗档**（向上取整到 5s；原始 17.9–18.2s）")
+
+    ch = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-64mbit-cache-revalidate.json")
+    if _exists(ch):
+        c = _read_json(ch) or {}
+        later = [r.get("wasm_net", {}).get("networkBytes") for r in (c.get("results") or [])[1:]
+                 if r.get("wasm_net")]
+        if later:
+            facts["omc_boot_revalidate_bytes"] = fact(
+                max(later),
+                "python3 -c \"import json;d=json.load(open('%s'))['results'][1:];"
+                "print(max(r['wasm_net']['networkBytes'] for r in d if r.get('wasm_net')))\"" % ch,
+                "build/omc-out-wasm32/artifacts/omc-boot-64mbit-cache-revalidate.json",
+                "`Cache-Control: no-cache` 下第二次刷新的网络字节（213B = 304 重验；"
+                "74MB = 每次重下 ⇒ 头写错了）")
+
     return facts
