@@ -133,7 +133,10 @@ async function bootOctave() {
   if (!window.__octOutWrapped) {
     window.__octOutWrapped = true;
     const orig = console.log.bind(console);
-    console.log = (...a) => { try { window.__octOut.push(a.map(String).join(' ')); } catch (e) {} return orig(...a); };
+    // ⚠️ 这个 catch 故意吞（GitRoll #67）：它包的是**日志收集器本身**。若在这里抛，
+    //   会把被测代码的 console.log 也一起炸掉 ⇒ 反而制造假失败。收集失败 = 少一条
+    //   诊断文本，不影响任何判据（判据走 FS 通道，不看 console）。
+    console.log = (...a) => { try { window.__octOut.push(a.map(String).join(' ')); } catch (e) { /* 见上：收集失败不该炸被测代码 */ } return orig(...a); };
   }
   const M = (typeof window.createOctaveHost === 'function')
     ? window.createOctaveHost(assetOpts)
@@ -241,8 +244,13 @@ async function main() {
     const t2 = Date.now();
     let out2 = '';
     while (Date.now() - t2 < 30000) { out2 = (window.__octOut || []).join('\n'); if (out2.includes(S2)) break; await new Promise((r) => setTimeout(r, 200)); }
-    P.reverse = /REJECTED/.test(out2.slice(-600)) || /NOERR/.test(out2.slice(-600)) ? (out2.slice(-600) || '') : (out2.slice(-600) || '');
-    P.reverseRejected = /REJECTED/.test(out2.slice(-600));
+    // ★ 反向判据（GitRoll 抓到的真 bug，2026-10-31）：原来写成
+    //   `cond ? (out2.slice(-600)||'') : (out2.slice(-600)||'')` —— 两边**完全相同**，
+    //   等于 `cond` 白算（任何输入都得同一结果）。这里要的是"取尾段输出"，与 cond 无关，
+    //   所以直接取尾段；cond 只在下一行的 reverseRejected 里判。
+    const tail2 = out2.slice(-600) || '';
+    P.reverse = tail2;
+    P.reverseRejected = /REJECTED/.test(tail2);
     log('反向（坏件）：' + (P.reverseRejected ? '明确报错 ✅' : '见输出'));
     st('完成：两引擎同页 + 页内 .mat 握手', true);
   } catch (e) {

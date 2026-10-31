@@ -38,6 +38,11 @@ import socketserver
 import sys
 import os
 
+# ── 常量（GitRoll #22：MIME 字面量重复 3 次 ⇒ 提出来；写错会**静默**降级
+#    instantiateStreaming 到非流式，正是上次踩过的坑类 ——"契约字符串"只该有一个产地）──
+MIME_WASM = "application/wasm"
+MIME_MJS = "text/javascript"
+
 # ── 头逻辑（纯函数：自证可注入，不必起服务器）────────────────────────────────
 # 返回 [(名字, 值)] 的**有序**列表；`end_headers` 照单发送。
 def extra_headers(path, etag=None):
@@ -71,9 +76,9 @@ def content_type_override(path):
     """返回 (mime,) 覆盖或 None。wasm 必须 application/wasm（instantiateStreaming 认它）。"""
     ext = os.path.splitext((path or "").split("?")[0])[1].lower()
     if ext == ".wasm":
-        return "application/wasm"
+        return MIME_WASM
     if ext == ".mjs":
-        return "text/javascript"
+        return MIME_MJS
     return None
 
 
@@ -101,7 +106,7 @@ def selftest():
     chk("★ 反向：不许发 no-store（74 MB 每次重下的根因）",
         "no-store" not in h.get("Cache-Control", ""), "实得 %r" % h.get("Cache-Control"))
     chk("二层 MIME：wasm ⇒ application/wasm",
-        content_type_override("/omc/x_bg.wasm") == "application/wasm")
+        content_type_override("/omc/x_bg.wasm") == MIME_WASM)
     chk("二层 MIME：mjs ⇒ text/javascript",
         content_type_override("/x.mjs") == "text/javascript")
 
@@ -131,7 +136,7 @@ def selftest():
             and hh.get("Cache-Control") == "no-cache")
     chk("空输入：无扩展名 ⇒ 不覆盖 MIME", content_type_override("") is None)
     chk("空输入：查询串不干扰 MIME 判定",
-        content_type_override("/omc/x_bg.wasm?v=1") == "application/wasm")
+        content_type_override("/omc/x_bg.wasm?v=1") == MIME_WASM)
 
     # ④ ★ 端到端：**真起一个服务、真发条件请求**。
     #   为什么要这一组：前三类都是**纯字符串断言** —— 它们证明"头拼对了"，
@@ -179,7 +184,9 @@ def _selftest_over_http(chk, ok, fails):
             return super().send_head()
 
         def log_message(self, *a):
-            pass
+            # 故意空实现（GitRoll #26 要求说明）：自证用临时服务，日志会污染
+            # 与 `=== N PASS ===` 机器行同一 stdout；判据本身自带断言，日志无用。
+            return
 
     srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), TH)
     port = srv.server_address[1]
