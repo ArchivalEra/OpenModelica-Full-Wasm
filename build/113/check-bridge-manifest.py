@@ -23,6 +23,13 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BRIDGE = os.path.join(REPO, "bridge")
+
+# 协议路径（GitRoll #13/#14/#15：同一字面量重复 ⇒ 提常量）。写错一个字符 =
+# 两侧静默失配（桥轮询永远读不到请求），所以"只该有一个产地"。
+PROTO_REQUEST = "/tmp/omc_req.txt"
+PROTO_RESPONSE = "/tmp/omc_res.txt"
+PROTO_SEQ = "/tmp/omc_seq.txt"
+PROTO_PATHS = {"request": PROTO_REQUEST, "response": PROTO_RESPONSE, "seq": PROTO_SEQ}
 MANIFEST = os.path.join(BRIDGE, "manifest.json")
 MIN_ENTRIES = 12
 PROTOCOL_KEYS = ("request", "response", "seq")
@@ -34,7 +41,7 @@ def disk_files():
     return sorted(f for f in os.listdir(BRIDGE) if f.endswith((".m", ".js")))
 
 
-def check(manifest, files, root=BRIDGE):
+def check(manifest, files, root=BRIDGE, expect_protocol=True):
     """纯逻辑（自证注入 manifest/files/root）。返回问题列表（空 = 一致）。"""
     probs = []
     if not isinstance(manifest, dict):
@@ -84,6 +91,15 @@ def check(manifest, files, root=BRIDGE):
             vals.append(v)
     if len(vals) == len(PROTOCOL_KEYS) and len(set(vals)) != len(vals):
         probs.append("协议路径有重复（request/response/seq 必须是三个不同文件）")
+    # ④b ★ 清单里的协议路径必须**逐字等于**契约常量 —— 否则"清单写一个、桥里写另一个"
+    #   两侧静默失配（轮询永远读不到请求）。只有把常量提到唯一产地，这条才可判。
+    #   自证夹具用简写路径（/tmp/r 等）⇒ 传 expect_protocol=False 跳过本项。
+    if expect_protocol:
+        for k in PROTOCOL_KEYS:
+            got = str(pp.get(k) or "").strip()
+            if got and got != PROTO_PATHS[k]:
+                probs.append("协议路径 `%s` 与契约不一致：清单 %r ≠ 契约 %r"
+                             % (k, got, PROTO_PATHS[k]))
     return probs
 
 
@@ -94,8 +110,8 @@ def _selftest():
         (ok if cond else bad).append(name)
 
     files = ["a.m", "b.js"]
-    good = {"schema": 1, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/s", "seq": "/tmp/q"},
-            "entries": [{"file": f, "bytes": 1, "sha256": "x"} for f in files]}
+    # 自证夹具的路径是简写（真契约路径那三件在 PROTO_PATHS；夹具只需"三项不同"）
+    FIXTURE_PATHS = {"request": "/tmp/r", "response": "/tmp/s", "seq": "/tmp/q"}
     # 用真磁盘做夹具（写临时目录）
     import tempfile
     with tempfile.TemporaryDirectory() as d:
@@ -103,7 +119,7 @@ def _selftest():
             open(os.path.join(d, f), "wb").write(b"Z")
         sha = hashlib.sha256(b"Z").hexdigest()
         g = {"schema": 1,
-             "protocol_paths": {"request": "/tmp/r", "response": "/tmp/s", "seq": "/tmp/q"},
+             "protocol_paths": FIXTURE_PATHS,
              "entries": [{"file": f, "bytes": 1, "sha256": sha} for f in files] + [
                  {"file": "c%d.m" % i, "bytes": 1, "sha256": sha} for i in range(10)]}
         for i in range(10):
@@ -111,25 +127,30 @@ def _selftest():
         allf = sorted(files + ["c%d.m" % i for i in range(10)])
 
         # ① 正常不报
-        t("正常：清单与磁盘逐件一致 ⇒ 无问题", check(g, allf, root=d) == [])
+        t("正常：清单与磁盘逐件一致 ⇒ 无问题", check(g, allf, root=d, expect_protocol=False) == [])
         # ② 该报的必须报
         t("★ 清单缺磁盘上的件 ⇒ 必须报",
-          any("清单没有" in x for x in check(g, allf + ["extra.m"], root=d)))
+          any("清单没有" in x for x in check(g, allf + ["extra.m"], root=d, expect_protocol=False)))
         t("★ 清单里有磁盘没有的件 ⇒ 必须报", any("不存在" in x for x in
                                             check({**g, "entries": g["entries"] + [
-                                                {"file": "ghost.m", "bytes": 1, "sha256": sha}]}, allf, root=d)))
+                                                {"file": "ghost.m", "bytes": 1, "sha256": sha}]}, allf, root=d, expect_protocol=False)))
         t("★ sha 不符 ⇒ 必须报", any("sha256 不符" in x for x in
                                   check({**g, "entries": [dict(g["entries"][0], sha256="0"*64)] + g["entries"][1:]},
-                                        allf, root=d)))
+                                        allf, root=d, expect_protocol=False)))
         t("★ bytes 不符 ⇒ 必须报", any("bytes 不符" in x for x in
                                     check({**g, "entries": [dict(g["entries"][0], bytes=99)] + g["entries"][1:]},
-                                          allf, root=d)))
+                                          allf, root=d, expect_protocol=False)))
         t("★ 件数不足下限 ⇒ 必须报", any("少于下限" in x for x in check(
-            {**g, "entries": g["entries"][:2]}, files, root=d)))
-        t("★ 协议路径缺一项 ⇒ 必须报", any("协议路径缺" in x for x in check(
-            {**g, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/s"}}, allf, root=d)))
+            {**g, "entries": g["entries"][:2]}, files, root=d, expect_protocol=False)))
+        t("★ 协议路径缺一项 ⇒ 必须报", any("协议路径缺" in x for x in check({**g, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/s"}}, allf, root=d, expect_protocol=False)))
         t("★ 协议路径重复 ⇒ 必须报", any("重复" in x for x in check(
-            {**g, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/r", "seq": "/tmp/q"}}, allf, root=d)))
+            {**g, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/r", "seq": "/tmp/q"}}, allf, root=d, expect_protocol=False)))
+        # ④b ★ 新判据自己的反向（AGENTS：新契约至少配一条"该报的必须报"）：
+        #   三种不同但**不是契约那三个**的路径 ⇒ 必须报「与契约不一致」。
+        #   这是"清单与桥两侧同名常量"这条不变式的机器判据 —— 没有它，常量提了也白提。
+        t("★ 协议路径与契约不一致 ⇒ 必须报", any("与契约不一致" in x for x in check(
+            {**g, "protocol_paths": {"request": "/tmp/x1", "response": "/tmp/x2", "seq": "/tmp/x3"}},
+            allf, root=d)))
         # ③ 空输入必须报
         t("★ 空 entries ⇒ 必须报", check({"entries": []}, []) != [])
         t("★ 清单非对象 ⇒ 必须报", check(None, []) != [])

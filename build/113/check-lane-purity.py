@@ -284,7 +284,7 @@ def _fake(arch_map):
 
 
 def _selftest():
-    ok, bad = [], []
+    ok = []                      # (名字, 是否通过) —— 计数在末尾统一算
     t = "omc.wasm"
     tmp = []
 

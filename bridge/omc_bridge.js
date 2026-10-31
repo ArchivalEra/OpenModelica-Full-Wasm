@@ -150,7 +150,17 @@
       this.stop();
       const interval = Math.max(10, opts.intervalMs || 50);
       // 应答文件：确保存在（否则 .m 侧每次都要判 exist 分支）
-      try { if (!opts.exists || !(await opts.exists(RES))) await ctx.writeFile(RES, new TextEncoder().encode('')); } catch (e) {}
+      // ⚠️ 这里**故意吞异常**（GitRoll #67 问"handle or don't catch"）：`exists` 探针与
+      //   首次 writeFile 都可能因宿主 FS 已有该路径而抛，而那正是"已存在"这个**想要的**
+      //   结果。真正的失败会在下面的轮询里表现为"请求永不应答"，由调用方超时明说 ——
+      //   不在这里编一个假的成功。
+      try {
+        if (!opts.exists || !(await opts.exists(RES))) {
+          await ctx.writeFile(RES, new TextEncoder().encode(''));
+        }
+      } catch (e) {
+        /* 已存在 ⇒ 目标状态已达成，不是错误（理由见上） */
+      }
       let busy = false;
       this._timer = setInterval(async () => {
         if (busy) return;
