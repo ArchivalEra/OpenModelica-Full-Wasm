@@ -31,7 +31,6 @@ URL 与版本的对应关系是清单作者的主张，闸门不做网络验证�
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import sys
 
@@ -44,16 +43,13 @@ DEFAULT_SPEC = "upstream-lock.json"
 
 
 def resolve_spec(argv, knob=""):
-    """规格名解析：`--spec` 显式 > REFLECT_LOCKS 旋钮 > 默认名。返回 (规格名, 是否显式指定)。
+    """规格名解析：--spec 显式 > `REFLECT_LOCKS` 旋钮 > 默认名。
+    返回 (规格名, 是否显式指定)。
 
     显式指定而文件不在 ⇒ 调用方必须 FATAL（配置了却不存在的规格是
     「部署了 ≠ 在跑」家族）；默认名不在 ⇒ 未启用退 0。
-
-    ⚠️ 为什么加旋钮（**本仓 2026-10-10 采纳上游 C1–C5 时暴露的缺口**）：
-    本仓的锁定清单在 `build/upstream-lock.json`（不是仓库根的默认名），而本闸门原先
-    **只认默认名、无旋钮** ⇒ 它在本仓**从来没跑过**；旧版还看不出来（现在是 `OFF:`
-    明说）—— 正是上游 C2「off 与通过可区分」的价值，一采纳就现形。
-    与 `check_pins.py` 的 `REFLECT_PINS` 同款形状（同族闸门，旋钮别分叉）。
+    （issue #15 C2：无 git 上游的供给件是常见形状，下游此前各自 fork 加
+    这个旋钮 —— 上游化后下游补丁可删。）
     """
     for i, a in enumerate(argv):
         if a == "--spec":
@@ -156,12 +152,9 @@ def _cases():
     empty = {"locked": []}
     return [
         ("规格名解析：--spec > 默认名（显式带回 True）",
-         lambda: resolve_spec(["--spec", "x.json"]) == ("x.json", True)
+         lambda: resolve_spec(["--spec", "x.json"], "K.json") == ("x.json", True)
+         and resolve_spec([], "K.json") == ("K.json", True)
          and resolve_spec([]) == ("upstream-lock.json", False)),
-        # ★ 旋钮（2026-10-10 加，本仓需要：锁定清单在 build/ 下）：显式优先于旋钮
-        ("旋钮：REFLECT_LOCKS 生效，且 --spec 优先",
-         lambda: resolve_spec([], "build/upstream-lock.json") == ("build/upstream-lock.json", True)
-         and resolve_spec(["--spec", "a.json"], "b.json") == ("a.json", True)),
         # ① 正常不报
         ("锁定一致/目录形态/optional 缺席 ⇒ 不报",
          lambda: check(spec, root=d)[0] == [] and check(spec, root=d)[1] != []),

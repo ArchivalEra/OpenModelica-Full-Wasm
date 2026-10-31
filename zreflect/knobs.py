@@ -53,6 +53,7 @@ REGISTRY = {
     "REFLECT_RETRACTIONS": ("file", "retractions.json", "翻案台账"),
     "REFLECT_QUESTIONS": ("dir", "questions", "悬案目录"),
     "REFLECT_ENV_FILE": ("value", "Einfacht.env", "钩子旋钮载体的文件名"),
+    "REFLECT_ENV_HINT": ("flag", "", "off ⇒ 关闭「裸跑时提示用 Einfacht.env」的人性化提示（提示不是判据）"),
     "REFLECT_INVARIANTS": ("file", "", "声明式不变量规格；空 = 明说未启用"),
     "REFLECT_INSTRUMENTS": ("file", "", "量法登记位；空 = 该规则明说未启用"),
     "REFLECT_INSTRUMENT_DAYS": ("number", "", "恒常检测阈值天；空 = 该规则明说未启用"),
@@ -62,12 +63,9 @@ REGISTRY = {
     "REFLECT_WORLD_LINE": ("value", "", "world 线覆盖（CI / 特殊跑法）"),
     "REFLECT_AB": ("file", "ab.json", "A/B 同旗标闸门的规格名"),
     "REFLECT_PINS": ("file", "pins.json", "派生树 pin 一致性闸门的规格名"),
-    # ★ 本仓新增（OpenModelica-Full-Wasm，2026-10-13）：数据层模块名可配。
-    #   姊妹仓把 `measure_octave` 写死在 facts.py 的 import 里 ⇒ 换仓库必须改代码。
-    #   本仓改成读这个旋钮（默认仍是 measure_octave，向后兼容）⇒ 「换仓库只换一个
-    #   文件」这条 Einfacht 承诺才真成立。见 docs/EINFACHT-INTEGRATION.md §1。
-    "REFLECT_MEASURE_MODULE": ("value", "measure_octave", "本仓数据层模块名（换仓库只换它）"),
-    "REFLECT_LOCKS": ("file", "upstream-lock.json", "锁定源清单（URL+文件+sha256）的规格名"),
+    "REFLECT_LOCKS": ("file", "upstream-lock.json", "锁定源清单闸门的规格名"),
+    "REFLECT_MEASURE_MODULE": ("value", "", "采集模块名（换仓只改 env 一行；空 = 用占位 measure_example）"),
+    "REFLECT_PHASES": ("value", "", "追加自定义相位（逗号分隔，如 lab）；内置 commit/start-of-work 不可删不可重名"),
 }
 
 KINDS = ("file", "list", "dir", "number", "flag", "value")
@@ -246,6 +244,7 @@ def _cases():
              "README.zh.md": "x", "README.de.md": "x"}))),
         # ③ 空输入必须报
         ("★ 登记表为空 = 名册坏（零值守卫）", lambda: bool(REGISTRY)),
+        ("REFLECT_PHASES 已登记（issue #21 相位旋钮）", lambda: "REFLECT_PHASES" in REGISTRY),
     ]
 
 

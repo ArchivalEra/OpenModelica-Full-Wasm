@@ -441,9 +441,53 @@ def measure():
                 "build/omc-out-wasm32/artifacts/omc-boot-64mbit.json",
                 "64 Mbit 限速下引擎 boot 中位数**粗档**（向上取整到 5s；原始 17.9–18.2s）")
 
+    # 环回档（同样波动 1247–1424ms）⇒ 上 500ms 粗档；它的 fetch 也上 100ms 档。
+    lb = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-loopback.json")
+    if _exists(lb):
+        d = _read_json(lb) or {}
+        er = d.get("engine_ready_ms") or {}
+        if er.get("p50"):
+            facts["omc_boot_loopback_ms"] = fact(
+                ((int(er["p50"]) + 499) // 500) * 500,
+                "python3 -c \"import json;x=json.load(open('%s'))['engine_ready_ms']['p50'];"
+                "u=500;print(((int(x)+u-1)//u)*u)\"" % lb,
+                "build/omc-out-wasm32/artifacts/omc-boot-loopback.json",
+                "环回（~1 GB/s，**下限**）下引擎 boot 中位数**粗档**（向上取整到 500ms）")
+        # ⚠️ 环回档的 artifact 是**旧版测量件**写的，只有 `wasm_network_bytes_p50`，
+        #   没有 `wasm_fetch_ms_p50`（新版才加）。⇒ 这里只上"每刷重新走网络多少字节"，
+        #   那正是"缓存头坏掉"的判据（且不依赖测量件版本）。
+        nb = d.get("wasm_network_bytes_p50")
+        if nb:
+            facts["omc_boot_loopback_net_bytes"] = fact(
+                int(nb),
+                "python3 -c \"import json;print(json.load(open('%s'))['wasm_network_bytes_p50'])\"" % lb,
+                "build/omc-out-wasm32/artifacts/omc-boot-loopback.json",
+                "环回下每次刷新走网络的 wasm 字节（== 整份 = 缓存没生效；远小于整份 = 304 命中）")
+
+    # 4.8 Mbit 档（实测 199918–199933ms，波动极小 ⇒ 上 10000ms 粗档）
+    sl = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-5mbit.json")
+    if _exists(sl):
+        d = _read_json(sl) or {}
+        er = d.get("engine_ready_ms") or {}
+        if er.get("p50"):
+            facts["omc_boot_slow_ms_bucket"] = fact(
+                ((int(er["p50"]) + 9999) // 10000) * 10000,
+                "python3 -c \"import json;x=json.load(open('%s'))['engine_ready_ms']['p50'];"
+                "u=10000;print(((int(x)+u-1)//u)*u)\"" % sl,
+                "build/omc-out-wasm32/artifacts/omc-boot-5mbit.json",
+                "4.8 Mbit 弱网下引擎 boot 中位数**粗档**（向上取整到 10s；原始约 200s）")
+        f = d.get("wasm_fetch_ms_p50")
+        if f:
+            facts["omc_boot_slow_fetch_ms_bucket"] = fact(
+                ((int(f) + 9999) // 10000) * 10000,
+                "python3 -c \"import json;x=json.load(open('%s'))['wasm_fetch_ms_p50'];"
+                "u=10000;print(((int(x)+u-1)//u)*u)\"" % sl,
+                "build/omc-out-wasm32/artifacts/omc-boot-5mbit.json",
+                "弱网下 74 MB wasm 的传输中位数**粗档**（向上取整到 10s）")
+
     # ⚠️ 2026-10-30 换源：先测的是宿主站（它当时不发任何缓存头 ⇒ 我用临时前置代理给的
     #   213B）；宿主 mail/031 自己修成 `ETag + no-cache`，我仓 `serve-coi.py` 也补了同款
-    #   （含真实 304 路径）。现在量**我仓服务器**的产物（8896）。
+    #   （含真实 304 路径）。现在量**我仓服务器**的产物。
     ch = os.path.join(BUILD, "omc-out-wasm32", "artifacts", "omc-boot-64mbit-etag-ours.json")
     if _exists(ch):
         c = _read_json(ch) or {}
@@ -457,5 +501,21 @@ def measure():
                 "build/omc-out-wasm32/artifacts/omc-boot-64mbit-etag-ours.json",
                 "`ETag + no-cache` 下第二次刷新的网络字节（几百 B = 304 重验；"
                 "74MB = 每次重下 ⇒ 头或 304 路径坏了）")
+
+    # ── 开发站缓存头的自证条数（`serve-coi.py --selftest`）────────────────────
+    # 为什么上账：STATE 正文原来手抄了 "17 PASS"（那是实测值，会随用例增减漂）。
+    # 判据 = 真跑那个自证并数机器行的 PASS；跑不起来 ⇒ 不写（缺席 ≠ 0）。
+    try:
+        r = subprocess.run([sys.executable, os.path.join(REPO, "build", "serve-coi.py"),
+                            "--selftest"], capture_output=True, text=True, timeout=60)
+        m = re.search(r"=== *(\d+) PASS / (\d+) fail *===", r.stdout)
+        if m and int(m.group(2)) == 0:
+            facts["omc_serve_coi_selftest_pass"] = fact(
+                int(m.group(1)),
+                "python3 build/serve-coi.py --selftest | grep -oE '=== [0-9]+ PASS' | grep -oE '[0-9]+'",
+                "build/serve-coi.py",
+                "开发站缓存头自证条数（含 4 条端到端 304；跑不起来 ⇒ 本键不写）")
+    except Exception:
+        pass
 
     return facts
