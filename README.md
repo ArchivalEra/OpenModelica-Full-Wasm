@@ -79,6 +79,7 @@ wasm32              → 产物 wasm32，只编 wasm32
 | Export FMU（外部验收抓到的缺陷，已修） | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 | 74 MB 引擎 boot 分布（三档带宽） | `sh test/browser/run-measure-omc-boot.sh <URL> 3` | 64 Mbit 中位数 18 s；三档 0 失败 |
 | 开发站缓存头（`no-store`→`ETag`+`no-cache`，74.5 MB→325 B） | `python3 build/serve-coi.py --selftest` | 17 PASS / 0 fail（4 条端到端：真 304 / 反向不许恒 304） |
+| Einfacht 机制层（vendored） | `sh gates-selftest.sh` | 追平上游 `6e4e6e8`；平台 22 道 + 本仓 20 道自证全绿 |
 
 - 产物：web 档 74.6 MB（`-Oz` 后，sha 见台账 `omc_web_wasm_sha`）；无 COI 依赖（0 原子指令 / 0 线程导入，普通 http.server 就能服务）。
 - 同页"不可行"的旧结论已翻案（测量方法错，见 `build/retractions.json`）；Export FMU 的缺陷根因是本仓 clang24 比上游 CI 新、写的 `dylink.0` 子段 6 上游链接器不认，修法 = `build/113/strip-dylink-features.py` 剥离并挂进构建链。
