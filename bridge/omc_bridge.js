@@ -59,80 +59,103 @@
   //      写进 omc VFS，再 loadFile。
   //   ③ simulate 结果要**回搬**：结果 .mat 在 omc 的 VFS 里 ⇒ 读出来写回 Octave MEMFS，
   //      并以 `MAT <path>` 告诉 Octave 侧（它再用 omc_mat_load 解析）。
+  // ── 承重语义的实现（被上面的路由表调用；每条一个函数，名字即语义）────────────
+  // ② loadFile 必须**搬字节**：Octave 侧的路径在 omc 的 VFS 里不存在（实测
+  //    wasi_path_open → -1）⇒ 从 Octave MEMFS 读出、写进 omc VFS，再 loadFile。
+  async function _evalLoadFile(omc, writeFile, readFile, path) {
+    const src = readFile ? await readFile(path) : null;
+    if (!src || !src.length) return { ok: false, payload: 'Octave 侧读不到 ' + path };
+    omc.wasi_write_file(path, new TextEncoder().encode(src));
+    return _evalOmcTrue(omc, `loadFile("${path}")`);
+  }
+
+  // omc 的 eval 返回 "true"/true/带引号 —— 只有**明确真**才算成功（不许"没报错就当成功"）。
+  function _evalOmcTrue(omc, expr) {
+    const r = String(omc.omc_eval(expr) || '').trim();
+    const err = String(omc.omc_eval('getErrorString()') || '').trim();
+    if (!/^"?true"?$/.test(r)) return { ok: false, payload: err || r };
+    return { ok: true, payload: r };
+  }
+
+  // ③ simulate 结果要**回搬**：.mat 在 omc 的 VFS 里 ⇒ 读出写回 Octave MEMFS，
+  //    并以 `MAT <path>` 告诉 Octave 侧（它再用 omc_mat_load 解析）。
+  async function _simulateAndFetch(omc, writeFile, cls, stop, dest) {
+    const out = String(omc.omc_simulate(cls, stop, 500, 1e-6, 'dassl', ''));
+    // RegExp.exec 而非 String#match（GitRoll #72）：只要捕获组，exec 语义更直接。
+    const rfMatch = /resultFile\s*=\s*"([^"]*)"/.exec(out);
+    const rf = rfMatch ? rfMatch[1] : '';
+    if (!rf) return { ok: false, payload: out.slice(0, 400) };
+    // 协议照产物 .d.ts：wasi_path_open → fd；wasi_fd_read → Uint8Array
+    const fd = omc.wasi_path_open(rf);
+    if (!(typeof fd === 'number' && fd >= 0)) return { ok: false, payload: 'VFS 打不开 ' + rf };
+    let bytes;
+    try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
+    if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
+    await writeFile(dest, bytes);
+    return { ok: true, payload: 'MAT ' + dest };
+  }
+
+  // ── 命令表：**每条命令 = 一个 matcher + 一个 handler**。加命令只加一行 ─────────
+  // 为什么用表而不是 if 链：原来 5 个分支挤在一个函数里（认知复杂度 41），
+  // 加一条命令就得通读全文确认没有交叉。表把"匹配什么"与"做什么"分开。
+  const CLASS_RE = '[A-Za-z_][A-Za-z0-9_.]*';
+  const STOP_RE = '[0-9.eE+-]+';
+  const COMMANDS = [
+    {
+      re: /^getVersion\(\)\s*$/,
+      run: ({ omc }) => ({ ok: true, payload: String(omc.omc_eval('getVersion()')) }),
+    },
+    {
+      // ① cd：omc 的**仿真输出目录跟着 cwd 走**。不先 cd 到确定目录，`resultFile` 会为空。
+      re: /^cd\("([^"]+)"\)\s*$/,
+      run: ({ omc }, m) => ({ ok: true, payload: String(omc.omc_eval(`cd("${m[1]}")`)) }),
+    },
+    {
+      re: /^loadFile\("([^"]+)"\)\s*$/,
+      run: (ctx, m) => _evalLoadFile(ctx.omc, ctx.writeFile, ctx.readFile, m[1]),
+    },
+    {
+      re: new RegExp(`^simulate\\(\\s*(${CLASS_RE})\\s*,\\s*stopTime=(${STOP_RE})\\s*\\)\\s*$`),
+      run: (ctx, m) => _simulateAndFetch(ctx.omc, ctx.writeFile, m[1], Number(m[2]),
+                                      ctx.modelFileOf(m[1])),
+    },
+    {
+      re: new RegExp(`^simulateModel\\(\\s*(${CLASS_RE})\\s*,\\s*stopTime=(${STOP_RE})\\s*\\)\\s*$`),
+      run: (ctx, m) => _simulateModel(ctx, m[1], Number(m[2])),
+    },
+  ];
+
+  // ④ simulateModel：合成"找模型源 + 搬进去 + loadFile + simulate + 取结果"。
+  async function _simulateModel(ctx, cls, stop) {
+    const src = await _findModelSource(ctx.readFile, cls);
+    if (!src) return { ok: false, payload: `找不到模型源（试过 /tmp/${cls}.mo）` };
+    ctx.omc.wasi_write_file(`/tmp/${cls}.mo`, new TextEncoder().encode(src));
+    const lf = _evalOmcTrue(ctx.omc, `loadFile("/tmp/${cls}.mo")`);
+    if (!lf.ok) return { ok: false, payload: 'loadFile 失败：' + String(lf.payload).slice(0, 200) };
+    return _simulateAndFetch(ctx.omc, ctx.writeFile, cls, stop, `/tmp/${cls}_res.mat`);
+  }
+
+  // 模型源按约定路径找：先 /tmp，再站根。找不到回 ''（调用方据此报"找不到"）。
+  async function _findModelSource(readFile, cls) {
+    if (!readFile) return '';
+    for (const cand of [`/tmp/${cls}.mo`, `/${cls}.mo`]) {
+      const src = await readFile(cand);
+      if (src && src.length) return src;
+    }
+    return '';
+  }
+
   async function dispatch(cmd, ctx) {
     // 约定：`writeFile`/`readFile` 可以是同步也可以是返回 Promise 的（await 两种都吞）。
-    const { omc, writeFile, readFile, modelFileOf } = ctx;
-    // ① getVersion()
-    let m = cmd.match(/^getVersion\(\)\s*$/);
-    if (m) {
-      const v = omc.omc_eval('getVersion()');
-      return { ok: true, payload: String(v) };
+    const c = String(cmd);
+    for (const { re, run } of COMMANDS) {
+      const m = c.match(re);
+      if (m) return run(ctx, m);
     }
-    // ①b cd("<path>")（承重语义 ①）
-    m = cmd.match(/^cd\("([^"]+)"\)\s*$/);
-    if (m) return { ok: true, payload: String(omc.omc_eval(`cd("${m[1]}")`)) };
-    // ② loadFile("<path>")（承重语义 ②：搬字节）
-    m = cmd.match(/^loadFile\("([^"]+)"\)\s*$/);
-    if (m) {
-      const src = readFile ? await readFile(m[1]) : null;
-      if (!src || !src.length) return { ok: false, payload: 'Octave 侧读不到 ' + m[1] };
-      omc.wasi_write_file(m[1], new TextEncoder().encode(src));
-      const r = omc.omc_eval(`loadFile("${m[1]}")`);
-      const err = String(omc.omc_eval('getErrorString()') || '').trim();
-      if (!/^"?true"?$/.test(String(r).trim()) && err) return { ok: false, payload: err };
-      return { ok: true, payload: String(r) };
-    }
-    // ③ simulate(Class, stopTime=<t>)（承重语义 ①③）
-    m = cmd.match(/^simulate\(\s*([A-Za-z_][A-Za-z0-9_.]*)\s*,\s*stopTime=([0-9.eE+-]+)\s*\)\s*$/);
-    if (m) {
-      const cls = m[1], stop = Number(m[2]);
-      omc.omc_eval('cd("/tmp")');            // 承重语义 ①：钉死输出目录
-      const out = String(omc.omc_simulate(cls, stop, 500, 1e-6, 'dassl', ''));
-      const rf = (out.match(/resultFile\s*=\s*"([^"]*)"/) || [])[1] || '';
-      if (!rf) return { ok: false, payload: out.slice(0, 400) };
-      // 从 VFS 取件（协议照产物 .d.ts：wasi_path_open → fd；wasi_fd_read → Uint8Array）
-      const fd = omc.wasi_path_open(rf);
-      if (!(typeof fd === 'number' && fd >= 0)) return { ok: false, payload: 'VFS 打不开 ' + rf };
-      let bytes;
-      try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
-      if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
-      // 写进 Octave 能看到的路径（Octave 的 MEMFS；承重语义 ③）
-      const dest = modelFileOf(cls);
-      await writeFile(dest, bytes);
-      return { ok: true, payload: 'MAT ' + dest };
-    }
-    // ④ simulateModel(Class, stopTime=<t>) —— 需求 E2 判据的一步到位形式
-    //    （合成"找模型源 + loadFile + simulate + 取结果"四件事，模型源按约定路径找）
-    m = cmd.match(/^simulateModel\(\s*([A-Za-z_][A-Za-z0-9_.]*)\s*,\s*stopTime=([0-9.eE+-]+)\s*\)\s*$/);
-    if (m) {
-      const cls = m[1], stop = Number(m[2]);
-      let src = '';
-      for (const cand of [`/tmp/${cls}.mo`, `/${cls}.mo`]) {
-        src = readFile ? (await readFile(cand)) : '';
-        if (src && src.length) {
-          omc.wasi_write_file(`/tmp/${cls}.mo`, new TextEncoder().encode(src));
-          const lf = omc.omc_eval(`loadFile("/tmp/${cls}.mo")`);
-          if (!/^"?true"?$/.test(String(lf).trim())) {
-            return { ok: false, payload: 'loadFile 失败：' + String(omc.omc_eval('getErrorString()')).slice(0, 200) };
-          }
-          break;
-        }
-      }
-      if (!src || !src.length) return { ok: false, payload: `找不到模型源（试过 /tmp/${cls}.mo）` };
-      omc.omc_eval('cd("/tmp")');
-      const out = String(omc.omc_simulate(cls, stop, 500, 1e-6, 'dassl', ''));
-      const rf = (out.match(/resultFile\s*=\s*"([^"]*)"/) || [])[1] || '';
-      if (!rf) return { ok: false, payload: out.slice(0, 300) };
-      const fd = omc.wasi_path_open(rf);
-      if (!(typeof fd === 'number' && fd >= 0)) return { ok: false, payload: 'VFS 打不开 ' + rf };
-      let bytes;
-      try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
-      if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
-      const dest = `/tmp/${cls}_res.mat`;
-      await writeFile(dest, bytes);
-      return { ok: true, payload: 'MAT ' + dest };
-    }
-    return { ok: false, payload: 'omc_bridge: 不支持的命令（命令驱动，不做 .m→Modelica 翻译）：' + cmd };
+    return {
+      ok: false,
+      payload: 'omc_bridge: 不支持的命令（命令驱动，不做 .m→Modelica 翻译）：' + c,
+    };
   }
 
   const OmcBridge = {

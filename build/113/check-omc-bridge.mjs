@@ -58,7 +58,7 @@ async function run() {
   t('① getVersion 返回版本串', r.ok && /-rust/.test(r.payload));
 
   r = await B.dispatch('cd("/tmp")', ctx);
-  t('② cd 转发给 omc（承重语义 ①：输出目录跟 cwd）', r.ok && calls.some((c) => /^cd\("/.test(c)));
+  t('② cd 转发给 omc（承重语义 ①：输出目录跟 cwd）', r.ok && calls.some((c) => c.startsWith('cd("')));
 
   r = await B.dispatch('loadFile("/tmp/BouncingBall.mo")', ctx);
   t('③ loadFile 从 Octave 侧读、写进 omc VFS（承重语义 ②：搬字节）',

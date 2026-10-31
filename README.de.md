@@ -80,7 +80,7 @@ Jede Anforderung hat ein wiederholbares Abnahmekriterium, alles aktuell grün (E
 | Boot-Verteilung der 74-MB-Engine (drei Bandbreiten) | `sh test/browser/run-measure-omc-boot.sh <URL> 3` | 64 Mbit Median 18 s; alle drei 0 Fehler |
 | Cache-Header der Dev-Site (`no-store`→`ETag`+`no-cache`, 74,5 MB→325 B) | `python3 build/serve-coi.py --selftest` | 17 PASS / 0 fail (4 Ende-zu-Ende: echtes 304 / Gegenprobe: kein Dauer-304) |
 | Einfacht-Mechanikschicht (vendored) | `sh gates-selftest.sh` | auf Upstream `6e4e6e8` nachgezogen; 22 Plattform- + 20 Repo-Gates grün |
-| GH-Issue #1 (GitRoll 134 Befunde) | `gh issue view 1` | unsere 39 erledigt: 2 echte Bugs + Gegenprobe (Upstreams 72 gehören ihm) |
+| GH-Issue #1 (GitRoll 134 Befunde) | `gh issue view 1` | unsere 39 **alle** erledigt: 2 echte Bugs + tote Variablen + Komplexität nach Zuständigkeit zerlegt + Vertragsliterale als Konstanten |
 
 - Artefakt: Web-Variante 74,6 MB (nach `-Oz`, sha im Ledger `omc_web_wasm_sha`); kein COI nötig (0 Atomar-Befehle / 0 Thread-Imports, ein gewöhnlicher http.server genügt).
 - Die alte Aussage „gleiche Seite nicht machbar" ist widerlegt (Messfehler, siehe `build/retractions.json`); die Wurzel des Export-FMU-Defekts: unser clang24 ist neuer als der Upstream-CI-clang und schreibt die `dylink.0`-Subsection 6, die der FMU-Linker nicht kennt — Fix = `build/113/strip-dylink-features.py`, in die Build-Kette eingebaut.

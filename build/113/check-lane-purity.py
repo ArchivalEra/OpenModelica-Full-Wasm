@@ -57,12 +57,120 @@ def _readobj():
     return None
 
 
+# ── wasm 字节解析的原语（拆出来只为让每条判据短到能一眼看完；行为不变）──────────
+WASM_MAGIC = b"\x00asm"
+# limits flags 的位含义（core spec）：0x1 has_max / 0x4 memory64 / 0x8 shared。
+FLAG_HAS_MAX = 0x01
+FLAG_MEMORY64 = 0x04
+
+SEC_IMPORT = 2
+SEC_MEMORY = 5
+
+KIND_FUNC, KIND_TABLE, KIND_MEMORY, KIND_GLOBAL = 0x00, 0x01, 0x02, 0x03
+
+# 自证夹具的文件名（GitRoll #18/#19：同一字面量重复 8/13 次 ⇒ 提出来；它们是**夹具**，
+# 不是被测对象 —— 只该有一个产地，否则改一处就漏一处）。
+FIX_HOST_NAME = "omc.wasm"
+FIX_MOD_NAME = "runtime.wasm"
+
+
+class _Bytes:
+    """把"一堆 (data, 游标, 界限) 的 ULEB 读取"收成一处 —— 越界统一回 None。"""
+
+    def __init__(self, data):
+        self.data = data
+        self.n = len(data)
+
+    def uleb(self, pos):
+        """读一个 ULEB128。返回 (值, 新位置)；越界/过长 ⇒ (None, pos)。"""
+        r, sh = 0, 0
+        while pos < self.n:
+            b = self.data[pos]
+            pos += 1
+            r |= (b & 0x7F) << sh
+            if not b & 0x80:
+                return r, pos
+            sh += 7
+            if sh > 63:
+                return None, pos
+        return None, pos
+
+
+def _arch_from_flags(flags):
+    """limits flags ⇒ 架构档。0x4 = memory64（64 位地址空间）。"""
+    return "wasm64" if (flags & FLAG_MEMORY64) else "wasm32"
+
+
+def _skip_name(b, pos, end):
+    """跳过一个 wasm name（长度前缀 + 字节）。越界 ⇒ None。"""
+    ln, pos = b.uleb(pos)
+    if ln is None or pos + ln > end:
+        return None
+    return pos + ln
+
+
+def _skip_limits(b, pos):
+    """跳过 limits（flags + min [+ max]）。返回 (新位置, flags) 或 (None, None)。"""
+    if pos >= b.n:
+        return None, None
+    flags = b.data[pos]
+    pos += 1
+    _, pos = b.uleb(pos)
+    if pos is None:
+        return None, None
+    if flags & FLAG_HAS_MAX:
+        _, pos = b.uleb(pos)
+        if pos is None:
+            return None, None
+    return pos, flags
+
+
+def _import_memory_arch(b, pos, end):
+    """在 import 段里找 memory 导入，返回它的架构；没有 ⇒ None。
+
+    import 条目 = **两个** name（module + 字段名）+ kind + 类型（spec §5.5.3）。
+    ⚠️ 只读一个 name 会字段错位（实测：fmi 的 core2.wasm 38 个导入，只读一个 name 时
+    错位漂到 kind 字节 ⇒ 遇未知 kind break ⇒ 第 37 个 env.memory 没被看到 ⇒ 假红）。
+    """
+    n_imp, pos = b.uleb(pos)
+    if n_imp is None:
+        return None
+    for _ in range(n_imp):
+        for _two_names in range(2):
+            pos = _skip_name(b, pos, end)
+            if pos is None:
+                return None
+        if pos >= end:
+            return None
+        kind = b.data[pos]
+        pos += 1
+        if kind == KIND_FUNC:
+            _, pos = b.uleb(pos)
+        elif kind == KIND_TABLE:
+            pos += 1                                   # elemtype
+            pos, _flags = _skip_limits(b, pos)
+        elif kind == KIND_MEMORY:
+            pos, flags = _skip_limits(b, pos)
+            return _arch_from_flags(flags) if flags is not None else None
+        elif kind == KIND_GLOBAL:
+            pos += 2                                   # valtype + mut
+        else:
+            return None                                # 未知 kind ⇒ 本段放弃（不许瞎猜）
+        if pos is None:
+            return None
+    return None
+
+
 def _wasm_arch(path):
     """读 .wasm 的架构（memory64 标志）。返回 'wasm32'/'wasm64'/None（不是 wasm/读不到）。
 
     判据出处：WebAssembly core spec —— memory 段（section id 5）的 limits flags
-    位 0x4 为 memory64 标志；其余位是 has_max(0x1) / shared(0x8)。64 位地址空间
-    的模块就是 wasm64 档（`wasm64-unknown-unknown` / `-mmemory64`）。
+    位 0x4 为 memory64 标志。64 位地址空间的模块就是 wasm64 档。
+
+    两个来源，按规范顺序：
+      ① memory 段（主模块都有）；
+      ② import 段里的 memory 导入（side module 没有自己的 memory 段，它 import 宿主的，
+         同样靠 limits flags 的 0x4 位判）。
     """
     try:
         if not os.path.isfile(path):
@@ -71,89 +179,34 @@ def _wasm_arch(path):
             data = fh.read(64 * 1024 * 1024)          # 够覆盖 memory 段前的头
     except OSError:
         return None
-    if len(data) < 8 or data[:4] != b"\x00asm":
+    if len(data) < 8 or data[:4] != WASM_MAGIC:
         return None
-    pos = 8                                            # magic(4) + version(4)
-    n = len(data)
+    return _scan_sections_for_arch(_Bytes(data))
 
-    def _uleb(p):
-        r = 0; sh = 0
-        while p < n:
-            b = data[p]; p += 1
-            r |= (b & 0x7F) << sh
-            if not (b & 0x80):
-                return r, p
-            sh += 7
-            if sh > 63:
-                return None, p
-        return None, p
 
-    while pos < n:
-        sec_id = data[pos]; pos += 1
-        size, pos = _uleb(pos)
+def _scan_sections_for_arch(b):
+    """走段表找架构。import 段命中的结果会被 memory 段覆盖（主模块两者都有时以 memory 段为准）。"""
+    pos, from_import = 8, None                     # magic(4) + version(4)
+    while pos < b.n:
+        sec_id = b.data[pos]
+        pos += 1
+        size, pos = b.uleb(pos)
         if size is None:
-            return None
-        if sec_id == 5:                                # memory section
-            if pos >= n:
-                return None
-            cnt, p2 = _uleb(pos)
-            if not cnt:
-                return None
-            flags = data[p2]
-            return "wasm64" if (flags & 0x04) else "wasm32"
-        if sec_id == 2:                                # import section（side module 走这）
-            # ★ side module（`--experimental-pic --shared` 产的那种：liblapack / libc_pic /
-            #   ModelicaUtilities）**没有自己的 memory 段**，它 import 宿主的 memory
-            #   ⇒ 架构只能靠 import 的 memory 类型（同样是 limits flags 的 0x4 位）判。
-            #   （实测：本仓 web/wasm-blobs/*.wasm 三个都是这种，没有 memory 段 ⇒
-            #     旧判据返回 None ⇒ 闸门报"附属模块读不到架构"**假红**。）
-            if pos >= n:
-                return None
-            n_imp, p2 = _uleb(pos)
-            if n_imp is None:
-                return None
-            p2_end = pos + size
-            for _ in range(n_imp):
-                # import 条目 = **两个** name（module + 字段名）+ kind + 类型（spec §5.5.3）。
-                # ⚠️ 只读一个 name 会错位（实测踩到：fmi 的
-                #   js-component-bindgen-component.core2.wasm —— 38 个导入全在段里，
-                #   只读一个 name 时字段错位漂移到 kind 字节 ⇒ 遇"未知 kind" break ⇒
-                #   第 37 个 env.memory import 没被看到 ⇒ 闸门假红"读不到架构"）。
-                for _names in range(2):               # module 名 + 字段名
-                    if p2 >= p2_end:
-                        break
-                    ln, p2 = _uleb(p2)
-                    if ln is None or p2 + ln > p2_end:
-                        break
-                    p2 += ln
-                if p2 >= p2_end:
-                    break
-                kind = data[p2]; p2 += 1
-                if kind == 0x00:                       # func: typeidx
-                    _, p2 = _uleb(p2)
-                elif kind == 0x01:                     # table: elemtype + limits
-                    p2 += 1
-                    fl = data[p2]; p2 += 1
-                    _, p2 = _uleb(p2)
-                    if fl & 0x01:
-                        _, p2 = _uleb(p2)
-                elif kind == 0x02:                     # memory: limits（**架构在这**）
-                    fl = data[p2]; p2 += 1
-                    _, p2 = _uleb(p2)
-                    if fl & 0x01:
-                        _, p2 = _uleb(p2)
-                    return "wasm64" if (fl & 0x04) else "wasm32"
-                elif kind == 0x03:                     # global: valtype + mut
-                    p2 += 2
-                else:
-                    break
-            # ⚠️ 别在这里 return None：**主模块**也有 import 段（函数 import），但它的架构
-            #    由**后面的 memory 段**决定 ⇒ 必须继续走（实测踩到：宿主 wasm 的 import 段
-            #    7727 字节、没有 import memory，早返回 ⇒ 连宿主都读不到）。
-            pos += size
-            continue
-        pos += size
-    return None                                        # 既无 memory 段也无 import memory ⇒ 读不到
+            return from_import
+        end = pos + size
+        if sec_id == SEC_MEMORY:
+            cnt, p = b.uleb(pos)
+            if cnt:
+                arch = _arch_from_flags(b.data[p])
+                if arch:
+                    return arch
+        elif sec_id == SEC_IMPORT:
+            from_import = from_import or _import_memory_arch(b, pos, end)
+        pos = end
+    # ⚠️ 别在 import 段一命中就返回：**主模块**也有 import 段（函数 import），
+    #    但它的架构由**后面的 memory 段**决定（实测：宿主 wasm 的 import 段 7727 字节、
+    #    不含 import memory，早返回 ⇒ 连宿主都读不到）。
+    return from_import
 
 
 def _dylink_arch(path):
@@ -229,51 +282,59 @@ def arch_of(path, run=None):
 
 def check(lane, host, mods, arch_of_=arch_of):
     """纯逻辑（自证注入 arch_of_）。返回 (problems, stats)。"""
-    problems, stats = [], {}
     want = expected_arch(lane)
     if want is None:
-        return ["车道名 %r 未知 ⇒ 不知道期望哪个架构（LANE_EXPECT 表里没有）" % lane], stats
+        return ["车道名 %r 未知 ⇒ 不知道期望哪个架构（LANE_EXPECT 表里没有）" % lane], {}
 
-    # ① 宿主
-    if host:
-        got = arch_of_(host)
-        stats["host"] = got
-        if got is None:
-            problems.append("宿主读不到架构：%s（文件不在 / readobj 不可用）— fail-closed，不当通过"
-                            % host)
-        elif got != want:
-            problems.append("宿主架构错档：期望 %s，实得 %s（%s）"
-                            % (want, got, os.path.basename(host)))
-    else:
-        problems.append("没给 --host ⇒ 判据①没做（零值守卫：空断言面不是通过）")
+    stats = {}
+    problems = _check_host(host, want, arch_of_, stats)
+    problems += _check_mods(mods, want, arch_of_, stats)
+    return problems, stats
 
-    # ② 附属模块（每个都要同档；MIXED 一律红）
-    n_mod = 0
+
+def _check_host(host, want, arch_of_, stats):
+    """① 宿主：必须给、必须读得到、必须同档。"""
+    if not host:
+        return ["没给 --host ⇒ 判据①没做（零值守卫：空断言面不是通过）"]
+    got = arch_of_(host)
+    stats["host"] = got
+    if got is None:
+        return ["宿主读不到架构：%s（文件不在 / readobj 不可用）— fail-closed，不当通过" % host]
+    if got != want:
+        return ["宿主架构错档：期望 %s，实得 %s（%s）" % (want, got, os.path.basename(host))]
+    return []
+
+
+def _check_mods(mods, want, arch_of_, stats):
+    """② 附属模块：每个都要同档；SIDE（dylink.0）按宿主档接受并**记录**；MIXED 一律红。"""
+    problems, n_mod = [], 0
     for m in mods:
         if not os.path.isfile(m):
             problems.append("附属模块不在：%s — fail-closed，不当通过" % m)
             continue
-        got = arch_of_(m)
         n_mod += 1
-        if got is None:
-            problems.append("附属模块读不到架构：%s" % m)
-        elif got == "SIDE":
-            # side module（dylink.0）：字节流里**没有**架构信息（实测：无 memory 段、
-            # 无 import memory）⇒ 只能断言"它由宿主加载 ⇒ 必须与宿主同档"。
-            # 宿主缺档/错档时上面 ① 已经报过 ⇒ 这里只要宿主对，就按宿主档接受，
-            # 并**记录**（stats）让报告能看出"这条是靠宿主档推的，不是直接读出来的"。
-            hg = stats.get("host")
-            if hg == "SIDE":
-                problems.append("附属模块 %s 是 side module，但宿主也是 side module ⇒ "
-                                "没有可推出的档（判据退化）" % os.path.basename(m))
-            else:
-                stats.setdefault("side_mods", []).append(os.path.basename(m))
-        elif got != want:
-            problems.append("附属模块错档：%s 期望 %s，实得 %s" % (os.path.basename(m), want, got))
+        problems += _check_one_mod(m, want, arch_of_(m), stats)
     stats["mods"] = n_mod
     if not mods:
         problems.append("没给 --mod ⇒ 判据②没做（零值守卫）")
-    return problems, stats
+    return problems
+
+
+def _check_one_mod(m, want, got, stats):
+    """单个附属模块的一条判定。"""
+    if got is None:
+        return ["附属模块读不到架构：%s" % m]
+    if got != "SIDE":
+        return [] if got == want else [
+            "附属模块错档：%s 期望 %s，实得 %s" % (os.path.basename(m), want, got)]
+    # side module（dylink.0）：字节流里**没有**架构信息（实测：无 memory 段、无 import
+    # memory）⇒ 只能断言"它由宿主加载 ⇒ 必须与宿主同档"。宿主缺档时上面①已报 ⇒
+    # 这里只要宿主对就按宿主档接受，并**记录**（让报告能看出"这条是靠宿主档推的"）。
+    if stats.get("host") == "SIDE":
+        return ["附属模块 %s 是 side module，但宿主也是 side module ⇒ "
+                "没有可推出的档（判据退化）" % os.path.basename(m)]
+    stats.setdefault("side_mods", []).append(os.path.basename(m))
+    return []
 
 
 # ── 自证（F1：三类用例：正常不报 / 该报的必须报 / 空输入必须报）────────────────
@@ -285,52 +346,52 @@ def _fake(arch_map):
 
 def _selftest():
     ok = []                      # (名字, 是否通过) —— 计数在末尾统一算
-    t = "omc.wasm"
+    t = FIX_HOST_NAME
     tmp = []
 
     # ① 正常：w64 宿主 + 同档模块 ⇒ 不报
     d = os.path.join("/tmp", "lane-purity-fix")
     os.makedirs(d, exist_ok=True)
-    for f in ("omc.wasm", "runtime.wasm"):
+    for f in (FIX_HOST_NAME, FIX_MOD_NAME):
         open(os.path.join(d, f), "w").close()
         tmp.append(os.path.join(d, f))
-    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, "runtime.wasm")],
-                 arch_of_=_fake({"omc.wasm": "wasm64", "runtime.wasm": "wasm64"}))
+    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, FIX_MOD_NAME)],
+                 arch_of_=_fake({FIX_HOST_NAME: "wasm64", FIX_MOD_NAME: "wasm64"}))
     ok.append(("w64 宿主 + 同档模块 ⇒ 不报", not p))
 
     # ② ★ 反向：wasm32 宿主冒充 w64 ⇒ 必须报
-    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, "runtime.wasm")],
-                 arch_of_=_fake({"omc.wasm": "wasm32", "runtime.wasm": "wasm64"}))
+    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, FIX_MOD_NAME)],
+                 arch_of_=_fake({FIX_HOST_NAME: "wasm32", FIX_MOD_NAME: "wasm64"}))
     ok.append(("★ 宿主错档 ⇒ 必须报", any("宿主架构错档" in x for x in p)))
 
     # ③ ★ 反向：模块错档 ⇒ 必须报（宿主对）
-    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, "runtime.wasm")],
-                 arch_of_=_fake({"omc.wasm": "wasm64", "runtime.wasm": "wasm32"}))
+    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, FIX_MOD_NAME)],
+                 arch_of_=_fake({FIX_HOST_NAME: "wasm64", FIX_MOD_NAME: "wasm32"}))
     ok.append(("★ 模块错档 ⇒ 必须报", any("附属模块错档" in x for x in p)))
 
     # ④ ★ MIXED ⇒ 必须报（一包里混档）
-    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, "runtime.wasm")],
-                 arch_of_=_fake({"omc.wasm": "MIXED(wasm32,wasm64)", "runtime.wasm": "wasm64"}))
+    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, FIX_MOD_NAME)],
+                 arch_of_=_fake({FIX_HOST_NAME: "MIXED(wasm32,wasm64)", FIX_MOD_NAME: "wasm64"}))
     ok.append(("★ MIXED ⇒ 必须报", any("错档" in x for x in p)))
 
     # ⑤ ★ 零值守卫：没给 host ⇒ 必须报
-    p, _ = check("w64", "", [os.path.join(d, "runtime.wasm")],
-                 arch_of_=_fake({"runtime.wasm": "wasm64"}))
+    p, _ = check("w64", "", [os.path.join(d, FIX_MOD_NAME)],
+                 arch_of_=_fake({FIX_MOD_NAME: "wasm64"}))
     ok.append(("★ 没给 --host ⇒ 必须报（零值守卫）", any("零值守卫" in x for x in p)))
 
     # ⑥ ★ 零值守卫：没给 mod ⇒ 必须报
     p, _ = check("w64", os.path.join(d, t), [],
-                 arch_of_=_fake({"omc.wasm": "wasm64"}))
+                 arch_of_=_fake({FIX_HOST_NAME: "wasm64"}))
     ok.append(("★ 没给 --mod ⇒ 必须报（零值守卫）", any("零值守卫" in x for x in p)))
 
     # ⑦ ★ 读不到架构 ⇒ fail-closed 报
-    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, "runtime.wasm")],
+    p, _ = check("w64", os.path.join(d, t), [os.path.join(d, FIX_MOD_NAME)],
                  arch_of_=_fake({}))
     ok.append(("★ 读不到架构 ⇒ fail-closed 报", any("读不到" in x for x in p)))
 
     # ⑧ ★ 未知档名 ⇒ 必须报
-    p, _ = check("nonsense-lane", os.path.join(d, t), [os.path.join(d, "runtime.wasm")],
-                 arch_of_=_fake({"omc.wasm": "wasm64"}))
+    p, _ = check("nonsense-lane", os.path.join(d, t), [os.path.join(d, FIX_MOD_NAME)],
+                 arch_of_=_fake({FIX_HOST_NAME: "wasm64"}))
     ok.append(("★ 未知档名 ⇒ 必须报", any("未知" in x for x in p)))
 
     # ⑨ ★★ wasm 专用判据（本仓 2026-10-13 加）：用**真 wasm 字节**造夹具，不只测假函数。
@@ -345,19 +406,22 @@ def _selftest():
         else:
             body += bytes([0x01])
         sec = bytes([0x05]) + bytes([len(body)]) + body
-        return b"\x00asm\x01\x00\x00\x00" + sec
+        return WASM_MAGIC + b"\x01\x00\x00\x00" + sec
 
-    def _side_module_bytes(memory64=False):
+    def _side_module_bytes():
         """造一个 **side module（dylink.0）夹具**：与真实产物同形 —— custom 段名含 "dylink"，
         **无 memory 段、无 import memory**（实测本仓 web/wasm-blobs/*.wasm 就是这个段表）。
-        字节流的架构信息**不存在**于这种模块里 ⇒ 判据只能是"必须与宿主同档"。
+
+        ★ 刻意**没有** memory64 形参（GitRoll #76 报它未用）：这个夹具存在的全部理由就是
+        "side module 的字节流里**不存在**架构信息"—— 给它一个 memory64 开关等于假装它能
+        编出两种档，与它要证明的事矛盾。两种档由**宿主**决定（见 check 的 SIDE 分支）。
         """
         name = b"dylink.0"
         custom = bytes([len(name)]) + name + b"\x00\x00\x00\x00"
         sec = bytes([0x00]) + bytes([len(custom)]) + custom
         # 再来一个空 export 段，让段表更像真的
         sec += bytes([0x07, 0x01, 0x00])
-        return b"\x00asm\x01\x00\x00\x00" + sec
+        return WASM_MAGIC + b"\x01\x00\x00\x00" + sec
 
     f32 = os.path.join(d, "fix32.wasm"); f64 = os.path.join(d, "fix64.wasm")
     with open(f32, "wb") as fh: fh.write(_wasm_bytes(memory64=False))
@@ -378,8 +442,8 @@ def _selftest():
                arch_of(os.path.join(d, "definitely-missing.wasm")) is None))
     # ★★ side module（import 宿主 memory 的形态；本仓 web/wasm-blobs/*.wasm 实测就是这种）
     sm32 = os.path.join(d, "side32.wasm"); sm64 = os.path.join(d, "side64.wasm")
-    with open(sm32, "wb") as fh: fh.write(_side_module_bytes(memory64=False))
-    with open(sm64, "wb") as fh: fh.write(_side_module_bytes(memory64=True))
+    with open(sm32, "wb") as fh: fh.write(_side_module_bytes())
+    with open(sm64, "wb") as fh: fh.write(_side_module_bytes())
     tmp += [sm32, sm64]
     ok.append(("★ wasm 判据：side module ⇒ 标记 SIDE（由宿主档定，不瞎猜）",
                arch_of(sm32) == "SIDE"))

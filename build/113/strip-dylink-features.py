@@ -82,7 +82,7 @@ def strip_bytes(data, drop_sub=6):
     size, pos = _read_uleb(data, pos)
     if size is None:
         return None, 0
-    body_start, body_end = pos, pos + size
+    body_end = pos + size            # 起点就是 pos，不需要单独留一个变量
     if body_end > len(data):
         return None, 0
     nl = data[pos]
