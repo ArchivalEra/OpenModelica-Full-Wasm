@@ -12,7 +12,9 @@
 <pre id="log"></pre>
 <script type="module">
 const L=[];const log=(x)=>{L.push(x);document.getElementById('log').textContent=L.join('\n')};
-const st=(s,ok)=>{document.getElementById('s').textContent=s;document.getElementById('s').className=ok===true?'ok':ok===false?'bad':''};
+// 状态类名：三元嵌套抽取（GitRoll #70）——三档语义一目了然，别让读者去推运算优先级
+const cls=(ok)=>ok===true?'ok':ok===false?'bad':'';
+const st=(s,ok)=>{document.getElementById('s').textContent=s;document.getElementById('s').className=cls(ok);};
 window.__msl={ready:false,error:'',steps:[],version:'',loadMs:0};
 const ZIP='./assets/msl/msl-4.1.0-maint.om.zip';
 try{

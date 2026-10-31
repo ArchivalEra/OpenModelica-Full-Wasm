@@ -28,7 +28,9 @@
 const $ = (id) => document.getElementById(id);
 const logLines = [];
 function log(s) { logLines.push(s); $('log').textContent = logLines.join('\n'); }
-function setStatus(s, ok) { $('status').textContent = s; $('status').className = ok === true ? 'ok' : ok === false ? 'bad' : ''; }
+// 状态类名单独一个函数（GitRoll #70：嵌套三元抽出来）——true/false/未知 三档各自明确
+function statusClass(ok) { if (ok === true) return 'ok'; if (ok === false) return 'bad'; return ''; }
+function setStatus(s, ok) { $('status').textContent = s; $('status').className = statusClass(ok); }
 
 // ★ 探测口（验收件读它；别在页面里放"自检"在主路径上 —— 坏产物会卡整页）
 window.__omcBridgeProbe = { ready: false, error: '', version: '', mat: null, steps: [], reversed: null };

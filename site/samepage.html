@@ -40,7 +40,9 @@
 const $ = (id) => document.getElementById(id);
 const L = [];
 const log = (s) => { L.push(s); $('log').textContent = L.join('\n'); };
-const st = (s, ok) => { $('status').textContent = s; $('status').className = ok === true ? 'ok' : ok === false ? 'bad' : ''; };
+// 状态类名单独一个函数（GitRoll #70：嵌套三元抽出来）
+const statusClass = (ok) => { if (ok === true) return 'ok'; if (ok === false) return 'bad'; return ''; };
+const st = (s, ok) => { $('status').textContent = s; $('status').className = statusClass(ok); };
 const HEAP = () => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : -1);
 function memRow(t, note) {
   const tr = document.createElement('tr');
@@ -86,71 +88,93 @@ function loadClassic(src) {
     document.head.appendChild(el);
   });
 }
-async function bootOctave() {
-  // 顺序照 index.html 的脚本链（assets-loader 必须在几个桥之前；core→page 在最后）
-  for (const f of ['./oct/assets-loader.js', './oct/queue.js', './oct/p5canvas.js',
-                   './oct/webaudio.js', './oct/webaudiorec.js', './oct/webfilepick.js',
-                   './oct/webnet.js', './oct/octave-core.js', './oct/octave-page.js',
-                   './oct/lanes.js', './oct/lane.js']) {
-    await loadClassic(f);
-  }
-  // ── 择档（照 LANES-AND-MEMORY-MODEL §6 的纪律）─────────────────────────────
-  //   · 我们的 `oct/` 只有 **base 档**（wasm32 无线程）⇒ **显式选 base**，
-  //     不让自动择档器去挑 w64/threads（那些档的文件不在本拷贝里 ⇒ 404）。
-  //   · "选错档 ⇒ 硬失败，不静默降级"（§6 原文）—— 所以这里**不**回退：拿不到 base 就报错。
-  // ⚠️ 别用自动择档：`pickFrom` 会按 COI + `hasMemory64` 挑档，而我们的 `oct/` 只有
-  //    **base 档** ⇒ 它挑 w64/w64-base/threads 都会 404（实测：`script 加载失败：w64/octave.js`）。
-  //    ⇒ 显式钉 base；`lanes.js` 的清单仍由站点提供（不手抄档名）。
+// Octave 站点脚本链（顺序照 index.html：assets-loader 必须在几个桥之前；core→page 最后）。
+const OCT_SCRIPTS = ['./oct/assets-loader.js', './oct/queue.js', './oct/p5canvas.js',
+  './oct/webaudio.js', './oct/webaudiorec.js', './oct/webfilepick.js',
+  './oct/webnet.js', './oct/octave-core.js', './oct/octave-page.js',
+  './oct/lanes.js', './oct/lane.js'];
+
+// ── 择档（照 LANES-AND-MEMORY-MODEL §6 的纪律）───────────────────────────────
+//   · 我们的 `oct/` 只有 **base 档**（wasm32 无线程）⇒ **显式选 base**，不让自动择档器
+//     去挑 w64/threads（那些档的文件不在本拷贝里 ⇒ 404）。
+//   · "选错档 ⇒ 硬失败，不静默降级"（§6 原文）—— 所以这里**不**回退：拿不到 base 就报错。
+// ⚠️ 别用自动择档：`pickFrom` 会按 COI + `hasMemory64` 挑档，而我们的 `oct/` 只有 base 档
+//    ⇒ 它挑 w64/w64-base/threads 都会 404（实测：`script 加载失败：w64/octave.js`）。
+//    ⇒ 显式钉 base；`lanes.js` 的清单仍由站点提供（不手抄档名）。
+function pickLane() {
   const LANE = 'base';
   const plan = (typeof window.octaveLaneFiles === 'function')
-    ? window.octaveLaneFiles(LANE) : { lane: LANE, js: 'octave.js', wasm: 'octave.wasm', data: 'octave.data' };
+    ? window.octaveLaneFiles(LANE)
+    : { lane: LANE, js: 'octave.js', wasm: 'octave.wasm', data: 'octave.data' };
   const jsUrl = './oct/' + (plan && plan.js ? plan.js : 'octave.js');
   window.__samepageLane = { lane: LANE, js: jsUrl, auto: (window.octaveLaneState || {}).lane,
                             autoWhy: (window.octaveLaneState || {}).why };
-  await loadClassic(jsUrl);
-  // ★ 资源路径（**读产物源码定的，别猜**）：emscripten 胶水用
-  //   `Module["locateFile"](name, prefix)` 解析 `octave.wasm` / `octave.data`
-  //   （见 octave.js 里 `REMOTE_PACKAGE_NAME = Module["locateFile"] ? locateFile(...) : ...`）。
-  //   它默认按**页面 URL**取 ⇒ 我们放在 `./oct/` 下就会 404。
-  //   ⇒ 传一个 `locateFile` 把它指到 `./oct/`（站点自己的 index.html 与文件同目录，所以没这问题）。
-  // `opts.base` = 资源前缀（**读 octave-core.js:56 得来**：`baseOf` 拼 wasm/data 的 URL）。
-  // 我们放在 `./oct/` 下 ⇒ base='./oct/'。
-  const assetOpts = {
-    id: 'samepage',
-    lane: LANE,
-    base: './oct/',
-  };
-  // ★ 输出汇（**读 octave-core.js:22-23, 259-260 得来**）：
-  //   主线程模式下胶水把 stdout 走 `host.print(t)`、"stderr" 走 `host.printErr(t)`
-  //   （worker 模式才合批 postMessage）。⇒ 我们给这两个汇，把行**收进数组**供验收读；
-  //   同时不再往 DOM 抓（那是 worker 模式的做法，本页是主线程 —— 第一版抓 DOM 得到空串）。
-  // ★ Octave 的输出落点（**读姊妹仓 octave-page.js:142-190 得来，别猜**）：
-  //   站点自己的 `createOctaveHost` 把 print 接到 **`console.log`**（外加一个页面 sink），
-  //   **不是** `opts.host.print`（那是更里层的 `createOctaveCore` 收的）。
-  //   ⇒ 本页把 `console.log` 的 Octave 行也收进 `__octOut`，验收读这里即可
-  //     （主线程模式；worker 模式才走 postMessage，见 test/browser/accept-omc-bridge.mjs 的教训）。
+  return { lane: LANE, jsUrl };
+}
+
+// ── 输出汇（**读 octave-core.js:22-23, 259-260 与 octave-page.js:142-190 得来，别猜**）──
+//   主线程模式下胶水把 stdout 走 `host.print(t)`、"stderr" 走 `host.printErr(t)`；
+//   而站点自己的 `createOctaveHost` 把 print 接到 **`console.log`**（外加一个页面 sink），
+//   **不是** `opts.host.print`（那是更里层的 `createOctaveCore` 收的）。
+//   ⇒ 本页把 `console.log` 的 Octave 行也收进 `__octOut`，验收读这里即可（主线程模式）。
+//   （worker 模式才走 postMessage，见 test/browser/accept-omc-bridge.mjs 的教训。）
+function tapConsoleOutput() {
   window.__octOut = [];
-  if (!window.__octOutWrapped) {
-    window.__octOutWrapped = true;
-    const orig = console.log.bind(console);
-    // ⚠️ 这个 catch 故意吞（GitRoll #67）：它包的是**日志收集器本身**。若在这里抛，
-    //   会把被测代码的 console.log 也一起炸掉 ⇒ 反而制造假失败。收集失败 = 少一条
-    //   诊断文本，不影响任何判据（判据走 FS 通道，不看 console）。
-    console.log = (...a) => { try { window.__octOut.push(a.map(String).join(' ')); } catch (e) { /* 见上：收集失败不该炸被测代码 */ } return orig(...a); };
+  if (window.__octOutWrapped) return;
+  window.__octOutWrapped = true;
+  const orig = console.log.bind(console);
+  // ⚠️ 这个 catch 故意吞（GitRoll #67）：它包的是**日志收集器本身**。若在这里抛，
+  //   会把被测代码的 console.log 也一起炸掉 ⇒ 反而制造假失败。收集失败 = 少一条
+  //   诊断文本，不影响任何判据（判据走 FS 通道，不看 console）。
+  console.log = (...a) => {
+    try {
+      window.__octOut.push(a.map(String).join(' '));
+    } catch (e) {
+      /* 见上：收集失败不该炸被测代码 */
+    }
+    return orig(...a);
+  };
+}
+
+// 等引擎"真能算"（`eval_string` 可用还不够：站点的 __octaveReady 是整条启动链跑完）。
+async function waitOctaveUsable(M, timeoutMs = 300000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    if (M && typeof M.eval_string === 'function') {
+      try {
+        if (M.eval_string('x=1+1;') === 0) return true;
+      } catch (e) {
+        /* 还没就绪；下一轮再看（这里不编造成功） */
+      }
+    }
+    await new Promise((r) => setTimeout(r, 300));
   }
+  return false;
+}
+
+async function bootOctave() {
+  for (const f of OCT_SCRIPTS) {
+    await loadClassic(f);
+  }
+  const { lane, jsUrl } = pickLane();
+  await loadClassic(jsUrl);
+  // ★ 资源路径：emscripten 胶水用 `Module["locateFile"](name, prefix)` 解析
+  //   `octave.wasm` / `octave.data`，默认按**页面 URL**取 ⇒ 放在 `./oct/` 下会 404。
+  //   `opts.base` = 资源前缀（读 octave-core.js:56 `baseOf` 得来）⇒ 传 './oct/'。
+  const assetOpts = { id: 'samepage', lane: lane, base: './oct/' };
+  tapConsoleOutput();
   const M = (typeof window.createOctaveHost === 'function')
     ? window.createOctaveHost(assetOpts)
     : window.Module;
   window.Module = M;
-  if (typeof window.OCTAVE === 'function') { try { window.OCTAVE(M); } catch (e) { /* 站点页面适配；这里可能不需要 */ } }
-  const t0 = Date.now();
-  while (Date.now() - t0 < 300000) {
-    if (M && typeof M.eval_string === 'function') {
-      // eval_string 可用还不够：等它真能算（站点的 __octaveReady 是整条启动链跑完）
-      try { const ok = M.eval_string("x=1+1;"); if (ok === 0) break; } catch (e) {}
+  if (typeof window.OCTAVE === 'function') {
+    try {
+      window.OCTAVE(M);
+    } catch (e) {
+      /* 站点页面适配；本页可能不需要 */
     }
-    await new Promise((r) => setTimeout(r, 300));
   }
+  await waitOctaveUsable(M);
   return M;
 }
 

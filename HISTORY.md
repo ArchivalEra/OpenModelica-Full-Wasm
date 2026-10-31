@@ -681,6 +681,44 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.hl GH issue #1 续：认知复杂度与重复字面量也做完（2026-10-31）
+
+- **用户点令的补充**：「我推荐你做完」。此前我只做了 2 个真 bug + 死变量，把认知复杂度
+  （29 条）与其余重复字面量当"静态工具噪音"跳过 —— **用户否决了这个判断**：他今天去很多
+  仓都遇到同样的反对，但**实际复杂度降下来之后大家反而觉得更好**。⇒ 全部做完。
+- **降低复杂度用的是"按职责拆"，不是机械切碎**（这是能好转而不是变糟的关键）：
+  · `serve-coi.py`：`main()` 里的嵌套 handler 类提成 `_make_handler(root, quiet)`；自证拆成
+    `_selftest_headers`（纯字符串）与 `_selftest_http_cases`（端到端三向）。
+  · `check-lane-purity.py` 的 `_wasm_arch`（**79**）→ 一串**命名原语**：`_Bytes.uleb` /
+    `_arch_from_flags` / `_skip_name` / `_skip_limits` / `_import_memory_arch` /
+    `_scan_sections_for_arch`。二进制解析天然分支多，拆成"每步一个规范概念"后**判据反而更可读**
+    —— 每条都能对着 core spec 的一节读。`check()` 同法拆成 `_check_host` / `_check_mods` /
+    `_check_one_mod`。
+  · `check-bridge-manifest.py` 的 `check`（**28**）→ `_check_shape` / `_check_entries_shape` /
+    `_list_vs_disk` / `_compare_one_entry` / `_disk_vs_list` / `_check_min_entries` / `_check_protocol`。
+  · `check-msl-content-list.py` 的 `local_problems`（**37**）→ 表级 `_table_problems` + 条目级
+    `_entry_problems`（再分 `_form_/ _consumer_/ _url_problems`）。
+  · `bridge/omc_bridge.js` 的 `dispatch`（**41**）→ **命令表**（每条命令 = 一个 matcher + 一个
+    handler）：加命令只加一行，不必通读全文确认没有交叉。三处重复的"从 VFS 取 .mat 并回搬"
+    同时收成一个 `_simulateAndFetch`（那是三处重复的**真逻辑**，不只是字面量）。
+  · `site/samepage.html` 的 `bootOctave` → `pickLane` / `tapConsoleOutput` / `waitOctaveUsable`
+    三个具名步骤 + 脚本链常量。
+- **三处嵌套三元**（`ok===true?'ok':ok===false?'bad':''`，三份 html 各一处）→ 各提成
+  `statusClass(ok)`；顺带把"三档语义"写成 if 链（读者不必推运算优先级）。
+- **重复字面量按"是不是契约字符串"取舍**：`application/wasm`（MIME 契约，写错静默降级）、
+  协议三路径（写错两侧静默失配）、夹具文件名、`WASM_MAGIC` —— 这些提常量。
+  自证夹具里的纯展示串（`status=%s` 之类）也提了，因为 GitRoll 的数就是按字面量算的。
+- **两处我自己拆坏又修回的**（如实记）：
+  ① 拆 `check-bridge-manifest` 时把「条目缺 file ⇒ 必须报」弄丢了（`_check_entries_shape`
+  定义了却没接上）—— **补回并给它写了反例**。没有反例的判据 = 没人盯着它。
+  ② `_check_entries_shape` 我写成 append 风格，与其余"return 列表"风格不一致，当场 TypeError。
+- **验证不是"改完就算"**：`samepage.html` 重写后**推到站点并跑了真验收** —— 8 PASS / 0 FAIL，
+  含反向（坏件必须报错）与内存记账。`serve-coi` 重写后也真起服务验 304。
+- **自证条数变化**（都进台账，不手抄）：`serve-coi` 17→**32**（补了空输入的 MIME/ETag 两族）、
+  `check-bridge-manifest` 12→**13**（新增"条目缺 file"反例）、其余不变
+  （lane-purity 24、msl 11、omc-bridge 7、strip-dylink 10）。
+- **闸门**：本仓 20 道 + 平台 22 道自证全绿；38 条事实；复跑逐字一致。
+
 ## 5.hk GH issue #1（GitRoll 134 条）：按归属分流 —— 我方 39 条，实修 2 个真问题（2026-10-31）
 
 - **用户点令的归属规则**：issue 出在**我维护的仓** ⇒ 修；出在我 fork 的别人的仓 ⇒ 也修。

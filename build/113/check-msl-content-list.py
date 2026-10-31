@@ -37,10 +37,24 @@ HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def local_problems(doc, site_mode=False):
-    """本地等价判据（宿主校验器不在盘时用）。返回问题列表（空 = 过）。"""
-    out = []
+    """本地等价判据（宿主校验器不在盘时用）。返回问题列表（空 = 过）。
+
+    拆成"表级 / 条目级"两段：前者判 schema+producer，后者逐条判字段词表。
+    """
     if not isinstance(doc, dict):
         return ["表不是对象"]
+    out = _table_problems(doc)
+    entries = doc.get("entries")
+    if not isinstance(entries, list) or not entries:
+        return out + ["entries 必须是非空数组（空表不是通过 —— 零值守卫）"]
+    for i, e in enumerate(entries):
+        out += _entry_problems(i, e, site_mode)
+    return out
+
+
+def _table_problems(doc):
+    """表级：schema 与 producer 自述（这两条不对，下面逐条判也没意义）。"""
+    out = []
     if doc.get("schema") != 2:
         out.append("schema 必须是 2（得到 %r）" % doc.get("schema"))
     if not doc.get("octave"):
@@ -50,36 +64,46 @@ def local_problems(doc, site_mode=False):
         out.append("缺 producer.id（出表方自述）")
     elif prod["id"] != PRODUCER:
         out.append("producer.id 不符：期望 %r 得到 %r" % (PRODUCER, prod["id"]))
-    entries = doc.get("entries")
-    if not isinstance(entries, list) or not entries:
-        return out + ["entries 必须是非空数组（空表不是通过 —— 零值守卫）"]
-    for i, e in enumerate(entries):
-        if not isinstance(e, dict):
-            out.append("条目[%d] 不是对象" % i)
-            continue
-        tag = "条目[%d] %r" % (i, e.get("name"))
-        for f in ("name", "version", "sha256", "url"):
-            if not e.get(f):
-                out.append("%s 缺 %s" % (tag, f))
-        sha = str(e.get("sha256") or "")
-        if sha and not HEX64.match(sha):
-            out.append("%s sha256 不是 64 位小写 hex（得到 %r）" % (tag, sha[:12]))
-        form = e.get("form")
-        if form is not None and form not in FORMS:
-            out.append("%s form=%r 不在词表 %s 里" % (tag, form, sorted(FORMS)))
-        cons = e.get("consumer")
-        if cons is not None:
-            if not isinstance(cons, list):
-                out.append("%s consumer 必须是数组" % tag)
-            else:
-                bad = [c for c in cons if c not in CONSUMERS]
-                if bad:
-                    out.append("%s consumer 含未知值 %r（词表 %s）"
-                               % (tag, bad[0], sorted(CONSUMERS)))
-        url = str(e.get("url") or "")
-        if site_mode and url and re.match(r"^[a-z]+://", url):
-            out.append("%s 站点态 url 是绝对地址（%s…）⇒ 必须同源相对" % (tag, url[:40]))
     return out
+
+
+def _entry_problems(i, e, site_mode):
+    """条目级：非对象 / 必填四字段 / sha 形状 / form 与 consumer 词表 / 站点态 url。"""
+    if not isinstance(e, dict):
+        return ["条目[%d] 不是对象" % i]
+    tag = "条目[%d] %r" % (i, e.get("name"))
+    out = ["%s 缺 %s" % (tag, f) for f in ("name", "version", "sha256", "url") if not e.get(f)]
+    sha = str(e.get("sha256") or "")
+    if sha and not HEX64.match(sha):
+        out.append("%s sha256 不是 64 位小写 hex（得到 %r）" % (tag, sha[:12]))
+    out += _form_problems(tag, e.get("form"))
+    out += _consumer_problems(tag, e.get("consumer"))
+    out += _url_problems(tag, str(e.get("url") or ""), site_mode)
+    return out
+
+
+def _form_problems(tag, form):
+    """form 必须在词表里（缺省 = 不校验，由必填四字段那条管）。"""
+    if form is not None and form not in FORMS:
+        return ["%s form=%r 不在词表 %s 里" % (tag, form, sorted(FORMS))]
+    return []
+
+
+def _consumer_problems(tag, cons):
+    """consumer 必须是数组，且每个值都在词表里。"""
+    if cons is None:
+        return []
+    if not isinstance(cons, list):
+        return ["%s consumer 必须是数组" % tag]
+    bad = [c for c in cons if c not in CONSUMERS]
+    return ["%s consumer 含未知值 %r（词表 %s）" % (tag, bad[0], sorted(CONSUMERS))] if bad else []
+
+
+def _url_problems(tag, url, site_mode):
+    """站点态的 url 必须同源相对（绝对地址会让站点拉外域，破"纯客户端"）。"""
+    if site_mode and url and re.match(r"^[a-z]+://", url):
+        return ["%s 站点态 url 是绝对地址（%s…）⇒ 必须同源相对" % (tag, url[:40])]
+    return []
 
 
 def run_host_validator(path, site_mode=False):

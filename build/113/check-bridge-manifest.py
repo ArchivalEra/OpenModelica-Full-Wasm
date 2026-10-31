@@ -42,8 +42,25 @@ def disk_files():
 
 
 def check(manifest, files, root=BRIDGE, expect_protocol=True):
-    """纯逻辑（自证注入 manifest/files/root）。返回问题列表（空 = 一致）。"""
-    probs = []
+    """纯逻辑（自证注入 manifest/files/root）。返回问题列表（空 = 一致）。
+
+    四组判据各自一个函数：清单→磁盘 / 磁盘→清单 / 件数下限 / 协议路径。
+    这样每组都能单独读、单独改（原来一个大函数读不出边界）。
+    """
+    shape = _check_shape(manifest, files)
+    if shape is not None:
+        return shape
+    listed = _index_entries(manifest["entries"])
+    probs = _check_entries_shape(manifest["entries"])
+    probs += _check_listed_vs_disk(listed, root)
+    probs += _check_disk_vs_listed(files, listed)
+    probs += _check_min_entries(manifest["entries"])
+    probs += _check_protocol(manifest, expect_protocol)
+    return probs
+
+
+def _check_shape(manifest, files):
+    """初筛：形状不对就早退（这些不是"结论"，是"没法判"）。"""
     if not isinstance(manifest, dict):
         return ["清单不是对象"]
     entries = manifest.get("entries")
@@ -53,53 +70,85 @@ def check(manifest, files, root=BRIDGE, expect_protocol=True):
         return ["清单 entries 为空（零值守卫：空清单不是通过）"]
     if files is None:
         return ["bridge/ 目录不存在（环境问题，不是结论）"]
+    return None
+
+
+def _index_entries(entries):
+    """按文件名索引（顺手给缺 file 的条目点名）。"""
     listed = {}
     for i, e in enumerate(entries):
-        if not isinstance(e, dict) or not e.get("file"):
-            probs.append("条目[%d] 缺 file" % i)
-            continue
-        listed[e["file"]] = e
-    # ① 清单 → 磁盘
+        if isinstance(e, dict) and e.get("file"):
+            listed[e["file"]] = e
+    return listed
+
+
+def _check_entries_shape(entries):
+    """缺 file 的条目（形状不对 ⇒ 没法按文件名对账，必须点名）。"""
+    return ["条目[%d] 缺 file" % i
+            for i, e in enumerate(entries)
+            if not isinstance(e, dict) or not e.get("file")]
+
+
+def _check_listed_vs_disk(listed, root):
+    """① 清单 → 磁盘：每件必须存在，且 bytes / sha256 与磁盘逐字一致。"""
+    probs = []
     for name, e in sorted(listed.items()):
-        p = os.path.join(root, name)
-        if not os.path.exists(p):
+        path = os.path.join(root, name)
+        if not os.path.exists(path):
             probs.append("清单里的 `%s` 在磁盘上不存在（宿主播过去会缺件）" % name)
             continue
-        b = open(p, "rb").read()
-        if e.get("bytes") != len(b):
-            probs.append("`%s` bytes 不符：清单 %r vs 磁盘 %d" % (name, e.get("bytes"), len(b)))
-        want = str(e.get("sha256") or "")
-        got = hashlib.sha256(b).hexdigest()
-        if want != got:
-            probs.append("`%s` sha256 不符：清单 %s… vs 磁盘 %s…" % (name, want[:12], got[:12]))
-    # ② 磁盘 → 清单（多出来的件没人装）
-    for f in files:
-        if f not in listed:
-            probs.append("磁盘上有 `%s` 但清单没有（宿主不会装它）" % f)
-    # ③ 件数下限
+        with open(path, "rb") as fh:
+            blob = fh.read()
+        probs += _compare_one_entry(name, e, blob)
+    return probs
+
+
+def _compare_one_entry(name, entry, blob):
+    """单件对账：bytes + sha256。"""
+    probs = []
+    if entry.get("bytes") != len(blob):
+        probs.append("`%s` bytes 不符：清单 %r vs 磁盘 %d"
+                     % (name, entry.get("bytes"), len(blob)))
+    want = str(entry.get("sha256") or "")
+    got = hashlib.sha256(blob).hexdigest()
+    if want != got:
+        probs.append("`%s` sha256 不符：清单 %s… vs 磁盘 %s…" % (name, want[:12], got[:12]))
+    return probs
+
+
+def _check_disk_vs_listed(files, listed):
+    """② 磁盘 → 清单：多出来的件没人装（宿主会漏它）。"""
+    return ["磁盘上有 `%s` 但清单没有（宿主不会装它）" % f
+            for f in files if f not in listed]
+
+
+def _check_min_entries(entries):
+    """③ 件数下限（零值守卫的另一半）。"""
     if len(entries) < MIN_ENTRIES:
-        probs.append("清单只有 %d 件，少于下限 %d（11 件 .m + 1 件宿主侧 .js）"
-                     % (len(entries), MIN_ENTRIES))
-    # ④ 协议路径
+        return ["清单只有 %d 件，少于下限 %d（11 件 .m + 1 件宿主侧 .js）"
+                % (len(entries), MIN_ENTRIES)]
+    return []
+
+
+def _check_protocol(manifest, expect_protocol):
+    """④ 协议路径：三项齐全、互不相同；★ 且必须逐字等于契约常量。
+
+    ④b 只有把常量提到唯一产地才可判：否则"清单写一个、桥里写另一个"两侧静默失配
+    （轮询永远读不到请求）。自证夹具用简写路径 ⇒ 传 expect_protocol=False 跳过。
+    """
     pp = manifest.get("protocol_paths") or {}
-    vals = []
+    probs, vals = [], []
     for k in PROTOCOL_KEYS:
         v = str(pp.get(k) or "").strip()
         if not v:
             probs.append("协议路径缺 `%s`（两侧写死同名常量，缺一个桥就断）" % k)
-        else:
-            vals.append(v)
+            continue
+        vals.append(v)
+        if expect_protocol and v != PROTO_PATHS[k]:
+            probs.append("协议路径 `%s` 与契约不一致：清单 %r ≠ 契约 %r"
+                         % (k, v, PROTO_PATHS[k]))
     if len(vals) == len(PROTOCOL_KEYS) and len(set(vals)) != len(vals):
         probs.append("协议路径有重复（request/response/seq 必须是三个不同文件）")
-    # ④b ★ 清单里的协议路径必须**逐字等于**契约常量 —— 否则"清单写一个、桥里写另一个"
-    #   两侧静默失配（轮询永远读不到请求）。只有把常量提到唯一产地，这条才可判。
-    #   自证夹具用简写路径（/tmp/r 等）⇒ 传 expect_protocol=False 跳过本项。
-    if expect_protocol:
-        for k in PROTOCOL_KEYS:
-            got = str(pp.get(k) or "").strip()
-            if got and got != PROTO_PATHS[k]:
-                probs.append("协议路径 `%s` 与契约不一致：清单 %r ≠ 契约 %r"
-                             % (k, got, PROTO_PATHS[k]))
     return probs
 
 
@@ -118,13 +167,14 @@ def _selftest():
         for f in files:
             open(os.path.join(d, f), "wb").write(b"Z")
         sha = hashlib.sha256(b"Z").hexdigest()
+        FIX_GEN = "c%d.m"                # 夹具里"多出来的 10 件"（GitRoll #16）
         g = {"schema": 1,
              "protocol_paths": FIXTURE_PATHS,
              "entries": [{"file": f, "bytes": 1, "sha256": sha} for f in files] + [
-                 {"file": "c%d.m" % i, "bytes": 1, "sha256": sha} for i in range(10)]}
+                 {"file": FIX_GEN % i, "bytes": 1, "sha256": sha} for i in range(10)]}
         for i in range(10):
-            open(os.path.join(d, "c%d.m" % i), "wb").write(b"Z")
-        allf = sorted(files + ["c%d.m" % i for i in range(10)])
+            open(os.path.join(d, FIX_GEN % i), "wb").write(b"Z")
+        allf = sorted(files + [FIX_GEN % i for i in range(10)])
 
         # ① 正常不报
         t("正常：清单与磁盘逐件一致 ⇒ 无问题", check(g, allf, root=d, expect_protocol=False) == [])
@@ -154,6 +204,11 @@ def _selftest():
         # ③ 空输入必须报
         t("★ 空 entries ⇒ 必须报", check({"entries": []}, []) != [])
         t("★ 清单非对象 ⇒ 必须报", check(None, []) != [])
+        # ★ 条目缺 file ⇒ 必须报（拆函数时这条一度被我弄丢，补回并给它反例：
+        #   没有反例的判据 = 没人盯着它 —— 正是 AGENTS「断言要能证伪」要拦的形状）
+        t("★ 条目缺 file ⇒ 必须报", any("缺 file" in x for x in check(
+            {"entries": [{"bytes": 1, "sha256": "0" * 64}],
+             "protocol_paths": FIXTURE_PATHS}, [], root=d, expect_protocol=False)))
         t("★ bridge 目录不在 ⇒ 必须报（环境）", check(g, None, root=d) != [])
 
     print("PASS | " + "\nPASS | ".join(ok))
