@@ -1,0 +1,144 @@
+# 发布产物 · **由 CI 产出**（用户点令 2026-11-01：「重写 release，绝对要走 action」）
+#
+# ## 为什么必须有这一面
+# 本地跑脚本 + 手传 asset 的问题不是"慢"，是**不可复现也不可审计**：
+# 谁在什么机器上用什么字节传上去的，只有当事人知道；出错时（比如上一版我把
+# 「四件与 v0.1.0 逐字一致」写进 notes 却没有据）没人能当场发现。
+# ⇒ 发版动作收进 CI：字节入库、manifest 当场造、判据当场跑、asset 当场传。
+#
+# ## 字节从哪来（这是本 workflow 的前提，先说清）
+# 引擎四件（`assets/omc/`，71.12 MiB 的 wasm + js + 两份 d.ts）**入库了**。
+# 理由是别处都取不到：不在 git 历史、公开站上没有、CI 自建要 clang24 + rust nightly +
+# 上游树（数小时）。入库是让本 workflow 自洽的唯一办法。
+# ⚠️ 入库带来的新风险 = **入库字节可能不是我们验过的那份** ⇒ 第一步就是
+#    `check-release-inputs.py` 拿 `build/FACTS.json` 的台账值逐件对 sha/bytes。
+#    对不上就**在发之前**停（不是发完再发现）。
+#
+# ## 分工（不藏边界）
+# · 本 workflow：造 manifest → 校验 → 传 asset →（可选）建 release。
+# · **不**自建引擎：那需要几小时的工具链与上游树，GitHub 免费 runner 跑不动。
+#   引擎的构建与验收仍在"有工具链的机器"上做（`build/113/build-omc-wasm.sh --verify`
+#   + 浏览器套件），台账键就是那份产物的身份证。本 workflow 消费的是**已经验过的字节**。
+#
+# ## 触发
+# 手动（`workflow_dispatch`）：给 tag / 形态 / 是否建 release。默认 dry-run（只造+校验，
+# 不上传），避免误触发就把线上 asset 覆盖掉。
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "要发布/校验的 release tag（如 v0.2.0-wasm32）"
+        required: true
+        type: string
+      product:
+        description: "产物形态：engine（4 件）| msl（单 zip）"
+        required: true
+        default: engine
+        type: choice
+        options:
+          - engine
+          - msl
+      publish:
+        description: "true = 真上传 asset；false = dry-run（只造 manifest + 跑校验）"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write          # 传 asset / 建 release 需要
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          check-latest: true
+
+      - name: 装 zstd（生成器要用；gzip 是标准库）
+        run: pip install zstandard
+
+      # ① 地基判据：入库字节必须等于台账（否则发出去的不是我们验过的那份）
+      - name: 入库产物 vs 台账对账
+        run: python3 build/113/check-release-inputs.py --product "${{ inputs.product }}"
+
+      # ② 生产者：v4 manifest 生成器（**pin 到 commit**，不用 main —— 别人改一行就换掉
+      #    了我们的产地；这是"唯一产地"纪律在 CI 侧的落法）
+      - name: 取 v4 契约工具（pin）
+        uses: actions/checkout@v4
+        with:
+          repository: ArchivalEra/Octave-Extra-Content
+          ref: 5c60d7435bf7d3ffb0328d6a7669b77b0f9d98bd
+          path: .contract-tools
+
+      - name: 工具自证（拿工具的人先证明工具是活的）
+        run: |
+          python3 .contract-tools/tools/make-manifest-v4.py --selftest
+          python3 .contract-tools/tools/check-release-v4.py --selftest
+
+      # ③ 造 manifest + 分片
+      - name: 造 manifest（${{ inputs.product }}）
+        id: make
+        run: |
+          set -eu
+          OUT="$RUNNER_TEMP/dist"
+          mkdir -p "$OUT"
+          if [ "${{ inputs.product }}" = "engine" ]; then
+            python3 .contract-tools/tools/make-manifest-v4.py --out "$OUT" \
+              --id "OpenModelica-Full-Wasm/${{ inputs.tag }}" \
+              --product "omc:file:${{ github.workspace }}/assets/omc"
+          else
+            # MSL 也**入库**了（assets/msl/*.zip，安装形状）。sha 由 check-release-inputs
+            # 的 msl 分支核（见下一步），理由同引擎：CI 无处可取那份 19.5 MiB 字节。
+            python3 .contract-tools/tools/make-manifest-v4.py --out "$OUT" \
+              --id "OpenModelica-Full-Wasm/${{ inputs.tag }}" \
+              --product "msl:file:${{ github.workspace }}/assets/msl/msl-4.1.0-maint.om.zip"
+          fi
+          echo "out=$OUT" >> "$GITHUB_OUTPUT"
+
+      # ④ 造完立刻校验（逐块 bytes+sha 对盘）
+      - name: 校验 manifest（逐块对盘）
+        run: python3 .contract-tools/tools/check-release-v4.py "${{ steps.make.outputs.out }}/manifest.json" --base "${{ steps.make.outputs.out }}"
+
+      # ⑤ 发布前自证：拿造出来的 manifest 反向对台账（防止生成器/入参错位把别的字节发出去）
+      - name: manifest ↔ 台账 交叉核
+        if: ${{ inputs.product == 'engine' }}
+        run: |
+          set -eu
+          python3 - "${{ steps.make.outputs.out }}/manifest.json" <<'PY'
+          import json, sys
+          man = json.load(open(sys.argv[1]))
+          facts = json.load(open("build/FACTS.json"))["facts"]
+          val = lambda k: facts[k]["value"] if isinstance(facts[k], dict) else facts[k]
+          want = {"OpenModelicaCompiler_bg.wasm": "omc_web_wasm_sha",
+                  "OpenModelicaCompiler.js": "omc_web_js_sha"}
+          got = {e["name"].split("/")[-1]: e["sha256"] for e in man["entries"]}
+          bad = [f"{n}: manifest={got.get(n, '?')[:12]} ledger={str(val(k))[:12]}"
+                 for n, k in want.items() if got.get(n) != str(val(k))]
+          if bad:
+              print("manifest 里的 sha 与台账不一致："); [print("  ·", b) for b in bad]; sys.exit(1)
+          print("manifest ↔ 台账：一致")
+          PY
+
+      # ⑥ 上传（默认 dry-run；publish=true 才真传）
+      - name: 上传 asset
+        if: ${{ inputs.publish }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" "${{ steps.make.outputs.out }}"/* --clobber
+
+      - name: 摘要（dry-run 时说清没上传）
+        run: |
+          echo "### release workflow（${{ inputs.product }}）" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- tag: \`${{ inputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- publish: **${{ inputs.publish }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- asset 数: \`$(ls -1 "${{ steps.make.outputs.out }}" | wc -l)\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ inputs.publish }}" != "true" ]; then
+            echo "- ⚠️ **dry-run**：manifest 已造并校验，**没有上传任何 asset**" >> "$GITHUB_STEP_SUMMARY"
+          fi

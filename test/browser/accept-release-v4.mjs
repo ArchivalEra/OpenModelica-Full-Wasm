@@ -40,7 +40,23 @@ const page = await (await browser.newContext()).newPage();
 const reqs = [];
 page.on('request', (r) => reqs.push({ url: r.url(), headers: r.headers() }));
 
-await page.goto(BASE + '/manifest.json');
+// ★ 不要 `goto(BASE + '/manifest.json')`：GitHub release 直链发 `application/octet-stream`
+//   ⇒ 浏览器把它当**下载**（`page.goto` 报 `Download is starting`）。
+//   判据是"客户端能不能按 manifest 取分片"，所以落一个**中性的真 http 页**，之后全程页面内 fetch。
+//   ⚠️ 不能用 `data:`（opaque origin ⇒ 跨源 fetch 被挡）。中性页由本套件自己起：
+//     它同时回 CORS 头（真实部署里分片是同源静态站；这里跨源就必须有 CORS）。
+const { createServer } = await import('node:http');
+const neutral = createServer((q, res) => {
+  res.writeHead(200, {
+    'content-type': 'text/html; charset=utf-8',
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': '*',
+  });
+  res.end('<!doctype html><title>v4 release acceptance</title>');
+});
+await new Promise((r) => neutral.listen(0, '127.0.0.1', r));
+const NEUTRAL = 'http://127.0.0.1:' + neutral.address().port + '/';
+await page.goto(NEUTRAL);
 const man = await page.evaluate(async (u) => (await fetch(u)).json(), BASE + '/manifest.json');
 
 t('manifest schema = 2', man.schema === 2, 'schema=' + man.schema);
@@ -127,4 +143,5 @@ t('★ 0 个自定义头', !assets.some(hasCustomHeader));
 
 console.log(`\n=== V4-E2E(${CODEC}) ${pass} PASS / ${fail} FAIL ===`);
 await browser.close();
+neutral.close();
 process.exit(fail ? 1 : 0);

@@ -99,6 +99,14 @@ __pycache__/
 # 校准样本（omc_web_atomic_ops 的仪器校准件；判据的一部分，钉在仓里不许进 /tmp）
 !build/fixtures/
 !build/fixtures/*
+# ★ 发布产物字节（2026-11-01 用户点令「字节入库」）：release **必须由 CI 产出**，
+#   而 CI 无处可取这四件（不在 git / 公开站没有 / 自建要 clang24+rust nightly+上游树）。
+#   ⇒ 字节入库是让 workflow 自洽的唯一办法。sha 由 CI 当场对台账核（`check-release-inputs`）。
+#   ⚠️ 71.12 MiB 的 wasm 低于 GitHub 100 MiB 硬限、超过 50 MiB 给一次警告（可接受）。
+!assets/omc/
+!assets/omc/*
+!assets/msl/
+!assets/msl/*
 # 发布版本身份（v0.1.0-wasm32 首发起；数字从产物/台账读，不手抄）
 !build/VERSION.json
 

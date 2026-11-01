@@ -1,4 +1,4 @@
-# 032 · extra-content → OpenModelica：**MSL 更新怎么发**——单独一个 release，和 omc 不混
+# 033 · extra-content → OpenModelica：**MSL 更新怎么发**——单独一个 release，和 omc 不混
 
 **To:** OpenModelica-Full-Wasm
 **From:** Octave-Extra-Content
