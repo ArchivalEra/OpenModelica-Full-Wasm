@@ -5,14 +5,24 @@
 
 ## ★ 一句话先说清楚：这个版本**没有**重编引擎
 
-引擎四件产物（`OpenModelicaCompiler_bg.wasm` / `.js` / 两份 `.d.ts`）的字节与 sha256
-**与 `v0.1.0-wasm32` 逐字相同**。判据（可复跑）：
+**先精确说清能比到哪一步**（上一版这里写错了，已修正）：
 
-```bash
-gh api repos/ArchivalEra/OpenModelica-Full-Wasm/releases/tags/v0.1.0-wasm32 \
-  --jq '.assets[]|select(.name=="OpenModelicaCompiler_bg.wasm")|.digest'
-# ⇒ sha256:8287589e… 与台账 omc_web_wasm_sha 逐字一致
-```
+- `OpenModelicaCompiler_bg.wasm`：**可与 `v0.1.0` 逐字比对**——那一版 release 里有这份
+  74.5 MB 的原字节。判据：
+
+  ```bash
+  gh api repos/ArchivalEra/OpenModelica-Full-Wasm/releases/tags/v0.1.0-wasm32 \
+    --jq '.assets[]|select(.name=="OpenModelicaCompiler_bg.wasm")|.digest'
+  # ⇒ sha256:8287589e… 与台账 [[omc_web_wasm_sha]] 逐字一致
+  ```
+
+- `OpenModelicaCompiler.js` / 两份 `.d.ts`：**在 `v0.1.0` 里不存在**（那一版只挂了
+  wasm + MSL zip 两个 asset），**没有可比对象**。这三件的一致性由**入库字节 ↔ 台账**
+  来保证（`build/113/check-release-inputs.py`：JS 件比 `[[omc_web_js_sha]]`；
+  两份 `.d.ts` 台账无独立键，只验非空 + 与站点副本一致）。
+
+⇒ 准确的表述是：**引擎 wasm 与上一版逐字相同；其余三件与上一版无从比对，其身份由台账锁定。**
+本版没有重编引擎（上游 pin 未动：`build/upstream-pins.json`）。
 
 **那为什么还是发新版**：`v0.1.0` 以来的变化都在**交付面**，而且改变了对外契约：
 
@@ -59,10 +69,31 @@ catalog 的 `url` 指到新 tag 前缀，旧 tag 永远还在）。
 | 语义桥**产品态**（零注入） | `sh test/browser/run-omc-bridge-product.sh <已装配站点>` | 9 PASS / 0 FAIL |
 | 两引擎同页 | `sh test/browser/run-samepage.sh` | 8 PASS / 0 FAIL（无 COI 实测） |
 | Node 侧 | `sh test/node/run.sh test/node/accept-omc-getversion.mjs` | 9 PASS / 0 FAIL |
-| **release v4 端到端（引擎）** | `sh test/browser/run-accept-release-v4.sh <BASE> zstd` | 27 PASS / 0 FAIL |
-| | 同上 `gzip` / `identity` | 各 27 PASS / 0 FAIL |
-| **release v4 端到端（MSL）** | `sh test/browser/run-accept-release-v4.sh <BASE> identity` | 12 PASS / 0 FAIL |
+| 入库字节 ↔ 台账对账 | `python3 build/113/check-release-inputs.py` | 四件 bytes/sha 逐字对上 |
 | 清单一致性（bridge） | `python3 build/113/check-bridge-manifest.py` | 12 件逐件 bytes/sha 对上 |
+
+**分片 release 的端到端验，要说清验的是哪一层**（上一版这里把两层混成一句，已修正）：
+
+| 层 | 怎么验 | 结果 |
+|---|---|---|
+| **本地目录**（生成器刚造出来的那套字节） | `sh test/browser/run-accept-release-v4.sh <本地目录> zstd\|gzip\|identity` | 引擎三编码**各 27 PASS / 0 FAIL**；MSL identity **12 PASS / 0 FAIL** |
+| **线上 GitHub release** | 见下方「平台约束」——**浏览器验不了**，只能用 `urllib` 级核验 | 见 `build/113/check-online-release.py` 的输出 |
+
+## ★ 平台约束：GitHub release 直链**不能当浏览器消费源**
+
+实测（`curl -sSL -D-`）GitHub release 的下载路径是
+`302 → release-assets.githubusercontent.com`，最终响应：
+
+- **不发 `Access-Control-Allow-Origin`** ⇒ 浏览器跨源 `fetch` 必然 `Failed to fetch`；
+- `response-content-disposition: attachment` ⇒ 浏览器把它当**下载**（`page.goto` 报
+  `Download is starting`）。
+
+⇒ 这与协议不矛盾，但决定了**分发形态**：release 是**字节的产地**，浏览器消费必须经由
+**自建静态站 / CDN**（同源，或显式给 CORS）。所以「浏览器 8 并发拉分片」这条判据
+（内容仓 `mail/032` §6 第 7 条）的验证对象是**分发站**，不是 GitHub 直链。
+线上「GitHub 上那 55 个字节是否就是 manifest 说的那些」由
+`python3 build/113/check-online-release.py --base <release 下载前缀>` 用 urllib 核
+（不受浏览器 CORS 限制）。
 
 release 端到端验的是**信里要求的八条**：asset 名扁平无斜杠 / 数量与 manifest 一致 /
 每块 sha 与 manifest 一致 / 每块能独立解码 / 拼接后 == `bytes` 且 sha == `sha256` /
