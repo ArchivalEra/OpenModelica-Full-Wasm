@@ -146,3 +146,8 @@ __pycache__/
 # 74 MB ESM 引擎 boot 分布（宿主 mail/027 §4 / 029 §5；2026-10-29）
 #   ★ `*.mjs` 在上面已通配，这里只补跑法（漏它 = pre-commit 白名单直接拒）
 !test/browser/run-measure-omc-boot.sh
+# v4 release 端到端验（内容仓 mail/032 §6 的八条判据；2026-11-01）
+#   ★ 同上：`accept-release-v4.mjs` 已被 `test/browser/*.mjs` 通配，这里补跑法
+!test/browser/run-accept-release-v4.sh
+# 读信入口（集群分发件，2026-10-31：自包含、只依赖 mail/ 目录，换仓直接可跑）
+!build/mail-read.py

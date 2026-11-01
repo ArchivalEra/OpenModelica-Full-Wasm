@@ -1,9 +1,14 @@
 {
-  "_comment": "版本身份证（v0.1.0-wasm32）。数字不手抄：sha/字节从产物读，验收判据见 STATE 的 AUTO 块。上游 pin 出处 = build/upstream-pins.json + .upstream-pin stamp（witness 每提交核对）。",
-  "version": "0.1.0",
+  "_comment": "版本身份证（v0.2.0-wasm32）。数字不手抄：sha/字节从产物读，验收判据见 STATE 的 AUTO 块。★ 本版**引擎字节与 v0.1.0 逐字相同**（见 artifacts_unchanged_since）—— 变的是交付面（桥产品件 / 装配契约 / 站点行为），发布口径见 docs/RELEASE-v0.2.0-wasm32.md。",
+  "version": "0.2.0",
   "lane": "wasm32",
-  "codename": "first-light",
-  "date": "2026-10-17",
+  "codename": "handover",
+  "date": "2026-11-01",
+  "previous": "0.1.0",
+  "artifacts_unchanged_since": {
+    "version": "0.1.0",
+    "why": "引擎四件（wasm / JS glue / 2× d.ts）字节与 sha 与 v0.1.0 逐字相同；本版没重编引擎。判据：gh api 读 v0.1.0-wasm32 的 bg.wasm digest，与台账 omc_web_wasm_sha 逐字比对。"
+  },
   "upstream": {
     "openmodelica": "cbff5eb753e7d33422712a0eea6b7a0ae0d044ab",
     "omcompiler-3rdparty": "ae7e482a88906b418d8ad57a5d8a804f33eb81fa"
@@ -11,6 +16,26 @@
   "toolchain": {
     "clang": "24.0.0 (55ea1f4ebea23d0355d5cdb075f1e12f28ab82d0)",
     "rustc": "1.98.0-nightly (nightly-2026-05-31)"
+  },
+  "releases": {
+    "omc": {
+      "tag": "v0.2.0-wasm32",
+      "manifest_id": "OpenModelica-Full-Wasm/v0.2.0-wasm32",
+      "product": "omc:file",
+      "entries": 4,
+      "assets": 55,
+      "codecs": ["zstd", "gzip", "identity"],
+      "_why_separate": "MSL 是**被装载的数据**、不是引擎；合发会让「MSL 更新」逼着重传 74.5MB 的 wasm（内容仓 mail/033 §2 实测：合发一次要重传 94.1MB，其中 79% 与 MSL 无关）。⇒ 两个 release 分开，协议本体不动。"
+    },
+    "msl": {
+      "tag": "msl-4.1.0-maint.om",
+      "manifest_id": "OpenModelica-Full-Wasm/msl-4.1.0-maint.om",
+      "product": "msl:file",
+      "entries": 1,
+      "assets": 5,
+      "codecs": ["identity"],
+      "_why_identity_only": "zip 是已压格式，再压一遍省不到 1%（内容仓 mail/033 §3.1）；生成器的 PRECOMPRESSED 判定自动只出 identity。"
+    }
   },
   "artifacts": {
     "web_wasm": {
@@ -22,6 +47,12 @@
       "file": "pkg-nodejs/OpenModelicaCompiler_bg.wasm",
       "bytes_ledger": "omc_wasm32_bytes",
       "sha256_ledger": "omc_wasm32_sha"
+    },
+    "msl_zip": {
+      "file": "assets/msl/msl-4.1.0-maint.om.zip",
+      "bytes_ledger": "msl_asset_bytes",
+      "sha256_ledger": "msl_asset_sha",
+      "_shape": "**站内安装形状**（Modelica/package.mo 在顶层），不是上游 GitHub archive 的仓库快照形状 —— 两者 sha 不同，发 release 时必须用这份（内容仓 mail/033 §4）。"
     }
   },
   "acceptance": {
@@ -29,8 +60,11 @@
     "samepage": "sh test/browser/run-samepage.sh -> 8 PASS / 0 FAIL (no-COI verified)",
     "mat_handshake": "sh test/browser/run-mat-handshake.sh -> 14 PASS / 0 FAIL",
     "omc_bridge": "sh test/browser/run-omc-bridge.sh -> 11 PASS / 0 FAIL",
+    "omc_bridge_product": "sh test/browser/run-omc-bridge-product.sh <已装配站点> -> 9 PASS / 0 FAIL",
     "node_getversion": "sh test/node/run.sh test/node/accept-omc-getversion.mjs -> 9 PASS / 0 FAIL",
-    "build_verify": "bash build/113/build-omc-wasm.sh --verify -> verdict=ok"
+    "build_verify": "bash build/113/build-omc-wasm.sh --verify -> verdict=ok",
+    "release_v4_omc": "sh test/browser/run-accept-release-v4.sh <BASE> zstd|gzip|identity -> 27 PASS / 0 FAIL（三编码各一次）",
+    "release_v4_msl": "sh test/browser/run-accept-release-v4.sh <BASE> identity -> 12 PASS / 0 FAIL"
   },
-  "notes": "无 COI 依赖（omc_web_atomic_ops=0）；站点 13 附属模块全 wasm32（site_wasm32_mods）；master 线的 wasm64/多线程目标卡上游（悬案 02），本版本只发 wasm32 档。"
+  "notes": "无 COI 依赖（omc_web_atomic_ops=0）；站点 13 附属模块全 wasm32（site_wasm32_mods）；master 线的 wasm64/多线程目标卡上游（悬案 02），本版本只发 wasm32 档。★ 交付面相对 v0.1.0 的实质变化：桥扶正为产品件（三条承重语义进 dispatch + simulateModel）、BRIDGE-DELIVERY 契约、bridge/manifest.json 机器可读清单、产品态验收件、serve-coi 缓存头从 no-store 改为 ETag+no-cache（74.5MB 降到几百字节）。"
 }

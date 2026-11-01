@@ -681,6 +681,44 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.hm mail/032+033 → v0.2.0-wasm32 发版（两个 release 分开）（2026-11-01）
+
+- **指令来源**：内容仓 `mail/032`（"以本信为唯一指令"：按 v4 契约造 release）+ 用户补充
+  （**identity 就是切片**，协议维护者已裁定；并反问"今天整改了这么多真的不发新版本号吗"）。
+  随后 `mail/033` 到：**MSL 单独一个 release，和引擎不混**。
+- **版本判断（先取证再决定）**：`gh api` 读 `v0.1.0-wasm32` 的 bg.wasm digest，与当前产物
+  sha 逐字比对 ⇒ **引擎四件字节完全不同**（`8287589e…` 两边一致）。所以按"产物变了才发版"
+  的口径本轮**没有**新引擎。但 `v0.1.0` 以来 **24 个提交**全在交付面，且**改了对契约**：
+  桥扶正为产品件（新增 `simulateModel`、三条承重语义成为产品行为）、`BRIDGE-DELIVERY.md`、
+  `bridge/manifest.json`、产品态验收件、`serve-coi` 缓存头 `no-store`→`ETag+no-cache`。
+  ⇒ 按 semver 这是 **minor**（加能力/改契约，不是 patch）⇒ **v0.2.0-wasm32（handover）**。
+  ★ 引擎没变这件事**写在 release notes 开头 + VERSION.json 的 `artifacts_unchanged_since`**，
+  否则下一个人会以为要重新验引擎。
+- **两个 release 分开**（`mail/033` §2 的实测理由：合发一次要重传 94.1MB，其中 79% 与 MSL
+  无关；MSL 是被装载的数据、不是引擎）：
+  · 引擎 `v0.2.0-wasm32`：**4 entry / 55 asset**（zstd+gzip+identity）；
+  · MSL `msl-4.1.0-maint.om`：**1 entry / 5 asset**（**只出 identity** —— 生成器
+    `PRECOMPRESSED` 自动判定，zip 再压只省不到 1%）。
+  两个 tag 互不引用，`forge-catalog.json` 是唯一汇合点。
+- **一个坑记牢**（`mail/033` §4 警告，我核对过确实不同）：MSL 的 sha 必须是**站内安装形状**
+  那份（`[[msl_asset_bytes]]` / `[[msl_asset_sha]]`）；上游 GitHub archive 是**仓库快照形状**
+  （顶层带 hash 目录），字节与 sha 都不同，拿错就装不上。
+- **新验收件** `test/browser/accept-release-v4.mjs` + 跑法 `.sh`（**27 判据/编码**：
+  schema / id / entry 数 / 回退链 / 逐字取 file / 8 并发 / 逐块 sha / 解码 / 全局 bytes+sha /
+  与源产物逐字一致 / ★ 0 Range·0 条件请求·0 自定义头）。结果：引擎 zstd/gzip/identity
+  **各 27/0**，MSL identity **12/0**。
+- **实测踩到并记进套件注释的坑**：**分片每块是独立压缩帧** ⇒ 拼接后单次解压只解出第一帧
+  （`got=5242880` 而不是 74579404）。必须**逐块解压再拼**。gzip 有 Node 的 `gunzipSync`
+  并且多成员会自动走；zstd 不会 ⇒ 我为此先用 Python 逐块解。
+  另一个：Node 的 `DecompressionStream` **不支持 zstd**（`ERR_INVALID_ARG_VALUE`），
+  浏览器也不支持（Chromium 实测）—— 所以"浏览器能不能解 zstd"这条**本来就不该由浏览器测**，
+  zstd 的消费方是下载器（fzstd 之类），不是页面。
+- **上游 C5 当场抓到我**：`mail-read.py`（集群分发的读信工具）我放在了 `zreflect/` 下，
+  渲染时被「名录对账」拒（"平台模块必须声明自己"）。正确处置是**移到 `build/`**（工具位置），
+  不是硬塞一个假 `MODULE = module_meta(...)` 声明。移后 `--selftest` 9/0。
+- **台账**：40 条事实（新增 `release_omc_assets`=55 / `release_msl_assets`=5，
+  `release_version` 0.1.0→**0.2.0** 显式 `--accept-changes`）。复跑 39 条逐字一致。
+
 ## 5.hl GH issue #1 续：认知复杂度与重复字面量也做完（2026-10-31）
 
 - **用户点令的补充**：「我推荐你做完」。此前我只做了 2 个真 bug + 死变量，把认知复杂度
