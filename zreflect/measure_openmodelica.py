@@ -350,7 +350,20 @@ def measure():
                 d["version"],
                 "python3 -c \"import json;print(json.load(open('%s'))['version'])\"" % verf,
                 "build/VERSION.json",
-                "当前发布版本号（v0.1.0-wasm32 首发；发布说明 docs/RELEASE-v0.1.0-wasm32.md）")
+                "当前发布版本号（v0.1.0 first-light → v0.2.0 handover；"
+                "**引擎字节未变**，变的是交付面，见 VERSION.json 的 artifacts_unchanged_since）")
+        # release 的两个分发包（内容仓 mail/033：MSL 单独发，不和引擎混）
+        rels = d.get("releases") or {}
+        for pid in ("omc", "msl"):
+            r = rels.get(pid) or {}
+            if r.get("assets"):
+                facts["release_%s_assets" % pid] = fact(
+                    r["assets"],
+                    "python3 -c \"import json;print(json.load(open('%s'))['releases']['%s']['assets'])\""
+                    % (verf, pid),
+                    "build/VERSION.json",
+                    "%s 分发包的 asset 数（manifest + 分片；协议对数量无上限，这只是本发版的实况）"
+                    % pid)
 
     # ── MSL 站内资产（2026-10-25 落地；mail/012 A1 的承诺兑现）──────────────────
     #   落点 site-omc/assets/omc/（仓外站点）；**安装形状**重打包（GitHub 源 zip 是
