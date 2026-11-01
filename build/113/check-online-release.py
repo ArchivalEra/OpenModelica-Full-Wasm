@@ -24,6 +24,8 @@ import hashlib
 import json
 import os
 import sys
+import http.client
+import time
 import urllib.error
 import urllib.request
 
@@ -34,12 +36,24 @@ def sha256(b):
     return hashlib.sha256(b).hexdigest()
 
 
-def fetch(url, method="GET"):
-    """普通 GET（**不发 Range / 条件请求 / 自定义头**）—— 与 v4 判据 8 同口径。"""
-    req = urllib.request.Request(url, method=method)   # 默认头里没有 Range/If-*
-    req.add_header("User-Agent", "omc-release-verify")
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-        return r.read()
+def fetch(url, method="GET", retries=4):
+    """普通 GET（**不发 Range / 条件请求 / 自定义头**）—— 与 v4 判据 8 同口径。
+
+    ★ 带重试：GitHub 的 release-assets 域实测会偶发 `RemoteDisconnected`（连接被对端
+    提前关）。重试是**取字节**的容错，不是掩盖失败 —— 4 次都取不到才算红。
+    """
+    last = None
+    for attempt in range(retries):
+        req = urllib.request.Request(url, method=method)   # 默认头里没有 Range/If-*
+        req.add_header("User-Agent", "omc-release-verify")
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                return r.read()
+        except (urllib.error.URLError, http.client.RemoteDisconnected, TimeoutError,
+                ConnectionResetError) as e:
+            last = e
+            time.sleep(1.5 * (attempt + 1))
+    raise last
 
 
 def head(url):
@@ -64,7 +78,7 @@ def decode_blocks(parts, codec):
     raise ValueError("未知 codec %r" % codec)
 
 
-def verify(base, src_dir=None, log=print):
+def verify(base, src_dir=None, codecs=None, sample=0, log=print):
     """返回问题列表（空 = 全过）。纯 urllib，无浏览器。"""
     problems = []
     base = base.rstrip("/")
@@ -79,8 +93,11 @@ def verify(base, src_dir=None, log=print):
 
     # ① 先在**线上 asset 清单**层面查（GitHub API 的结果由调用方贴进来；这里只查
     #    取不到的 file 名——含斜杠的名字会 404，正好被②抓到）
+    def _want(v):
+        return codecs is None or v.get("codec") in codecs
+
     all_files = [c["file"] for e in man.get("entries", [])
-                 for v in e.get("variants", []) for c in v.get("chunks", [])]
+                 for v in e.get("variants", []) if _want(v) for c in v.get("chunks", [])]
 
     # ②③ 逐块：线上存在 + sha 对
     got_blocks = {}
@@ -96,15 +113,24 @@ def verify(base, src_dir=None, log=print):
         name = e.get("name")
         for v in e.get("variants", []):
             codec = v.get("codec")
+            if not _want(v):
+                continue
+            chunks_all = v.get("chunks", [])
+            chunks = chunks_all[:sample] if sample else chunks_all
             parts = []
-            for c in v.get("chunks", []):
+            for c in chunks:
                 b = got_blocks.get(c.get("file"))
                 if b is None:
                     continue
                 if sha256(b) != c.get("sha256"):
                     problems.append("%s/%s 块 sha 不符：%s" % (name, codec, c.get("file")))
                 parts.append(b)
-            if len(parts) != len(v.get("chunks", [])):
+            if sample:
+                # 抽样模式：只核 sha，不做拼接（拼接需要全部块）
+                log("%s/%s 抽样核过 %d/%d 块（未抽的不假装核过）"
+                    % (name, codec, len(parts), len(chunks_all)))
+                continue
+            if len(parts) != len(chunks_all):
                 continue
             # ④ 逐块解码后拼接
             try:
@@ -184,6 +210,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", help="release 的下载目录 URL")
     ap.add_argument("--src", help="源产物目录（可选；给了就逐字节比对 identity）")
+    ap.add_argument("--codecs", help="只验这些编码（逗号分隔；默认全部）。"
+                                       "网络慢时用 identity 单独跑最省字节。")
+    ap.add_argument("--sample", type=int, default=0,
+                    help="每编码只验前 N 块（0 = 全验）。网络受限时的诚实抽样："
+                         "抽样过的块是真核过的，未抽的不假装核过（报告里写明）。")
     ap.add_argument("--selftest", action="store_true")
     a = ap.parse_args()
     if a.selftest:
@@ -191,7 +222,8 @@ def main():
     if not a.base:
         print("用法：--base <RELEASE_BASE_URL> [--src <dir>] | --selftest", file=sys.stderr)
         sys.exit(2)
-    probs = verify(a.base, a.src)
+    codecs = [c.strip() for c in a.codecs.split(",")] if a.codecs else None
+    probs = verify(a.base, a.src, codecs, a.sample)
     if probs:
         print("线上 release 核验：%d 个问题" % len(probs))
         for p in probs:

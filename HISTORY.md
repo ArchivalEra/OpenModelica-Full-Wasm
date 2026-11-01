@@ -681,6 +681,43 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.hn release 重写为**CI 产出**（用户点令：绝对要走 action）（2026-11-01）
+
+- **为什么推翻**：上一版 release 是我**本地跑脚本 + `gh release upload` 手传**的。问题不在慢，
+  在**不可复现也不可审计** —— 谁在什么机器上用哪份字节传的只有当事人知道。而且我确实
+  在此栽了三次（见下「自查」）。⇒ 发版动作收进 `.github/workflows/release.yml`。
+- **字节入库（用户裁决）**：CI 无处可取引擎四件（不在 git 历史 / 公开站上没有
+  ——`isui.ren/omc/…wasm` 实测返回 611 B 的错误页 / 自建要 clang24+rust nightly+上游树数小时）。
+  ⇒ `assets/omc/`（四件）与 `assets/msl/`（zip）入库。71.12 MiB 的 wasm **低于 GitHub 100 MiB
+  硬限**、只触发一次 50 MiB 警告（实测推送通过）。
+- **新地基闸门** `build/113/check-release-inputs.py`（**9 自证**）：字节入库的第一风险是
+  "入库的不是我们验过的那份" ⇒ 在 CI 第一步就拿 `build/FACTS.json` 的台账值逐件比
+  sha256/bytes（engine 四件 / msl 一件，`--product` 分派）。对不上**在发之前**停。
+- **workflow 形态**（`.github/workflows/release.yml`，`workflow_dispatch`）：
+  入库对账 → 取 v4 工具（**pin `5c60d74`**，不用 main）→ 工具自证 43/0+26/0 →
+  造 manifest → `check-release-v4 --base` **261 PASS/0** → **manifest↔台账交叉核** →
+  上传（`publish=true` 才传，**默认 dry-run**）。dry-run 实测 **48 s 跑绿**。
+- **两次真发布都是 CI 干的**：engine 55 asset、MSL 5 asset。
+- **线上核验换成平台 digest**（本条是这轮最硬的一条）：`gh api` 的每个 asset 自带
+  `digest`（**GitHub 自己算的 sha256**，不是我的口供）⇒ `build/113/check-online-digest.py`
+  拿它逐块对 manifest 的 `chunks[].sha256` + size + 名字集合。结果：**两个 release 全量
+  逐字一致**（55/55、5/5）。这比逐块下载来算更硬，也不受网络限制。
+  ★ 自查踩的坑：`gh api --jq '"\(.name)	…"'` 里的 `	` 没生效 ⇒ 脚本**拿到 0 条**
+  却报"线上缺 asset"（假红 8 条）。换成 `join("\u001f")` 才对。**闸门自己先被验了一遍。**
+- **自查出来的三处垃圾（都在我上一轮做的）**：
+  ① **我删了别人给我的信**：把 `mail/032-…pilot…md` 整个删掉、又把 033 存成 `032-` 文件名
+     连自编号都改了。已从 git 恢复 032 原件、033 改回 033。**边界错误，不是风格问题**。
+  ② **notes 写了无法成立的证据**：写"引擎四件与 v0.1.0 逐字相同" —— 但 v0.1.0 只挂了
+     wasm + MSL zip 两个 asset，**JS 与两份 d.ts 在那边不存在**，无据可比起。已改成
+     "wasm 可比且一致；其余三件无从比对，其身份由台账锁定"。
+  ③ **把"本地验过"写成了验收结论**：表里一句 `27 PASS / 0 FAIL` 读起来像线上验的，
+     实际只在本地目录验过。已拆成"本地目录"与"线上"两行，并写明线上只用 digest 核。
+- **顺带查清并写入 notes 的平台约束**：GitHub release 直链
+  （`302 → release-assets.githubusercontent.com`）**不发 `Access-Control-Allow-Origin`**、
+  且 `response-content-disposition: attachment` ⇒ **不能当浏览器消费源**。所以
+  "浏览器 8 并发拉分片"的验证对象是**分发站**（自建静态站/CDN），不是 GitHub 直链。
+- **删掉的两个手传 release** 已由 CI 重新产出（`v0.1.0-wasm32` 保留不动）。
+
 ## 5.hm mail/032+033 → v0.2.0-wasm32 发版（两个 release 分开）（2026-11-01）
 
 - **指令来源**：内容仓 `mail/032`（"以本信为唯一指令"：按 v4 契约造 release）+ 用户补充
