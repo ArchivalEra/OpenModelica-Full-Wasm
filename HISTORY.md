@@ -681,6 +681,26 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.hp 撤销并重发两个 release（用户点令「撤掉这个 release 然后重发，我允许」）（2026-11-02）
+
+- **撤销前留档**（动手前先取证，不靠印象）：
+  · 两个 release 都是 **schema 2、license 缺失**（这就是信 034 指的旧形状）；
+  · tag 都指在 `cf11754`（那个 commit 里连 `assets/omc/` 都还不存在 —— 字节入库是后来的事）；
+  · asset 名清单存档（omc 55 / msl 5）。
+- **撤**：`gh release delete` 两个 + `git tag -d` + `git push :refs/tags/…` 删远程 tag。
+  `v0.1.0-wasm32` 与 `archive/ilperf-f283610` **未动**（前者是首发版本锚点）。
+  ⚠️ 这一步与信 034 §3「release 不可变是地基」**相冲突** —— 但那是**用户显式授权**的例外，
+  不是我的自行决定。记在这里是为了让下一个人知道这条地基被开过一次口子、谁开的。
+- **重打 tag 到当前 master**（`c9aa0d9`，含入库字节 + schema 3 workflow），重新建 release 容器。
+- **两次发布都由 CI 产出**（`release.yml`，`publish=true`）：
+  · engine：schema **3** / `AGPL-3.0-or-later` / **272 PASS / 0 FAIL**；
+  · msl：schema **3** / `BSD-3-Clause` / **47 PASS / 0 FAIL**。
+- **线上核验**：`check-online-digest.py` 拿 GitHub 平台自己算的 asset digest 逐块对
+  ⇒ 引擎 **55/55**、MSL **5/5** 逐字一致；asset 名集合与撤销前**完全相同**（无增无减）。
+- **一个自查细节**：重发后我本地 dist 仍是 schema 2，digest 核对报"manifest 不符"
+  —— 那不是产物错，是我比对基准**少了升级步**。给本地也跑 `upgrade()` 后转绿。
+  ⇒ 核验基准必须与被验对象走**同一条流程**，否则比的是两套东西。
+
 ## 5.ho mail/034：schema 2 的根因是我的 pin 旧了（契约升级 + 许可两步）（2026-11-02）
 
 - **信 034 的三条断言我逐条核实，全部成立**：
