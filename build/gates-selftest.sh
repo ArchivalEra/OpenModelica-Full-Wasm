@@ -31,6 +31,7 @@ build/113/check-msl-content-list.py --selftest
 build/113/check-bridge-manifest.py --selftest
 build/113/check-release-inputs.py --selftest
 build/113/check-online-digest.py --selftest
+build/113/check-workflows.py --selftest
 build/113/check-omc-bridge.mjs
 build/serve-coi.py --selftest
 build/113/provision-toolchain.sh --selftest

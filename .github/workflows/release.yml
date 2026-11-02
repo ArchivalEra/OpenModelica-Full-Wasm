@@ -69,17 +69,49 @@ jobs:
 
       # ② 生产者：v4 manifest 生成器（**pin 到 commit**，不用 main —— 别人改一行就换掉
       #    了我们的产地；这是"唯一产地"纪律在 CI 侧的落法）
+      #
+      # ⚠️ pin 是**需要维护**的决定：契约升级后必须 bump。上一次我停在 `5c60d74`，
+      #   那版生成器把 `"schema": 2` 写死、校验器 V10 只认 2、且没有许可升级工具
+      #   ⇒ 产出的 release 全是 schema 2 无 license（内容仓 mail/034 指出，是它漏了
+      #   通知我 bump，但产物落地的后果在我这边）。
+      # 本步下面的「契约自检」就是为了让**下次契约一变、CI 当场红**，而不是过了几天
+      # 才发现产物是旧形状（mail/034 §4 的建议，已采纳）。
       - name: 取 v4 契约工具（pin）
         uses: actions/checkout@v4
         with:
           repository: ArchivalEra/Octave-Extra-Content
-          ref: 5c60d7435bf7d3ffb0328d6a7669b77b0f9d98bd
+          ref: 9e274a3f7dc5aa78abbedf25ebf73d823c7d3c89    # 2026-11-02
           path: .contract-tools
 
       - name: 工具自证（拿工具的人先证明工具是活的）
         run: |
           python3 .contract-tools/tools/make-manifest-v4.py --selftest
           python3 .contract-tools/tools/check-release-v4.py --selftest
+          python3 .contract-tools/tools/upgrade-manifest-license.py --selftest
+
+      # ★ 契约自检（mail/034 §4 采纳）：断言"生成器产出的 schema"就是我们要的。
+      #   契约一升级（生成器改产别的 schema），这里立刻红 —— 而不是等几天后
+      #   看到 release 是旧形状。**这是 pin 这个决定的自检器。**
+      - name: 契约自检（产出 shape 必须符合本仓预期）
+        run: |
+          set -eu
+          WANT_SCHEMA=2       # 生成器产出的形状（许可由下一步单独升到 3）
+          WANT_FINAL=3        # 最终发布形状（schema 3 + license）
+          TMPD=$(mktemp -d)
+          echo "W" > "$TMPD/a.wasm"
+          python3 .contract-tools/tools/make-manifest-v4.py --out "$TMPD/dist" \
+            --id "selftest/contract" --product "p:file:$TMPD" >/dev/null
+          GOT=$(python3 -c "import json,sys;print(json.load(open('$TMPD/dist/manifest.json'))['schema'])")
+          if [ "$GOT" != "$WANT_SCHEMA" ]; then
+            echo "::error::生成器产出的 schema=$GOT，本仓预期 $WANT_SCHEMA —— 契约变了，请读上游变更后 bump 本 workflow"
+            exit 1
+          fi
+          # 许可升级这一步必须存在（否则最终形状做不到 WANT_FINAL）
+          if [ ! -f .contract-tools/tools/upgrade-manifest-license.py ]; then
+            echo "::error::契约工具没有 upgrade-manifest-license.py ⇒ 做不出 schema $WANT_FINAL"
+            exit 1
+          fi
+          echo "契约自检通过：生成器产 schema $GOT，许可升级工具在场，最终目标 $WANT_FINAL"
 
       # ③ 造 manifest + 分片
       - name: 造 manifest（${{ inputs.product }}）
@@ -100,6 +132,68 @@ jobs:
               --product "msl:file:${{ github.workspace }}/assets/msl/msl-4.1.0-maint.om.zip"
           fi
           echo "out=$OUT" >> "$GITHUB_OUTPUT"
+
+      # ③b 许可升级（内容仓 mail/034 §2.2：生成器**只产 schema 2**，许可是独立一步 ——
+      #    维护方 2026-11-01 裁定「保持两步」，理由：职责单一 / 失败隔离 / 换许可证不重算字节）。
+      #    ★ 这一步**只改 schema 与 license 两项**，字节身份一字节都不动；
+      #      `check_invariants` 逐字比对 id/entries/chunks 的 bytes+sha —— 它红了就是
+      #      "有人动了不该动的字段"，必须停，不是重试。
+      - name: 升 schema 3 + 写 license
+        run: |
+          set -eu
+          OUT="${{ steps.make.outputs.out }}"
+          # 许可证是**法务事实**，由本仓定（不是内容仓替我们决定）：
+          #   engine（本仓编译产物）→ AGPL-3.0-or-later，指本仓 LICENSE
+          #   msl（上游 Modelica 标准库） → BSD-3-Clause，指上游 LICENSE
+          if [ "${{ inputs.product }}" = "engine" ]; then
+            LIC_ID="AGPL-3.0-or-later"
+            LIC_URL="https://github.com/ArchivalEra/OpenModelica-Full-Wasm/blob/master/LICENSE"
+          else
+            LIC_ID="BSD-3-Clause"
+            LIC_URL="https://github.com/modelica/ModelicaStandardLibrary/blob/master/LICENSE"
+          fi
+          export LIC_ID LIC_URL
+          python3 - "$OUT/manifest.json" <<'PY'
+          import importlib.util, json, os, sys
+
+          spec = importlib.util.spec_from_file_location(
+              "u", ".contract-tools/tools/upgrade-manifest-license.py")
+          u = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(u)
+
+          path = sys.argv[1]
+          old = json.load(open(path, encoding="utf-8"))
+          new = u.upgrade(old, (os.environ["LIC_ID"], os.environ["LIC_URL"]))
+          if not u.check_invariants(old, new):
+              sys.exit("FATAL: 升级改了字节身份（id/entries/chunks 的 bytes 或 sha 变了）"
+                       " —— 这不是 schema 升级该发生的事")
+          with open(path, "w", encoding="utf-8") as fh:
+              json.dump(new, fh, ensure_ascii=False, indent=1)
+          print("升到 schema", new.get("schema"), "| license:", new.get("license"))
+          PY
+
+      # ③c 发布形状断言：最终出去的 manifest 必须是我们说的那个形状
+      #     （防止"升级步骤漏跑/跑错顺序"这种静默失败 —— 与契约自检同族）
+      - name: 发布形状断言（schema 3 + license 必填）
+        run: |
+          set -eu
+          python3 - "${{ steps.make.outputs.out }}/manifest.json" "${{ inputs.product }}" <<'PY'
+          import json, sys
+          man = json.load(open(sys.argv[1], encoding="utf-8"))
+          product = sys.argv[2]
+          bad = []
+          if man.get("schema") != 3:
+              bad.append("schema=%r，发布形状必须是 3" % man.get("schema"))
+          lic = man.get("license")
+          if not isinstance(lic, dict) or not lic.get("id") or not lic.get("url"):
+              bad.append("license 缺失或不是 {id,url}")
+          if bad:
+              print("发布形状断言失败：")
+              for b in bad:
+                  print("  ·", b)
+              sys.exit(1)
+          print("发布形状 OK：schema=3 license=%s (%s)" % (lic["id"], product))
+          PY
 
       # ④ 造完立刻校验（逐块 bytes+sha 对盘）
       - name: 校验 manifest（逐块对盘）

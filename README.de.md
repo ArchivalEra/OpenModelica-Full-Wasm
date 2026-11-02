@@ -83,6 +83,8 @@ Jede Anforderung hat ein wiederholbares Abnahmekriterium, alles aktuell grün (E
 | GH-Issue #1 (GitRoll 134 Befunde) | `gh issue view 1` | unsere 39 **alle** erledigt: 2 echte Bugs + tote Variablen + Komplexität nach Zuständigkeit zerlegt + Vertragsliterale als Konstanten |
 | v4-Release Ende-zu-Ende (Engine 3 Codecs / MSL) | `sh test/browser/run-accept-release-v4.sh <BASE> zstd|gzip|identity` | je 27/0; MSL 12/0 |
 | Release über CI (Bytes im Repo) | `.github/workflows/release.yml` (workflow_dispatch) | Bytes↔Ledger-Abgleich → Manifest → Blockprüfung → Upload |
+| Manifest-Form (Schema 3) | Schritt „发布形状断言“ in `.github/workflows/release.yml` | Schema 3 + `license{id,url}`; Vertragsänderung ⇒ CI sofort rot |
+| Workflow-Syntaxgate (bash -n je run-Block) | `python3 build/113/check-workflows.py` | jeder run-Block parst (YAML gültig ≠ Shell gültig) |
 | Online-Release-Prüfung (Plattform-Digest) | `python3 build/113/check-online-digest.py --repo <r> --tag <t> --dist <dir>` | Engine 55/55, MSL 5/5 blockweise gleich |
 
 - Artefakt: Web-Variante 74,6 MB (nach `-Oz`, sha im Ledger `omc_web_wasm_sha`); kein COI nötig (0 Atomar-Befehle / 0 Thread-Imports, ein gewöhnlicher http.server genügt).
