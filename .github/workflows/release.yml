@@ -194,8 +194,6 @@ jobs:
               sys.exit(1)
           print("发布形状 OK：schema=3 license=%s (%s)" % (lic["id"], product))
           PY
-          fi
-          echo "out=$OUT" >> "$GITHUB_OUTPUT"
 
       # ④ 造完立刻校验（逐块 bytes+sha 对盘）
       - name: 校验 manifest（逐块对盘）

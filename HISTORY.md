@@ -681,6 +681,37 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.ho mail/034：schema 2 的根因是我的 pin 旧了（契约升级 + 许可两步）（2026-11-02）
+
+- **信 034 的三条断言我逐条核实，全部成立**：
+  ① 我 pin 的 `5c60d74` 生成器**写死 `"schema": 2`**（第 291 行）；
+  ② 那版校验器 V10 **只认 `== 2`**；
+  ③ 那版**没有** `upgrade-manifest-license.py`（11-02 才有）。
+  ⇒ 我按当时的工具做，得到 schema 2 无 license 是**唯一可能的结果**（信说"这是我的漏，
+  不是你忘的"——归属我认，但产物落地的后果在我这边，所以我照做）。
+- **做了三件事**：
+  1. **bump pin** 到 `9e274a3`（不是信里给的 `2cf8362` —— 我取当前实测 HEAD，且
+     三个工具自证全过 43/37/25 与信 §5 预告一致）；
+  2. **加许可升级步**（信 §2.2 明说生成器**至今只产 schema 2**，许可是独立一步，
+     维护方裁定「保持两步」）——只改 `schema`/`license` 两项，`check_invariants`
+     逐字比对 id/entries/chunks 的 bytes+sha，**红了就停不是重试**；
+  3. **加契约自检**（信 §4 的建议，我采纳）：断言"生成器产出的 schema == 本仓预期"，
+     契约一升级 CI **当场红**，而不是像这次过了两天才发现产物是旧形状。
+     另加「发布形状断言」（最终出去的 manifest 必须 schema 3 + license{id,url}）。
+- **许可证是本仓的法务事实，不是内容仓替我们定**：
+  engine → `AGPL-3.0-or-later`（本仓 `LICENSE`）；msl → `BSD-3-Clause`（上游 MSL LICENSE）。
+- **本地先验两条路径**（不直接推 CI 试）：engine `272 PASS / 0 FAIL`、MSL `47 PASS / 0 FAIL`，
+  V10/V11 全绿，且字节身份未变。
+- **★ 我在 workflow 里犯了一个只有 CI 才能发现的错**：插入新步骤时替换锚点匹配错，
+  把上一步的 `fi` 与 `echo out=` **甩到了末尾**。**YAML 完全合法、`yaml.safe_load` 通过**，
+  但跑到那步才报 `syntax error near unexpected token 'fi'`。
+  ⇒ 新增闸门 `build/113/check-workflows.py`（**6 自证**）：把每个 `run:` 块抽出来跑
+  `bash -n`（只解析不执行）+ `${{ }}` 配对数 + 空 job/目录零值守卫。
+  **并用修复前的版本反向验过它真能抓**（连报错行号都对得上）。
+  **教训成文：YAML 有效性 ≠ shell 有效性。**
+- **旧 release 不动**（信 §3：release 不可变是地基，catalogue 已自动排除）。
+  schema 3 只影响**下一个 tag**。
+
 ## 5.hn release 重写为**CI 产出**（用户点令：绝对要走 action）（2026-11-01）
 
 - **为什么推翻**：上一版 release 是我**本地跑脚本 + `gh release upload` 手传**的。问题不在慢，

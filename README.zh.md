@@ -84,6 +84,7 @@ wasm32              → 产物 wasm32，只编 wasm32
 | v4 release 端到端（引擎 3 编码 / MSL） | `sh test/browser/run-accept-release-v4.sh <BASE> zstd|gzip|identity` | 各 27/0；MSL 12/0 |
 | 发布走 CI（字节入库） | `.github/workflows/release.yml`（workflow_dispatch） | 入库字节 ↔ 台账对账 → 造 manifest → 逐块校验 → 上传 |
 | release manifest 形状（schema 3） | `.github/workflows/release.yml` 的「发布形状断言」步 | schema 3 + `license{id,url}`；契约一变 CI 当场红 |
+| workflow 语法闸门（run 块 bash -n） | `python3 build/113/check-workflows.py` | 每个 run 块解析通过（YAML 合法 ≠ shell 合法） |
 | 线上 release 核验（平台 digest） | `python3 build/113/check-online-digest.py --repo <r> --tag <t> --dist <dir>` | 引擎 55/55、MSL 5/5 逐块一致 |
 
 - 产物：web 档 74.6 MB（`-Oz` 后，sha 见台账 `omc_web_wasm_sha`）；无 COI 依赖（0 原子指令 / 0 线程导入，普通 http.server 就能服务）。
