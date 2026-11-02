@@ -86,6 +86,7 @@ Jede Anforderung hat ein wiederholbares Abnahmekriterium, alles aktuell grün (E
 | Manifest-Form (Schema 3) | Schritt „发布形状断言“ in `.github/workflows/release.yml` | Schema 3 + `license{id,url}`; Vertragsänderung ⇒ CI sofort rot |
 | Workflow-Syntaxgate (bash -n je run-Block) | `python3 build/113/check-workflows.py` | jeder run-Block parst (YAML gültig ≠ Shell gültig) |
 | Release-Form (aktuell online) | `gh release view <tag> --json assets` + manifest.json laden | Schema 3 + Lizenz (Engine AGPL / MSL BSD-3) |
+| Vertragsabonnement | `Static-Contract/site/sources.json` + mail/028-omc | Aufnahmeantrag gestellt (kind=engine) + Benachrichtigungsvorschlag |
 | Online-Release-Prüfung (Plattform-Digest) | `python3 build/113/check-online-digest.py --repo <r> --tag <t> --dist <dir>` | Engine 55/55, MSL 5/5 blockweise gleich |
 
 - Artefakt: Web-Variante 74,6 MB (nach `-Oz`, sha im Ledger `omc_web_wasm_sha`); kein COI nötig (0 Atomar-Befehle / 0 Thread-Imports, ein gewöhnlicher http.server genügt).
