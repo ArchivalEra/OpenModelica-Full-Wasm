@@ -44,6 +44,7 @@
 
 # ── 事实系统（vendored Einfacht 机制层 + 本仓数据层）──────────────────────────
 !reflect-hooks/*
+!PRINCIPLES.md      # ★ 本仓接受套件原则纪律的声明（AUTO:RULES 机器块；逐提交复跑）
 !Einfacht.env
 # ★ 本仓口径的旋钮载体（2026-11-07 起住仓根）：夹具复制 reflect-hooks/ 时不再带走本仓数据
 !zreflect/*.py
