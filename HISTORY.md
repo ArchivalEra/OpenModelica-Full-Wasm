@@ -681,6 +681,41 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.hs Einfacht 新版接入（+141 提交：全 Python 化 / i18n / harness）（2026-11-07）
+
+- **用户点令**：「额叶切除手术，新版 Einfacht 与你在用的这版完全不兼容的样子，小心」。
+  上游 `6e4e6e8` → HEAD（`b815cd1`）差 **141 个提交**，结构面大改：
+  4 个 shell 减到 1 个（**全 Python 化**：`install.sh` → `install.py`、自证入口统一 `harness.py`）、
+  新增 `lang/` 三语消息包（`M()` 载体）、`check_i18n`（零语言制度可判定）、
+  `check_lint`/`check_snapshots`/`criteria.py`/`machine.py`/`next.py`/`doc.py`、
+  钩子改薄壳 `gate.py`（**不抢钩子座位**，`--chain` 链式接入）。
+- **三个接入点逐个核实后才动手**：`REFLECT_MEASURE_MODULE`（仍在，但"配了却用不了"
+  从静默回落改成 **FATAL**——"配置事故必须响"）、`REFLECT_LOCKS`（仍在）、
+  `einfacht-env.sh` 加载顺序不变（钩子目录 → 仓根）。
+- **适配四件**：
+  1. `measure_openmodelica.py`：**`MODULE = module_meta(…)` 声明移除** —— 上游
+     `4ad697d` 定案 `measure_*.py` 是**使用方数据模块**，不进平台名册（用户照 README
+     写模块被 `undeclared_module` 拦是"接进真实项目的死路"）；
+  2. 同文件 5 处 `subprocess.run` 补 `encoding="utf-8"` —— 新版常驻判据
+     （上游"第五次同一个坑"做成判据，`registry --gates` 当场点名我的 5 处）；
+  3. **`Einfacht.env` 从 `reflect-hooks/` 迁到仓根** —— harness 的跨仓夹具复制
+     `reflect-hooks/` 时会把它带走，夹具顶着本仓的 `REFLECT_DOCS` 跑 ⇒ 三门齐红。
+     载体住仓根后夹具拿到的是中性默认（这条是本仓数据污染机制目录的结构性修复）；
+  4. **doctor 启用**：新版 `off_reason_stale` 判据指出旧声明"本仓没有 doctor.json"
+     在我仓是**谎言**（文件就在根上，需求 B 起就在用）⇒ `REFLECT_DOCTOR` 显式配 +
+     声明行 off 理由改写成真话（⚠️ 理由里不能出现**任何存在的文件名 token**，
+     连"见 Einfacht.env"都会被判失效——判据是 AST 级找文件名，不认上下文）。
+- **踩回一个本仓记过两次的坑**：`.gitignore` 的 `!Einfacht.env` 行尾写 `# 注释`
+  ⇒ 值被并进规则 ⇒ 白名单拒。**注释只能单独成行**——这条在本仓 HISTORY 出现过两次，
+  这次是第三次（用户说"第五次同一个坑"在什么仓都成立）。
+- **新版 harness 实跑**：`sh gates-selftest.sh` **rc=0 全绿**（发现式跑全闸门 + 零语言 +
+  lint + 跨仓夹具 bootstrap）。`registry --run commit` = ran 9 / off 7 / failed 0。
+  新黑名单判据（扫全部 `REFLECT_DOCS`）顺手抓出三语 README 里两处台账值手抄
+  （`325 B` / `17 PASS`）⇒ 改键引用。
+- **uninstall 留档**：旧 `install.sh` 已删；我的钩子用 `.githooks/` 自管（`core.hooksPath`），
+  `install.py` 的链式接法这次不切（它管 `.git/hooks/`，我管 `.githooks/`，互不干扰）——
+  但 pre-commit/pre-push 薄壳已同步（逻辑全在 `gate.py`，外壳零文案）。
+
 ## 5.hr GitRoll 第二轮（139 条）：58 条自有按 A/B/C 全部处置（2026-11-07）
 
 - **数据**：issue #1 新评论（第二轮扫描 `dN1nBZmWdrsDe1gx7SPa`）——139 条明细，
