@@ -172,11 +172,16 @@
       if (!ctx.omc || !ctx.writeFile) throw new Error('OmcBridge.serve: 需要 omc 与 writeFile');
       this.stop();
       const interval = Math.max(10, opts.intervalMs || 50);
-      // 应答文件：确保存在（否则 .m 侧每次都要判 exist 分支）
-      // ⚠️ 这里**故意吞异常**（GitRoll #67 问"handle or don't catch"）：`exists` 探针与
-      //   首次 writeFile 都可能因宿主 FS 已有该路径而抛，而那正是"已存在"这个**想要的**
-      //   结果。真正的失败会在下面的轮询里表现为"请求永不应答"，由调用方超时明说 ——
-      //   不在这里编一个假的成功。
+      await this._ensureResFile(opts, ctx);
+      this._startPolling(opts, ctx, interval);
+      return this;
+    },
+    // 应答文件：确保存在（否则 .m 侧每次都要判 exist 分支）
+    // ⚠️ 这里**故意吞异常**（GitRoll #67 问"handle or don't catch"）：`exists` 探针与
+    //   首次 writeFile 都可能因宿主 FS 已有该路径而抛，而那正是"已存在"这个**想要的**
+    //   结果。真正的失败会在轮询里表现为"请求永不应答"，由调用方超时明说 ——
+    //   不在这里编一个假的成功。
+    async _ensureResFile(opts, ctx) {
       try {
         if (!opts.exists || !(await opts.exists(RES))) {
           await ctx.writeFile(RES, new TextEncoder().encode(''));
@@ -184,32 +189,39 @@
       } catch (e) {
         /* 已存在 ⇒ 目标状态已达成，不是错误（理由见上） */
       }
+    },
+    _startPolling(opts, ctx, interval) {
       let busy = false;
       this._timer = setInterval(async () => {
         if (busy) return;
         busy = true;
         try {
-          let txt = '';
-          try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; } // 请求文件还不存在 = 本协议的常态（轮询），不是错误
-          if (txt?.length) {
-            // 读走并清空（同族协议：drain）
-            await ctx.writeFile(REQ, new TextEncoder().encode(''));
-            const lines = txt.split('\n').filter((l) => l.length);
-            let outLines = '';
-            try { outLines = (await ctx.readFile(RES)) || ''; } catch (e) { outLines = ''; } // 同上：应答文件缺 = 常态
-            for (const ln of lines) {
-              const q = this.parseReq(ln);
-              if (!q) continue;
-              let res;
-              try { res = await dispatch(q.command, ctx); }
-              catch (e) { res = { ok: false, payload: 'bridge 异常：' + String(e).slice(0, 300) }; }
-              outLines += `${q.seq}\t${res.ok ? 'ok' : 'err'}\t${esc(res.payload || '')}\n`;
-            }
-            await ctx.writeFile(RES, new TextEncoder().encode(outLines));
-          }
-        } finally { busy = false; }
+          await this._drainOnce(ctx);
+        } finally {
+          busy = false;
+        }
       }, interval);
-      return this;
+    },
+    // 一轮：读请求 → 逐行 dispatch → 应答。三个"文件还不存在"都是**本协议的常态**
+    // （轮询 = "还没有"），吞掉不是吞错误。
+    async _drainOnce(ctx) {
+      let txt = '';
+      try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; } // 请求文件缺 = 常态
+      if (!txt?.length) return;
+      // 读走并清空（同族协议：drain）
+      await ctx.writeFile(REQ, new TextEncoder().encode(''));
+      const lines = txt.split('\n').filter((l) => l.length);
+      let outLines = '';
+      try { outLines = (await ctx.readFile(RES)) || ''; } catch (e) { outLines = ''; } // 应答文件缺 = 常态
+      for (const ln of lines) {
+        const q = this.parseReq(ln);
+        if (!q) continue;
+        let res;
+        try { res = await dispatch(q.command, ctx); }
+        catch (e) { res = { ok: false, payload: 'bridge 异常：' + String(e).slice(0, 300) }; }
+        outLines += `${q.seq}\t${res.ok ? 'ok' : 'err'}\t${esc(res.payload || '')}\n`;
+      }
+      await ctx.writeFile(RES, new TextEncoder().encode(outLines));
     },
     stop() { if (this._timer) { clearInterval(this._timer); this._timer = null; } },
   };

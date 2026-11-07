@@ -33,9 +33,11 @@ LEDGER = os.environ.get("REFLECT_FACTS") or os.path.join(REPO, "build", "FACTS.j
 
 # 文件 → (bytes 台账键, sha256 台账键)。**四件都要**：只发 wasm 的 release 拿到手跑不起来
 # （JS glue 是加载器，缺它 wasm 就是一坨没人调用的字节 —— 本仓「能取到 ≠ 能用了」）。
+HOST_WASM = "OpenModelicaCompiler_bg.wasm"     # 主产物名（夹具与判据共用一个产地）
+
 ENTRIES = {
     "engine": (
-        ("OpenModelicaCompiler_bg.wasm", "omc_web_wasm_bytes", "omc_web_wasm_sha"),
+        (HOST_WASM, "omc_web_wasm_bytes", "omc_web_wasm_sha"),
         ("OpenModelicaCompiler.js", "omc_web_js_bytes", "omc_web_js_sha"),
         # 两份 d.ts 台账里没有独立键 ⇒ 只校验"存在且非空"，理由写在下面 _check_entry
         ("OpenModelicaCompiler.d.ts", None, None),
@@ -85,30 +87,42 @@ def _check_entry(assets_dir, facts, name, bytes_key, sha_key, site_dir):
     size = os.path.getsize(path)
     if size == 0:
         return ["空文件：%s（零值守卫：0 字节不是通过）" % name]
-    probs = []
     got_sha = _sha(path)
-    if bytes_key:
-        want = _ledger_value(facts, bytes_key)
-        if want is None:
-            probs.append("台账缺键 %s（无法对账 ⇒ 不当通过）" % bytes_key)
-        elif int(want) != size:
-            probs.append("%s bytes 不符：入库 %d vs 台账 %s（%s）" % (name, size, want, bytes_key))
-    if sha_key:
-        want = _ledger_value(facts, sha_key)
-        if want is None:
-            probs.append("台账缺键 %s（无法对账 ⇒ 不当通过）" % sha_key)
-        elif str(want) != got_sha:
-            probs.append("%s sha256 不符：入库 %s… vs 台账 %s…（%s）"
-                         % (name, got_sha[:12], str(want)[:12], sha_key))
-    # 两份 .d.ts 台账没有独立键 ⇒ 至少要求"非空 + 与站点副本一致"（给了 site 时）
-    if site_dir and not sha_key:
-        sp = os.path.join(site_dir, name)
-        if os.path.isfile(sp):
-            if _sha(sp) != got_sha:
-                probs.append("%s 与站点副本不一致（入库 ≠ 站点）" % name)
-        else:
-            probs.append("站点副本缺 %s（--site 给了就必须齐）" % name)
+    probs = _check_against_ledger(facts, name, size, got_sha, bytes_key, sha_key)
+    if not sha_key:
+        # 两份 .d.ts 台账没有独立键 ⇒ 至少要求"与站点副本一致"（给了 --site 时）
+        probs += _check_site_copy(site_dir, name, got_sha)
     return probs
+
+
+def _check_against_ledger(facts, name, size, got_sha, bytes_key, sha_key):
+    """有台账键的字段逐字对账；键缺了报"无法对账"，不假装通过。"""
+    probs = []
+    for key, got, cmp_ in (
+        (bytes_key, size, lambda w: int(w) != got),
+        (sha_key, got_sha, lambda w: str(w) != got),
+    ):
+        if not key:
+            continue
+        want = _ledger_value(facts, key)
+        if want is None:
+            probs.append("台账缺键 %s（无法对账 ⇒ 不当通过）" % key)
+        elif cmp_(want):
+            probs.append("%s 台账键 %s 不符：入库 %s… vs 台账 %s…"
+                         % (name, key, str(got)[:12], str(want)[:12]))
+    return probs
+
+
+def _check_site_copy(site_dir, name, got_sha):
+    """两份 .d.ts 台账没有独立键 ⇒ 至少要求"与站点副本一致"（给了 --site 时）。"""
+    if not site_dir:
+        return []
+    sp = os.path.join(site_dir, name)
+    if not os.path.isfile(sp):
+        return ["站点副本缺 %s（--site 给了就必须齐）" % name]
+    if _sha(sp) != got_sha:
+        return ["%s 与站点副本不一致（入库 ≠ 站点）" % name]
+    return []
 
 
 def selftest():
@@ -143,14 +157,14 @@ def selftest():
         # 该报的必须报
         bad_facts = dict(facts)
         bad_facts["omc_web_wasm_sha"] = {"value": "0" * 64}
-        chk("★ sha 不符 ⇒ 必须报", any("sha256 不符" in x for x in check(d, bad_facts)))
+        chk("★ sha 不符 ⇒ 必须报", any("sha" in x and "不符" in x for x in check(d, bad_facts)))
         bad_size = dict(facts)
         bad_size["omc_web_wasm_bytes"] = {"value": 99}
-        chk("★ bytes 不符 ⇒ 必须报", any("bytes 不符" in x for x in check(d, bad_size)))
+        chk("★ bytes 不符 ⇒ 必须报", any("bytes" in x and "不符" in x for x in check(d, bad_size)))
 
         # 缺件 / 空件
         partial = tempfile.mkdtemp()
-        with open(os.path.join(partial, "OpenModelicaCompiler_bg.wasm"), "wb") as fh:
+        with open(os.path.join(partial, HOST_WASM), "wb") as fh:
             fh.write(b"W")
         chk("★ 缺件 ⇒ 必须报", any("缺件" in x for x in check(partial, facts)))
         empty = tempfile.mkdtemp()
@@ -164,7 +178,6 @@ def selftest():
         # product 分支：未知形态必须报（不许"没匹配也当通过"）；msl 形态只认那一件
         chk("★ 未知 product ⇒ 必须报", any("未知 product" in x for x in check(d, facts, product="bogus")))
         chk("★ msl 形态在 engine 目录上 ⇒ 必须报缺件",
-            any("缺件" in x for x in check(d, facts, product="msl")) if False else
             any("缺件" in x for x in check(d, {"msl_asset_bytes": {"value": 1},
                                               "msl_asset_sha": {"value": "0" * 64}}, product="msl")))
 

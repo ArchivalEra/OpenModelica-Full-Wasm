@@ -46,47 +46,63 @@ def _unbalanced_expr(script):
 
 
 def check_workflows(dwf, run_bash=True):
-    """返回问题列表（空即全过）。"""
+    """返回问题列表（空即全过）。
+
+    三步：目录前置检查 → 逐文件 YAML/形状 → 逐 run 块 bash -n。
+    """
     probs = []
     if not os.path.isdir(dwf):
         return ["workflow 目录不存在：%s（环境问题）" % dwf]
     files = sorted(f for f in os.listdir(dwf) if f.endswith((".yml", ".yaml")))
     if not files:
         return ["workflow 目录里没有任何 yml（零值守卫：空目录不是通过）"]
-
     try:
         import yaml
     except ImportError:
         return ["缺 pyyaml（环境问题，不是通过）"]
-
     for fn in files:
-        path = os.path.join(dwf, fn)
-        with open(path, encoding="utf-8") as fh:
-            text = fh.read()
-        try:
-            doc = yaml.safe_load(text)
-        except Exception as e:
-            probs.append("%s: YAML 解析失败：%r" % (fn, e))
-            continue
-        if not isinstance(doc, dict) or not doc.get("jobs"):
-            probs.append("%s: 没有 jobs（空 workflow 不是通过）" % fn)
-            continue
+        probs += _check_one_workflow(os.path.join(dwf, fn), fn, run_bash)
+    return probs
 
-        for job_name, job in (doc.get("jobs") or {}).items():
-            steps = (job or {}).get("steps") or []
-            if not steps:
-                probs.append("%s/%s: 没有 steps（零值守卫）" % (fn, job_name))
-            for i, st in enumerate(steps):
-                script = st.get("run")
-                if script is None:
-                    continue        # uses: 步骤没有 run
-                label = "%s/%s/step#%d(%s)" % (fn, job_name, i, st.get("name", "?"))
-                if _unbalanced_expr(script):
-                    probs.append("%s: `${{ }}` 配对数不等" % label)
-                if run_bash:
-                    ok, err = _bash_syntax_ok(script)
-                    if not ok:
-                        probs.append("%s: bash -n 失败：%s" % (label, err))
+
+def _check_one_workflow(path, fn, run_bash):
+    """单文件：YAML 可解析 → 有 jobs → 每个 job 有 steps → 每个 run 块过 bash -n。"""
+    probs = []
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    try:
+        doc = yaml_safe(text)
+    except Exception as e:
+        return ["%s: YAML 解析失败：%r" % (fn, e)]
+    if not isinstance(doc, dict) or not doc.get("jobs"):
+        return ["%s: 没有 jobs（空 workflow 不是通过）" % fn]
+    for job_name, job in (doc.get("jobs") or {}).items():
+        steps = (job or {}).get("steps") or []
+        if not steps:
+            probs.append("%s/%s: 没有 steps（零值守卫）" % (fn, job_name))
+        for i, st in enumerate(steps):
+            probs += _check_step("%s/%s/step#%d(%s)" % (fn, job_name, i, st.get("name", "?")),
+                                 st, run_bash)
+    return probs
+
+
+def yaml_safe(text):
+    import yaml
+    return yaml.safe_load(text)
+
+
+def _check_step(label, step, run_bash):
+    """单个 step：表达式配对 + （可选）bash -n。"""
+    script = step.get("run")
+    if script is None:
+        return []                     # uses: 步骤没有 run
+    probs = []
+    if _unbalanced_expr(script):
+        probs.append("%s: `${{ }}` 配对数不等" % label)
+    if run_bash:
+        ok, err = _bash_syntax_ok(script)
+        if not ok:
+            probs.append("%s: bash -n 失败：%s" % (label, err))
     return probs
 
 

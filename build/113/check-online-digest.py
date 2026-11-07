@@ -56,16 +56,33 @@ def _sha(path, chunk=1 << 20):
 
 
 def check(repo, tag, dist_dir):
-    """返回问题列表（空即一致）。"""
-    probs = []
+    """返回问题列表（空即一致）。四步各自独立：本地期望 / 线上实况 / 集合差 / 逐件对。"""
+    man, probs = _load_local_manifest(dist_dir)
+    if man is None:
+        return probs
+    want = _local_expected(dist_dir, man, probs)
+    try:
+        got = {a["name"]: a for a in _gh_assets(repo, tag)}
+    except Exception as e:
+        return ["取线上 asset 列表失败：%r" % e]
+    probs += _compare_names(want, got)
+    probs += _compare_each(want, got)
+    return probs
+
+
+def _load_local_manifest(dist_dir):
+    """读本地 manifest；不在盘 ⇒ (None, [问题])。"""
     man_path = os.path.join(dist_dir, "manifest.json")
     if not os.path.isfile(man_path):
-        return ["本地 dist 缺 manifest.json（%s）" % dist_dir]
+        return None, ["本地 dist 缺 manifest.json（%s）" % dist_dir]
     with open(man_path, encoding="utf-8") as fh:
-        man = json.load(fh)
+        return json.load(fh), []
 
-    want = {}                      # name → (sha256, bytes)
-    want["manifest.json"] = (_sha(man_path), os.path.getsize(man_path))
+
+def _local_expected(dist_dir, man, probs):
+    """本地 dist ⇒ 应有 asset 表（name → (sha256, bytes)）；缺分片就地记问题。"""
+    want = {"manifest.json": (_sha(os.path.join(dist_dir, "manifest.json")),
+                              os.path.getsize(os.path.join(dist_dir, "manifest.json")))}
     for e in man.get("entries", []):
         for v in e.get("variants", []):
             for c in v.get("chunks", []):
@@ -74,23 +91,24 @@ def check(repo, tag, dist_dir):
                     probs.append("本地缺分片：%s" % c["file"])
                     continue
                 want[c["file"]] = (c["sha256"], os.path.getsize(local))
+    return want
 
-    try:
-        got = {a["name"]: a for a in _gh_assets(repo, tag)}
-    except Exception as e:
-        return ["取线上 asset 列表失败：%r" % e]
 
-    # ① 数量
+def _compare_names(want, got):
+    """数量 + 名字集合差（多/少都报）。"""
+    probs = []
     if len(got) != len(want):
         probs.append("asset 数不符：线上 %d vs 应有 %d" % (len(got), len(want)))
-
-    # ② 名字集合（多/少都报）
     for n in sorted(set(want) - set(got)):
         probs.append("线上缺 asset：%s" % n)
     for n in sorted(set(got) - set(want)):
-        probs.append("线上多出 asset（manifes 里没有）：%s" % n)
+        probs.append("线上多出 asset（manifest 里没有）：%s" % n)
+    return probs
 
-    # ③④ 逐块 digest + size
+
+def _compare_each(want, got):
+    """逐件 digest + size + 名字扁平。"""
+    probs = []
     for n, (sha_want, bytes_want) in sorted(want.items()):
         a = got.get(n)
         if not a:
@@ -100,16 +118,10 @@ def check(repo, tag, dist_dir):
                          % (n, a["digest"][:12], sha_want[:12]))
         if bytes_want is not None and a["size"] != bytes_want:
             probs.append("%s size 不符：线上 %d vs 应有 %d" % (n, a["size"], bytes_want))
-
-    # ⑥ 扁平
     for n in got:
         if "/" in n:
             probs.append("asset 名含斜杠：%r" % n)
     return probs
-
-
-def _sha_of_bytes(b):
-    return hashlib.sha256(b).hexdigest()
 
 
 def selftest():

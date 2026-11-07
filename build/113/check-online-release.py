@@ -49,8 +49,8 @@ def fetch(url, method="GET", retries=4):
         try:
             with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
                 return r.read()
-        except (urllib.error.URLError, http.client.RemoteDisconnected, TimeoutError,
-                ConnectionResetError) as e:
+        except (urllib.error.URLError, http.client.RemoteDisconnected,
+                TimeoutError) as e:   # ConnectionResetError ⊂ OSError，URLError 已覆盖其网络路径
             last = e
             time.sleep(1.5 * (attempt + 1))
     raise last
@@ -79,86 +79,103 @@ def decode_blocks(parts, codec):
 
 
 def verify(base, src_dir=None, codecs=None, sample=0, log=print):
-    """返回问题列表（空 = 全过）。纯 urllib，无浏览器。"""
+    """返回问题列表（空 = 全过）。纯 urllib，无浏览器。
+
+    四步：清单形状 → 拉块 → 逐变体核（sha/拼接/全局）→ identity 与源产物比。
+    """
     problems = []
     base = base.rstrip("/")
     man = json.loads(fetch(base + "/manifest.json"))
+    problems += _manifest_shape(man)
 
+    def _want(v):
+        return codecs is None or v.get("codec") in codecs
+
+    got_blocks = _fetch_chunks(base, man, _want, problems)
+    for e in man.get("entries", []):
+        for v in e.get("variants", []):
+            if _want(v):
+                problems += _verify_variant(e, v, got_blocks, sample, log)
+    if src_dir:
+        problems += _compare_to_source(src_dir, man, got_blocks)
+    return problems
+
+
+def _manifest_shape(man):
+    """清单形状三件：schema / id / entries 非空。"""
+    problems = []
     if man.get("schema") != 2:
         problems.append("schema 不是 2：%r" % man.get("schema"))
     if not man.get("id"):
         problems.append("manifest 缺 id")
     if not man.get("entries"):
         problems.append("entries 为空（零值守卫）")
+    return problems
 
-    # ① 先在**线上 asset 清单**层面查（GitHub API 的结果由调用方贴进来；这里只查
-    #    取不到的 file 名——含斜杠的名字会 404，正好被②抓到）
-    def _want(v):
-        return codecs is None or v.get("codec") in codecs
 
-    all_files = [c["file"] for e in man.get("entries", [])
-                 for v in e.get("variants", []) if _want(v) for c in v.get("chunks", [])]
-
-    # ②③ 逐块：线上存在 + sha 对
-    got_blocks = {}
-    for f in all_files:
+def _fetch_chunks(base, man, want, problems):
+    """②③ 按 manifest 把要验的块都拉下来；404 记问题不中断。"""
+    got = {}
+    files = [c["file"] for e in man.get("entries", [])
+             for v in e.get("variants", []) if want(v) for c in v.get("chunks", [])]
+    for f in files:
         try:
-            b = fetch("%s/%s" % (base, f))
+            got[f] = fetch("%s/%s" % (base, f))
         except urllib.error.HTTPError as e:
             problems.append("分片取不到（HTTP %d）：%s" % (e.code, f))
+    return got
+
+
+def _verify_variant(entry, variant, got_blocks, sample, log):
+    """单个变体：逐块 sha →（非抽样时）解码拼接 → 全局 bytes/sha。"""
+    name = entry.get("name")
+    codec = variant.get("codec")
+    problems = []
+    chunks_all = variant.get("chunks", [])
+    chunks = chunks_all[:sample] if sample else chunks_all
+    parts = []
+    for c in chunks:
+        b = got_blocks.get(c.get("file"))
+        if b is None:
             continue
-        got_blocks[f] = b
+        if sha256(b) != c.get("sha256"):
+            problems.append("%s/%s 块 sha 不符：%s" % (name, codec, c.get("file")))
+        parts.append(b)
+    if sample:
+        # 抽样模式：只核 sha，不做拼接（拼接需要全部块）
+        log("%s/%s 抽样核过 %d/%d 块（未抽的不假装核过）"
+            % (name, codec, len(parts), len(chunks_all)))
+        return problems
+    if len(parts) != len(chunks_all):
+        return problems
+    try:
+        raw = decode_blocks(parts, codec)
+    except Exception as ex:
+        problems.append("%s/%s 解不开：%r" % (name, codec, ex))
+        return problems
+    if len(raw) != entry.get("bytes"):
+        problems.append("%s/%s 拼接 bytes 不符：%d vs %d"
+                        % (name, codec, len(raw), entry.get("bytes")))
+    elif sha256(raw) != entry.get("sha256"):
+        problems.append("%s/%s 拼接 sha 不符" % (name, codec))
+    elif codec == "identity":
+        got_blocks["__raw__" + name] = raw
+    return problems
 
+
+def _compare_to_source(src_dir, man, got_blocks):
+    """⑤ identity 拼接结果与源产物逐字节一致。"""
+    problems = []
     for e in man.get("entries", []):
-        name = e.get("name")
-        for v in e.get("variants", []):
-            codec = v.get("codec")
-            if not _want(v):
-                continue
-            chunks_all = v.get("chunks", [])
-            chunks = chunks_all[:sample] if sample else chunks_all
-            parts = []
-            for c in chunks:
-                b = got_blocks.get(c.get("file"))
-                if b is None:
-                    continue
-                if sha256(b) != c.get("sha256"):
-                    problems.append("%s/%s 块 sha 不符：%s" % (name, codec, c.get("file")))
-                parts.append(b)
-            if sample:
-                # 抽样模式：只核 sha，不做拼接（拼接需要全部块）
-                log("%s/%s 抽样核过 %d/%d 块（未抽的不假装核过）"
-                    % (name, codec, len(parts), len(chunks_all)))
-                continue
-            if len(parts) != len(chunks_all):
-                continue
-            # ④ 逐块解码后拼接
-            try:
-                raw = decode_blocks(parts, codec)
-            except Exception as ex:
-                problems.append("%s/%s 解不开：%r" % (name, codec, ex))
-                continue
-            if len(raw) != e.get("bytes"):
-                problems.append("%s/%s 拼接 bytes 不符：%d vs %d"
-                                % (name, codec, len(raw), e.get("bytes")))
-            elif sha256(raw) != e.get("sha256"):
-                problems.append("%s/%s 拼接 sha 不符" % (name, codec))
-            elif codec == "identity":
-                got_blocks["__raw__" + name] = raw
-
-    # ⑤ identity 与源产物逐字节一致
-    if src_dir:
-        for e in man.get("entries", []):
-            raw = got_blocks.get("__raw__" + e.get("name", ""))
-            if raw is None:
-                continue
-            base_name = os.path.basename(e["name"])
-            path = os.path.join(src_dir, base_name)
-            if not os.path.exists(path):
-                continue
-            with open(path, "rb") as fh:
-                want = fh.read()
-            if raw != want:
+        raw = got_blocks.get("__raw__" + e.get("name", ""))
+        if raw is None:
+            continue
+        base_name = os.path.basename(e["name"])
+        path = os.path.join(src_dir, base_name)
+        if not os.path.exists(path):
+            continue
+        with open(path, "rb") as fh:
+            if raw != fh.read():
                 problems.append("%s 与源产物不一致" % base_name)
     return problems
 

@@ -136,29 +136,48 @@ def _import_memory_arch(b, pos, end):
     if n_imp is None:
         return None
     for _ in range(n_imp):
-        for _two_names in range(2):
-            pos = _skip_name(b, pos, end)
-            if pos is None:
-                return None
-        if pos >= end:
+        pos = _skip_import_names(b, pos, end)
+        if pos is None or pos >= end:
             return None
         kind = b.data[pos]
-        pos += 1
-        if kind == KIND_FUNC:
-            _, pos = b.uleb(pos)
-        elif kind == KIND_TABLE:
-            pos += 1                                   # elemtype
-            pos, _flags = _skip_limits(b, pos)
-        elif kind == KIND_MEMORY:
-            pos, flags = _skip_limits(b, pos)
-            return _arch_from_flags(flags) if flags is not None else None
-        elif kind == KIND_GLOBAL:
-            pos += 2                                   # valtype + mut
-        else:
-            return None                                # 未知 kind ⇒ 本段放弃（不许瞎猜）
+        pos, arch = _skip_import_entry(b, pos + 1)
+        if kind == KIND_MEMORY:
+            return arch                    # memory 导入：架构就在这（或 None = 畸形）
         if pos is None:
             return None
     return None
+
+
+def _skip_import_names(b, pos, end):
+    """跳过 import 条目的两个 name（module + 字段）；越界 ⇒ None。"""
+    for _two_names in range(2):
+        pos = _skip_name(b, pos, end)
+        if pos is None:
+            return None
+    return pos
+
+
+def _skip_import_entry(b, pos):
+    """按 kind 跳过 import 条目的类型区。
+
+    返回 (新位置, 架构)。架构只有 kind=memory 时才有意义（其余为 None）；
+    未知 kind ⇒ (None, None) —— 本段放弃（不许瞎猜）。
+    """
+    if pos >= b.n:
+        return None, None
+    kind = b.data[pos - 1]
+    if kind == KIND_FUNC:
+        _, pos = b.uleb(pos)
+        return pos, None
+    if kind == KIND_TABLE:
+        pos, _flags = _skip_limits(b, pos + 1)
+        return pos, None
+    if kind == KIND_MEMORY:
+        pos, flags = _skip_limits(b, pos)
+        return pos, (_arch_from_flags(flags) if flags is not None else None)
+    if kind == KIND_GLOBAL:
+        return pos + 2, None
+    return None, None
 
 
 def _wasm_arch(path):
