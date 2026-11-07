@@ -44,9 +44,16 @@
 
 # ── 事实系统（vendored Einfacht 机制层 + 本仓数据层）──────────────────────────
 !reflect-hooks/*
+!Einfacht.env
+# ★ 本仓口径的旋钮载体（2026-11-07 起住仓根）：夹具复制 reflect-hooks/ 时不再带走本仓数据
 !zreflect/*.py
 !zreflect/measure_openmodelica.py
 !zreflect/doctor.json.example
+# ★ 新版（2026-11-07 接入）带语言包与 world 规格：lang/ 是零语言制度的消息数据面
+#   （check_i18n 扫的是 .py；json 包是 M() 的载体），world.json.example 是声明式样例
+!zreflect/lang/
+!zreflect/lang/**
+!zreflect/world.json.example
 !build/FACTS.json
 !build/retractions.json
 !questions/*

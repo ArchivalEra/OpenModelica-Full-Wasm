@@ -78,8 +78,9 @@ Jede Anforderung hat ein wiederholbares Abnahmekriterium, alles aktuell grün (E
 | E-Linien-Brücke Produktmodus (montiert) | `sh test/browser/run-omc-bridge-product.sh <URL>` | zwei Sites 9/0; ohne Brücke 0/8 |
 | Export FMU (extern gefundener Defekt, behoben) | `sh test/browser/run-export-fmu.sh` | 6 PASS / 0 FAIL |
 | Boot-Verteilung der 74-MB-Engine (drei Bandbreiten) | `sh test/browser/run-measure-omc-boot.sh <URL> 3` | 64 Mbit Median 18 s; alle drei 0 Fehler |
-| Cache-Header der Dev-Site (`no-store`→`ETag`+`no-cache`, 74,5 MB→325 B) | `python3 build/serve-coi.py --selftest` | 17 PASS / 0 fail (4 Ende-zu-Ende: echtes 304 / Gegenprobe: kein Dauer-304) |
+| Cache-Header der Dev-Site (`no-store`→`ETag`+`no-cache`, Re-Verifizierung siehe Ledger `[[omc_boot_revalidate_bytes]]`) | `python3 build/serve-coi.py --selftest` | Anzahl Selbsttests siehe Ledger `[[omc_serve_coi_selftest_pass]]` (inkl. E2E: echtes 304 / Gegenprobe: kein Dauer-304) |
 | Einfacht-Mechanikschicht (vendored) | `sh gates-selftest.sh` | auf Upstream `6e4e6e8` nachgezogen; 22 Plattform- + 20 Repo-Gates grün |
+| Einfacht-Neuversion (vollständig Python) | `sh gates-selftest.sh` + `python3 zreflect/registry.py --run commit` | Upstream `b815cd1`; Harness rc=0; Commit-Phase ran 9 / failed 0 |
 | GH-Issue #1 (GitRoll 134 Befunde) | `gh issue view 1` | unsere 39 **alle** erledigt: 2 echte Bugs + tote Variablen + Komplexität nach Zuständigkeit zerlegt + Vertragsliterale als Konstanten |
 | v4-Release Ende-zu-Ende (Engine 3 Codecs / MSL) | `sh test/browser/run-accept-release-v4.sh <BASE> zstd|gzip|identity` | je 27/0; MSL 12/0 |
 | Release über CI (Bytes im Repo) | `.github/workflows/release.yml` (workflow_dispatch) | Bytes↔Ledger-Abgleich → Manifest → Blockprüfung → Upload |
