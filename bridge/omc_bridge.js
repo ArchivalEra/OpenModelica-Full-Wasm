@@ -63,8 +63,8 @@
   // ② loadFile 必须**搬字节**：Octave 侧的路径在 omc 的 VFS 里不存在（实测
   //    wasi_path_open → -1）⇒ 从 Octave MEMFS 读出、写进 omc VFS，再 loadFile。
   async function _evalLoadFile(omc, writeFile, readFile, path) {
-    const src = readFile ? await readFile(path) : null;
-    if (!src || !src.length) return { ok: false, payload: 'Octave 侧读不到 ' + path };
+    const src = readFile ? await readFile(path) : null;   // readFile 可缺省（测试夹具）；可选链不适用于 await 调用形态
+    if (!src?.length) return { ok: false, payload: 'Octave 侧读不到 ' + path };
     omc.wasi_write_file(path, new TextEncoder().encode(src));
     return _evalOmcTrue(omc, `loadFile("${path}")`);
   }
@@ -90,7 +90,7 @@
     if (!(typeof fd === 'number' && fd >= 0)) return { ok: false, payload: 'VFS 打不开 ' + rf };
     let bytes;
     try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
-    if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
+    if (!bytes?.length) return { ok: false, payload: 'VFS 读出 0 字节' };
     await writeFile(dest, bytes);
     return { ok: true, payload: 'MAT ' + dest };
   }
@@ -140,7 +140,7 @@
     if (!readFile) return '';
     for (const cand of [`/tmp/${cls}.mo`, `/${cls}.mo`]) {
       const src = await readFile(cand);
-      if (src && src.length) return src;
+      if (src?.length) return src;
     }
     return '';
   }
@@ -149,7 +149,7 @@
     // 约定：`writeFile`/`readFile` 可以是同步也可以是返回 Promise 的（await 两种都吞）。
     const c = String(cmd);
     for (const { re, run } of COMMANDS) {
-      const m = c.match(re);
+      const m = re.exec(c);
       if (m) return run(ctx, m);
     }
     return {
@@ -191,7 +191,7 @@
         try {
           let txt = '';
           try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; }
-          if (txt && txt.length) {
+          if (txt?.length) {
             // 读走并清空（同族协议：drain）
             await ctx.writeFile(REQ, new TextEncoder().encode(''));
             const lines = txt.split('\n').filter((l) => l.length);

@@ -72,7 +72,7 @@ async function run() {
     && calls.some((c) => c === 'oct-write:/tmp/BouncingBall_res.mat'));
 
   r = await B.dispatch('simulateModel(BouncingBall, stopTime=3.0)', ctx);
-  t('⑤ simulateModel 一步到位（需求 E2 判据形态）', r.ok && /^MAT /.test(r.payload));
+  t('⑤ simulateModel 一步到位（需求 E2 判据形态）', r.ok && r.payload.startsWith('MAT '));
 
   r = await B.dispatch('bogus()', ctx);
   t('★⑥ 反向：未知命令必须拒绝（判据不是恒真）', !r.ok && /不支持的命令/.test(r.payload));
