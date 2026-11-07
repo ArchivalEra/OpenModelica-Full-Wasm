@@ -40,7 +40,7 @@ import os
 MIME_WASM = "application/wasm"
 MIME_MJS = "text/javascript"
 
-# 自证夹具的固定形状（#23/#24：同一字面量重复 4 次 ⇒ 提出来）。它们是**夹具输入**，
+# 自证夹具的固定形状（GitRoll 第1轮规则 23/24：同一字面量重复 4 次 ⇒ 提出来）。它们是**夹具输入**，
 # 不是被测对象；放一处，改一处即全改。
 FIX_WASM_PATH = "/omc/x_bg.wasm"
 FIX_ETAG = 'W/"1-2"'

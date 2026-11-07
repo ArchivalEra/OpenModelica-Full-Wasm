@@ -461,10 +461,10 @@ def _selftest():
         for i in range(n_func_imports):
             mod = b"wasi:io/streams@0.2.3"
             nm = b"f%d" % i
-            imps += bytes([len(mod)]) + mod + bytes([len(nm)]) + nm + b"\x00\x00"  # kind=func, typeidx=0
+            imps += bytes([len(mod)]) + mod + bytes([len(nm)]) + nm + b"\x00\x00"  # kind func: typeidx 0
         # memory 导入：module="env" name="memory" kind=0x02 limits
         mflags = 0x01 | (0x04 if memory64 else 0)      # has_max (+ memory64)
-        mem = b"\x03env\x06memory" + b"\x02" + bytes([mflags, 0x01, 0x01])  # min=1,max=1
+        mem = b"\x03env\x06memory" + b"\x02" + bytes([mflags, 0x01, 0x01])  # limits min 1 max 1
         imps += mem
         body = bytes([1 + n_func_imports]) + imps      # 导入计数（uleb 单字节）
         sec = bytes([0x02]) + bytes([len(body)]) + body

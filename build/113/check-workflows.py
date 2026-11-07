@@ -46,7 +46,7 @@ def _unbalanced_expr(script):
 
 
 def check_workflows(dwf, run_bash=True):
-    """返回问题列表（空 = 全过）。"""
+    """返回问题列表（空即全过）。"""
     probs = []
     if not os.path.isdir(dwf):
         return ["workflow 目录不存在：%s（环境问题）" % dwf]

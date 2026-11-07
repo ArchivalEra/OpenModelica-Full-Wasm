@@ -190,13 +190,13 @@
         busy = true;
         try {
           let txt = '';
-          try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; }
+          try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; } // 请求文件还不存在 = 本协议的常态（轮询），不是错误
           if (txt?.length) {
             // 读走并清空（同族协议：drain）
             await ctx.writeFile(REQ, new TextEncoder().encode(''));
             const lines = txt.split('\n').filter((l) => l.length);
             let outLines = '';
-            try { outLines = (await ctx.readFile(RES)) || ''; } catch (e) { outLines = ''; }
+            try { outLines = (await ctx.readFile(RES)) || ''; } catch (e) { outLines = ''; } // 同上：应答文件缺 = 常态
             for (const ln of lines) {
               const q = this.parseReq(ln);
               if (!q) continue;

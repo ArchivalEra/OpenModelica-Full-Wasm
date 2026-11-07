@@ -56,7 +56,7 @@ def _sha(path, chunk=1 << 20):
 
 
 def check(repo, tag, dist_dir):
-    """返回问题列表（空 = 一致）。"""
+    """返回问题列表（空即一致）。"""
     probs = []
     man_path = os.path.join(dist_dir, "manifest.json")
     if not os.path.isfile(man_path):
