@@ -20,11 +20,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ledger import fact                                    # noqa: E402
-from gate import module_meta                               # noqa: E402
-
-# ★ C5：本仓数据层也必须在平台名册里声明自己，否则 registry 报 undeclared。
-#   selftest=False：它是**数据**（量什么、怎么量），机制的自证在 zreflect/ 上游那批。
-MODULE = module_meta("本仓数据层", "量本仓的产物/两线/上游 pin（数据 vs 机制分离）", selftest=False)
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 产物根（待建；与姊妹仓的 /mnt/hdd/octave-wasm-build 平级）
@@ -63,7 +58,8 @@ def measure():
     def _branches():
         try:
             out = subprocess.run(["git", "branch", "--list", "--format=%(refname:short)"],
-                                 cwd=REPO, capture_output=True, text=True, timeout=20).stdout
+                                 cwd=REPO, capture_output=True, text=True,
+                                 encoding="utf-8", timeout=20).stdout
             return sorted(b.strip() for b in out.splitlines() if b.strip())
         except Exception:
             return []
@@ -284,7 +280,8 @@ def measure():
     web_wasm2 = os.path.join(BUILD, "omc-out-web", "web", "omc", "OpenModelicaCompiler_bg.wasm")
     if _exists(web_wasm2) and os.path.exists(OBJD):
         try:
-            r = subprocess.run([OBJD, "-d", web_wasm2], capture_output=True, text=True, timeout=180)
+            r = subprocess.run([OBJD, "-d", web_wasm2], capture_output=True, text=True,
+                              encoding="utf-8", timeout=180)
             n_atomic = sum(1 for ln in r.stdout.splitlines() if "atomic." in ln)
             # 校准样本：一个含 i32.atomic.load 的 26 字节最小 wasm（0xFE 0x10 = i32.atomic.load）
             # —— 仪器必须从它数出 ≥1 条原子指令。
@@ -299,7 +296,8 @@ def measure():
                          b"\x0a\x09\x01"                                      # code: 1 body
                          b"\x07\x23\x00\x41\x00\xfc\x10\x02\x1a\x0b")        # i32.const 0; i32.atomic.load 2; drop; end
             rc_cal = subprocess.run("%s -d %s 2>/dev/null | grep -c 'atomic[.]' || true" % (OBJD, cal),
-                                    shell=True, capture_output=True, text=True, timeout=30)
+                                    shell=True, capture_output=True, text=True,
+                                    encoding="utf-8", timeout=30)
             facts["omc_web_atomic_ops"] = fact(
                 n_atomic,
                 "echo 0",                                    # 占位（replay=False 不复跑）
@@ -330,7 +328,7 @@ def measure():
                 r = subprocess.run(
                     ["python3", os.path.join(REPO, "build", "113", "check-lane-purity.py"),
                      "--lane", "wasm32", "--host", host_w] + sum((["--mod", m] for m in mods), []),
-                    capture_output=True, text=True, timeout=180)
+                    capture_output=True, text=True, encoding="utf-8", timeout=180)
                 if r.returncode == 0:
                     facts["site_wasm32_mods"] = fact(
                         len(mods), "ls %s/omc/OpenModelicaCompiler_bg.wasm >/dev/null && "
@@ -520,7 +518,8 @@ def measure():
     # 判据 = 真跑那个自证并数机器行的 PASS；跑不起来 ⇒ 不写（缺席 ≠ 0）。
     try:
         r = subprocess.run([sys.executable, os.path.join(REPO, "build", "serve-coi.py"),
-                            "--selftest"], capture_output=True, text=True, timeout=60)
+                            "--selftest"], capture_output=True, text=True,
+                           encoding="utf-8", timeout=60)
         m = re.search(r"=== *(\d+) PASS / (\d+) fail *===", r.stdout)
         if m and int(m.group(2)) == 0:
             facts["omc_serve_coi_selftest_pass"] = fact(
