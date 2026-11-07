@@ -81,6 +81,7 @@ wasm32              → 产物 wasm32，只编 wasm32
 | 开发站缓存头（`no-store`→`ETag`+`no-cache`，重下→重验见台账 `[[omc_boot_revalidate_bytes]]`） | `python3 build/serve-coi.py --selftest` | 自证条数见台账 `[[omc_serve_coi_selftest_pass]]`（含端到端：真 304 / 反向不许恒 304） |
 | Einfacht 机制层（vendored） | `sh gates-selftest.sh` | 追平上游 `6e4e6e8`；平台 22 道 + 本仓 20 道自证全绿 |
 | Einfacht 新版接入（全 Python 化） | `sh gates-selftest.sh` + `python3 zreflect/registry.py --run commit` | 上游 HEAD `b815cd1`；harness rc=0；commit 相位 ran 9 / failed 0 |
+| 套件原则纪律（PRINCIPLES.md） | `python3 zreflect/facts.py --accept-principles` | 14 条原则进台账逐提交复跑 |
 | GH issue #1（GitRoll 134 条） | `gh issue view 1` | 我方 39 条**全部**处置：2 真 bug + 死变量 + 认知复杂度按职责拆 + 契约字面量提常量 |
 | v4 release 端到端（引擎 3 编码 / MSL） | `sh test/browser/run-accept-release-v4.sh <BASE> zstd|gzip|identity` | 各 27/0；MSL 12/0 |
 | 发布走 CI（字节入库） | `.github/workflows/release.yml`（workflow_dispatch） | 入库字节 ↔ 台账对账 → 造 manifest → 逐块校验 → 上传 |

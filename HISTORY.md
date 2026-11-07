@@ -708,6 +708,16 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
 - **踩回一个本仓记过两次的坑**：`.gitignore` 的 `!Einfacht.env` 行尾写 `# 注释`
   ⇒ 值被并进规则 ⇒ 白名单拒。**注释只能单独成行**——这条在本仓 HISTORY 出现过两次，
   这次是第三次（用户说"第五次同一个坑"在什么仓都成立）。
+- **★ 接入过程发现上游真缺陷（已复现于上游仓自身）**：`registry --selftest` 的
+  `_env_hint_case` 假设进程环境没有 `REFLECT_*`，而复跑器 `run_cmd` **继承全部环境**
+  ⇒ 任何配置了 env 载体的下游，commit 相位的 `principle.falsifiable` 必红
+  （实测：上游仓自己 `REFLECT_FACTS=FACTS.json python3 zreflect/registry.py --selftest`
+  ⇒ 38→37 同款红；无载体所以上游自己从未暴露）。本仓 vendored 适配：该原则 cmd
+  改为 `env -i PATH=$PATH HOME=$HOME python3 …`（它量的是 AST，不依赖任何旋钮），
+  `--accept-principles` 刷新台账键后全绿。**待报上游**。
+- **新模型接受**：`PRINCIPLES.md` 存在 = 接受套件原则纪律（`--init` 骨架 +
+  `facts_of_rules()` 把 14 条原则写进台账逐提交复跑；`kind="principle"` 按 rc 判）。
+  本仓五条事实纪律与它同构 ⇒ 接受而不是 `REFLECT_NO_PRINCIPLES=1`。
 - **新版 harness 实跑**：`sh gates-selftest.sh` **rc=0 全绿**（发现式跑全闸门 + 零语言 +
   lint + 跨仓夹具 bootstrap）。`registry --run commit` = ran 9 / off 7 / failed 0。
   新黑名单判据（扫全部 `REFLECT_DOCS`）顺手抓出三语 README 里两处台账值手抄

@@ -85,7 +85,13 @@ RULES = (
 
     Rule("falsifiable",
          "断言要能证伪：恒真短路由 AST 扫出，命中即判 fail",
-         "python3 zreflect/registry.py --selftest"),
+         # ⚠️ 本仓适配（2026-11-07）：这条 cmd 必须在**净化环境**下跑 ——
+         # `registry --selftest` 的 `_env_hint_case` 假设进程环境没有 REFLECT_*，
+         # 而复跑器（runner.run_cmd）继承全部环境 ⇒ 钩子语境（旋钮已设）下
+         # "env_hint_fires_with_carrier" 必红（实测：上游仓设 REFLECT_FACTS 同样
+         # 38→37，是真缺陷，将报上游）。`env -i` 只保 PATH/HOME：这条判据量的是
+         # AST，不依赖任何旋钮。
+         "env -i PATH=$PATH HOME=$HOME python3 zreflect/registry.py --selftest"),
 
     Rule("declared_not_globbed",
          "谓词是声明不是文件名：执行面读 registry --run <相位>",
