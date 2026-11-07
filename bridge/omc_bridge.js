@@ -63,8 +63,8 @@
   // ② loadFile 必须**搬字节**：Octave 侧的路径在 omc 的 VFS 里不存在（实测
   //    wasi_path_open → -1）⇒ 从 Octave MEMFS 读出、写进 omc VFS，再 loadFile。
   async function _evalLoadFile(omc, writeFile, readFile, path) {
-    const src = readFile ? await readFile(path) : null;
-    if (!src || !src.length) return { ok: false, payload: 'Octave 侧读不到 ' + path };
+    const src = readFile ? await readFile(path) : null;   // readFile 可缺省（测试夹具）；可选链不适用于 await 调用形态
+    if (!src?.length) return { ok: false, payload: 'Octave 侧读不到 ' + path };
     omc.wasi_write_file(path, new TextEncoder().encode(src));
     return _evalOmcTrue(omc, `loadFile("${path}")`);
   }
@@ -90,7 +90,7 @@
     if (!(typeof fd === 'number' && fd >= 0)) return { ok: false, payload: 'VFS 打不开 ' + rf };
     let bytes;
     try { bytes = omc.wasi_fd_read(fd); } finally { omc.wasi_fd_close(fd); }
-    if (!bytes || !bytes.length) return { ok: false, payload: 'VFS 读出 0 字节' };
+    if (!bytes?.length) return { ok: false, payload: 'VFS 读出 0 字节' };
     await writeFile(dest, bytes);
     return { ok: true, payload: 'MAT ' + dest };
   }
@@ -140,7 +140,7 @@
     if (!readFile) return '';
     for (const cand of [`/tmp/${cls}.mo`, `/${cls}.mo`]) {
       const src = await readFile(cand);
-      if (src && src.length) return src;
+      if (src?.length) return src;
     }
     return '';
   }
@@ -149,7 +149,7 @@
     // 约定：`writeFile`/`readFile` 可以是同步也可以是返回 Promise 的（await 两种都吞）。
     const c = String(cmd);
     for (const { re, run } of COMMANDS) {
-      const m = c.match(re);
+      const m = re.exec(c);
       if (m) return run(ctx, m);
     }
     return {
@@ -172,11 +172,16 @@
       if (!ctx.omc || !ctx.writeFile) throw new Error('OmcBridge.serve: 需要 omc 与 writeFile');
       this.stop();
       const interval = Math.max(10, opts.intervalMs || 50);
-      // 应答文件：确保存在（否则 .m 侧每次都要判 exist 分支）
-      // ⚠️ 这里**故意吞异常**（GitRoll #67 问"handle or don't catch"）：`exists` 探针与
-      //   首次 writeFile 都可能因宿主 FS 已有该路径而抛，而那正是"已存在"这个**想要的**
-      //   结果。真正的失败会在下面的轮询里表现为"请求永不应答"，由调用方超时明说 ——
-      //   不在这里编一个假的成功。
+      await this._ensureResFile(opts, ctx);
+      this._startPolling(opts, ctx, interval);
+      return this;
+    },
+    // 应答文件：确保存在（否则 .m 侧每次都要判 exist 分支）
+    // ⚠️ 这里**故意吞异常**（GitRoll #67 问"handle or don't catch"）：`exists` 探针与
+    //   首次 writeFile 都可能因宿主 FS 已有该路径而抛，而那正是"已存在"这个**想要的**
+    //   结果。真正的失败会在轮询里表现为"请求永不应答"，由调用方超时明说 ——
+    //   不在这里编一个假的成功。
+    async _ensureResFile(opts, ctx) {
       try {
         if (!opts.exists || !(await opts.exists(RES))) {
           await ctx.writeFile(RES, new TextEncoder().encode(''));
@@ -184,32 +189,39 @@
       } catch (e) {
         /* 已存在 ⇒ 目标状态已达成，不是错误（理由见上） */
       }
+    },
+    _startPolling(opts, ctx, interval) {
       let busy = false;
       this._timer = setInterval(async () => {
         if (busy) return;
         busy = true;
         try {
-          let txt = '';
-          try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; }
-          if (txt && txt.length) {
-            // 读走并清空（同族协议：drain）
-            await ctx.writeFile(REQ, new TextEncoder().encode(''));
-            const lines = txt.split('\n').filter((l) => l.length);
-            let outLines = '';
-            try { outLines = (await ctx.readFile(RES)) || ''; } catch (e) { outLines = ''; }
-            for (const ln of lines) {
-              const q = this.parseReq(ln);
-              if (!q) continue;
-              let res;
-              try { res = await dispatch(q.command, ctx); }
-              catch (e) { res = { ok: false, payload: 'bridge 异常：' + String(e).slice(0, 300) }; }
-              outLines += `${q.seq}\t${res.ok ? 'ok' : 'err'}\t${esc(res.payload || '')}\n`;
-            }
-            await ctx.writeFile(RES, new TextEncoder().encode(outLines));
-          }
-        } finally { busy = false; }
+          await this._drainOnce(ctx);
+        } finally {
+          busy = false;
+        }
       }, interval);
-      return this;
+    },
+    // 一轮：读请求 → 逐行 dispatch → 应答。三个"文件还不存在"都是**本协议的常态**
+    // （轮询 = "还没有"），吞掉不是吞错误。
+    async _drainOnce(ctx) {
+      let txt = '';
+      try { txt = (await ctx.readFile(REQ)) || ''; } catch (e) { txt = ''; } // 请求文件缺 = 常态
+      if (!txt?.length) return;
+      // 读走并清空（同族协议：drain）
+      await ctx.writeFile(REQ, new TextEncoder().encode(''));
+      const lines = txt.split('\n').filter((l) => l.length);
+      let outLines = '';
+      try { outLines = (await ctx.readFile(RES)) || ''; } catch (e) { outLines = ''; } // 应答文件缺 = 常态
+      for (const ln of lines) {
+        const q = this.parseReq(ln);
+        if (!q) continue;
+        let res;
+        try { res = await dispatch(q.command, ctx); }
+        catch (e) { res = { ok: false, payload: 'bridge 异常：' + String(e).slice(0, 300) }; }
+        outLines += `${q.seq}\t${res.ok ? 'ok' : 'err'}\t${esc(res.payload || '')}\n`;
+      }
+      await ctx.writeFile(RES, new TextEncoder().encode(outLines));
     },
     stop() { if (this._timer) { clearInterval(this._timer); this._timer = null; } },
   };

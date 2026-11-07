@@ -136,29 +136,48 @@ def _import_memory_arch(b, pos, end):
     if n_imp is None:
         return None
     for _ in range(n_imp):
-        for _two_names in range(2):
-            pos = _skip_name(b, pos, end)
-            if pos is None:
-                return None
-        if pos >= end:
+        pos = _skip_import_names(b, pos, end)
+        if pos is None or pos >= end:
             return None
         kind = b.data[pos]
-        pos += 1
-        if kind == KIND_FUNC:
-            _, pos = b.uleb(pos)
-        elif kind == KIND_TABLE:
-            pos += 1                                   # elemtype
-            pos, _flags = _skip_limits(b, pos)
-        elif kind == KIND_MEMORY:
-            pos, flags = _skip_limits(b, pos)
-            return _arch_from_flags(flags) if flags is not None else None
-        elif kind == KIND_GLOBAL:
-            pos += 2                                   # valtype + mut
-        else:
-            return None                                # 未知 kind ⇒ 本段放弃（不许瞎猜）
+        pos, arch = _skip_import_entry(b, pos + 1)
+        if kind == KIND_MEMORY:
+            return arch                    # memory 导入：架构就在这（或 None = 畸形）
         if pos is None:
             return None
     return None
+
+
+def _skip_import_names(b, pos, end):
+    """跳过 import 条目的两个 name（module + 字段）；越界 ⇒ None。"""
+    for _two_names in range(2):
+        pos = _skip_name(b, pos, end)
+        if pos is None:
+            return None
+    return pos
+
+
+def _skip_import_entry(b, pos):
+    """按 kind 跳过 import 条目的类型区。
+
+    返回 (新位置, 架构)。架构只有 kind=memory 时才有意义（其余为 None）；
+    未知 kind ⇒ (None, None) —— 本段放弃（不许瞎猜）。
+    """
+    if pos >= b.n:
+        return None, None
+    kind = b.data[pos - 1]
+    if kind == KIND_FUNC:
+        _, pos = b.uleb(pos)
+        return pos, None
+    if kind == KIND_TABLE:
+        pos, _flags = _skip_limits(b, pos + 1)
+        return pos, None
+    if kind == KIND_MEMORY:
+        pos, flags = _skip_limits(b, pos)
+        return pos, (_arch_from_flags(flags) if flags is not None else None)
+    if kind == KIND_GLOBAL:
+        return pos + 2, None
+    return None, None
 
 
 def _wasm_arch(path):
@@ -461,10 +480,10 @@ def _selftest():
         for i in range(n_func_imports):
             mod = b"wasi:io/streams@0.2.3"
             nm = b"f%d" % i
-            imps += bytes([len(mod)]) + mod + bytes([len(nm)]) + nm + b"\x00\x00"  # kind=func, typeidx=0
+            imps += bytes([len(mod)]) + mod + bytes([len(nm)]) + nm + b"\x00\x00"  # kind func: typeidx 0
         # memory 导入：module="env" name="memory" kind=0x02 limits
         mflags = 0x01 | (0x04 if memory64 else 0)      # has_max (+ memory64)
-        mem = b"\x03env\x06memory" + b"\x02" + bytes([mflags, 0x01, 0x01])  # min=1,max=1
+        mem = b"\x03env\x06memory" + b"\x02" + bytes([mflags, 0x01, 0x01])  # limits min 1 max 1
         imps += mem
         body = bytes([1 + n_func_imports]) + imps      # 导入计数（uleb 单字节）
         sec = bytes([0x02]) + bytes([len(body)]) + body

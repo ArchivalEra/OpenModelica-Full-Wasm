@@ -681,6 +681,40 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.hr GitRoll 第二轮（139 条）：58 条自有按 A/B/C 全部处置（2026-11-07）
+
+- **数据**：issue #1 新评论（第二轮扫描 `dN1nBZmWdrsDe1gx7SPa`）——139 条明细，
+  比上轮 +5；评级 Reliability **C**（第一轮 B，BUG 从 2 → 1 但密度算分掉了档）。
+  按整改规范（`Shirone-personalized/docs/spec-gitroll-remediation.md`：A 机械安全 /
+  B 需判断 / C 不动，判据是**清单清零**不是评级升档）分流。
+- **面划分**：139 = 81 上游机制层（`zreflect/`+hooks+`build/mail-read.py`，Einfacht 追平后
+  mail-read 归它）+ **58 本仓自有**。上游那 81 条不动（信 035 也确认了归属）。
+- **C 档（22 条，不改 + 理由）**：`assets/omc/OpenModelicaCompiler.js` 全部 ——
+  **wasm-bindgen 生成物**（`__wbg_ptr`/`TrapFinalization` 是特征；sha `56c399bd…`
+  与构建产物逐字同源）。改它 = 改生成物，下次构建被覆盖，同规范 C 档第 2 条
+  （Bahnhof `bahnhof_wave.js` 同形状）。
+- **A 档（6 条，f33583a）**：`x && x.length` → `x?.length` ×4、`match` → `exec`、
+  `test` → `startsWith`。桥自证 7/0。
+- **B 档（30 条，两条提交）**：
+  · **B1+B2（9ba60f4）**：三 html 的 `statusClass` 单行多 if-return 改多行（GitRoll 把
+    "if 是函数体唯一语句"读歪了——**行为本来就对，是写法让解析器读不懂**）；
+    while 单行三语句拆行；6 处 catch 的理由**内联到 catch 同行**；5 处"注释掉的代码"
+    实为**误报**（行尾 `# kind=func` 与 docstring 的 `#23/#24` 被当成被注释的代码）⇒
+    改写注释形状让误报消失，真注释一个没删。
+  · **B3（c2c64eb）**：复杂度 8 处按职责拆（`check`/`_check_entry`/`verify`/
+    `check_workflows`/`_import_memory_arch`/`serve`）；`HOST_WASM` 常量；清掉
+    **我自己上轮留的 `if False else` 死代码**（那正是本轮扫描抓的"恒真条件"，
+    真问题）；冗余 Exception 收窄。
+- **两处我自己改坏当场修回**：① 重构三元写成 `A + B if cond else A` 求值顺序错
+  ⇒ 自证红 ⇒ 改清晰 if；② 批量替换把"协议路径重复"反例的 `/tmp/r,/tmp/r` 也替换了
+  ⇒ 反例失真 ⇒ 恢复本意。**反例失真 = 闸门在"该红时绿"，比代码 bug 更隐蔽。**
+- **不改 + 理由（B 档唯一保留）**：`check-lane-purity` 的 `_selftest`（复杂度 18）——
+  它是 24 条自证用例的集合体，复杂度来自用例数量；拆散 = 破坏"自证是一面墙"的可读性。
+- **改了 bridge 又触发的连锁**：`bridge/manifest.json` 的 bytes/sha 失配 ⇒ 清单闸门当场红
+  ⇒ 刷新（`omc_bridge.js` 11815 B）。**这就是那个闸门存在的意义**。
+- **验证**：23 道本仓闸门自证全绿；浏览器侧 samepage/omc-bridge/msl-local 三页
+  `node --check` 通过。
+
 ## 5.hq 给契约仓发订阅请求信（2026-11-02）
 
 - **为什么**：mail/034 的失败模式没有机制修复——契约 v1.1 升级时内容仓和 LLVM-wasm 都

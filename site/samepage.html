@@ -41,7 +41,12 @@ const $ = (id) => document.getElementById(id);
 const L = [];
 const log = (s) => { L.push(s); $('log').textContent = L.join('\n'); };
 // 状态类名单独一个函数（GitRoll #70：嵌套三元抽出来）
-const statusClass = (ok) => { if (ok === true) return 'ok'; if (ok === false) return 'bad'; return ''; };
+// 状态类名：多行 if-return（GitRoll 第2轮 #4：单行多语句被误读为无条件跟随）
+const statusClass = (ok) => {
+  if (ok === true) return 'ok';
+  if (ok === false) return 'bad';
+  return '';
+};
 const st = (s, ok) => { $('status').textContent = s; $('status').className = statusClass(ok); };
 const HEAP = () => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : -1);
 function memRow(t, note) {
@@ -129,9 +134,7 @@ function tapConsoleOutput() {
   console.log = (...a) => {
     try {
       window.__octOut.push(a.map(String).join(' '));
-    } catch (e) {
-      /* 见上：收集失败不该炸被测代码 */
-    }
+    } catch (e) { /* 收集器失败不许炸被测代码（理由见 L131） */ }
     return orig(...a);
   };
 }
@@ -143,9 +146,7 @@ async function waitOctaveUsable(M, timeoutMs = 300000) {
     if (M && typeof M.eval_string === 'function') {
       try {
         if (M.eval_string('x=1+1;') === 0) return true;
-      } catch (e) {
-        /* 还没就绪；下一轮再看（这里不编造成功） */
-      }
+      } catch (e) { /* 还没就绪；下一轮再看，不编造成功 */ }
     }
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -170,9 +171,7 @@ async function bootOctave() {
   if (typeof window.OCTAVE === 'function') {
     try {
       window.OCTAVE(M);
-    } catch (e) {
-      /* 站点页面适配；本页可能不需要 */
-    }
+    } catch (e) { /* 站点页面适配；本页不需要它时它可能不存在 */ }
   }
   await waitOctaveUsable(M);
   return M;
@@ -208,7 +207,7 @@ async function main() {
     // ★ 通道：把字节写进 **Octave 的 FS**（同页 = 同一个 JS 世界，两个 FS 仍各自独立
     //   —— 这是实测教训：两个 wasm 的 FS 互不可见，必须显式搬运）
     const octFS = oct.FS;
-    try { octFS.mkdir('/tmp'); } catch {}
+    try { octFS.mkdir('/tmp'); } catch { /* 已存在 ⇒ 目标状态达成 */ }
     octFS.writeFile('/tmp/om.mat', bytes);
     memRow('握手后', '.mat 已进 Octave FS');
 
@@ -267,7 +266,11 @@ async function main() {
     oct.eval_string(`try, s2 = load('/tmp/bad.mat'); disp('NOERR'); catch e, disp(['REJECTED ' e.message]); end; disp('${S2}');`);
     const t2 = Date.now();
     let out2 = '';
-    while (Date.now() - t2 < 30000) { out2 = (window.__octOut || []).join('\n'); if (out2.includes(S2)) break; await new Promise((r) => setTimeout(r, 200)); }
+    while (Date.now() - t2 < 30000) {
+      out2 = (window.__octOut || []).join('\n');
+      if (out2.includes(S2)) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
     // ★ 反向判据（GitRoll 抓到的真 bug，2026-10-31）：原来写成
     //   `cond ? (out2.slice(-600)||'') : (out2.slice(-600)||'')` —— 两边**完全相同**，
     //   等于 `cond` 白算（任何输入都得同一结果）。这里要的是"取尾段输出"，与 cond 无关，

@@ -160,7 +160,9 @@ def _selftest():
 
     files = ["a.m", "b.js"]
     # 自证夹具的路径是简写（真契约路径那三件在 PROTO_PATHS；夹具只需"三项不同"）
-    FIXTURE_PATHS = {"request": "/tmp/r", "response": "/tmp/s", "seq": "/tmp/q"}
+    FIX_REQUEST, FIX_RESPONSE, FIX_SEQ = "/tmp/r", "/tmp/s", "/tmp/q"
+    FIX_X1, FIX_X2, FIX_X3 = "/tmp/x1", "/tmp/x2", "/tmp/x3"
+    FIXTURE_PATHS = {"request": FIX_REQUEST, "response": FIX_RESPONSE, "seq": FIX_SEQ}
     # 用真磁盘做夹具（写临时目录）
     import tempfile
     with tempfile.TemporaryDirectory() as d:
@@ -192,14 +194,14 @@ def _selftest():
                                           allf, root=d, expect_protocol=False)))
         t("★ 件数不足下限 ⇒ 必须报", any("少于下限" in x for x in check(
             {**g, "entries": g["entries"][:2]}, files, root=d, expect_protocol=False)))
-        t("★ 协议路径缺一项 ⇒ 必须报", any("协议路径缺" in x for x in check({**g, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/s"}}, allf, root=d, expect_protocol=False)))
+        t("★ 协议路径缺一项 ⇒ 必须报", any("协议路径缺" in x for x in check({**g, "protocol_paths": {"request": FIX_REQUEST, "response": FIX_RESPONSE}}, allf, root=d, expect_protocol=False)))
         t("★ 协议路径重复 ⇒ 必须报", any("重复" in x for x in check(
-            {**g, "protocol_paths": {"request": "/tmp/r", "response": "/tmp/r", "seq": "/tmp/q"}}, allf, root=d, expect_protocol=False)))
+            {**g, "protocol_paths": {"request": FIX_REQUEST, "response": FIX_REQUEST, "seq": FIX_SEQ}}, allf, root=d, expect_protocol=False)))
         # ④b ★ 新判据自己的反向（AGENTS：新契约至少配一条"该报的必须报"）：
         #   三种不同但**不是契约那三个**的路径 ⇒ 必须报「与契约不一致」。
         #   这是"清单与桥两侧同名常量"这条不变式的机器判据 —— 没有它，常量提了也白提。
         t("★ 协议路径与契约不一致 ⇒ 必须报", any("与契约不一致" in x for x in check(
-            {**g, "protocol_paths": {"request": "/tmp/x1", "response": "/tmp/x2", "seq": "/tmp/x3"}},
+            {**g, "protocol_paths": {"request": FIX_X1, "response": FIX_X2, "seq": FIX_X3}},
             allf, root=d)))
         # ③ 空输入必须报
         t("★ 空 entries ⇒ 必须报", check({"entries": []}, []) != [])
