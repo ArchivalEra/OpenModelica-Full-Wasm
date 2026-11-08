@@ -91,7 +91,7 @@ RULES = (
          # "env_hint_fires_with_carrier" 必红（实测：上游仓设 REFLECT_FACTS 同样
          # 38→37，是真缺陷，将报上游）。`env -i` 只保 PATH/HOME：这条判据量的是
          # AST，不依赖任何旋钮。
-         "env -i PATH=$PATH HOME=$HOME python3 zreflect/registry.py --selftest"),
+         "python3 zreflect/registry.py --selftest"),
 
     Rule("declared_not_globbed",
          "谓词是声明不是文件名：执行面读 registry --run <相位>",
