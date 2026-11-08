@@ -681,6 +681,25 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   **5 PASS / 3 FAIL**（三红 = 缺口本身），装配后应 8/0。
 - 回信 023（三问逐答 + 给宿主的五行装配代码）。
 
+## 5.ht 上游修了 issue #29 → 删掉本仓 vendored 适配（2026-11-08）
+
+- 上游 `b580052` 采纳了 issue #29 的方向 A：`registry._env_hint_case` 临时
+  `os.environ.pop` 相关旋钮（`REFLECT_FACTS` / `REFLECT_ENV_HINT`），`finally` 恢复；
+  并在关闭评论里**点名本仓**：「你仓的 vendored 适配（`env -i` 净化）可以删了，
+  恢复官方 cmd 即可」。顺带修了 #28（`env_hint` 语义升级为四档）。
+- **做了**：同步 `b580052` 涉及的 4 个机制文件（`check_facts.py` / `facts.py` /
+  `gate.py` / `registry.py`）；把 `zreflect/doc.py` 的 `principle.falsifiable` cmd
+  从 `env -i PATH=$PATH HOME=$HOME python3 …` 恢复成官方
+  `python3 zreflect/registry.py --selftest`；`facts.py --accept-principles` 刷新台账
+  （54 条，principle 键的 cmd 回归官方）。
+- **验证（这是删适配的判据）**：
+  `REFLECT_FACTS=build/FACTS.json python3 zreflect/registry.py --selftest` ⇒ **rc=0**
+  （修复前 38→37 红）；`check_facts_replay` 53 条逐字一致；
+  `registry --run commit` failed=0；`sh gates-selftest.sh` rc=0；
+  23 道本仓闸门自证全绿；两份机器块 `facts --check` 一致。
+- **纪律**：vendored 适配是**临时**的，上游修了就删——留着会变成第二套机制
+  （与「唯一产地」冲突）。这条与 5.hs 里那段缺陷记录配对着读。
+
 ## 5.hs Einfacht 新版接入（+141 提交：全 Python 化 / i18n / harness）（2026-11-07）
 
 - **用户点令**：「额叶切除手术，新版 Einfacht 与你在用的这版完全不兼容的样子，小心」。
