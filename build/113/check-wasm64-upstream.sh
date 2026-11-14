@@ -21,7 +21,6 @@
 set -uo pipefail
 # shellcheck disable=SC2034  # 守门形状
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-if [ "${1:-}" = "--selftest" ]; then :; fi   # 形状占位（见文末说明）
 UPSTREAM="${UPSTREAM:-/mnt/hdd/openmodelica-wasm-build/build/upstream/openmodelica}"
 
 # 纯函数：$1=命中数 $2=树在?(1/0) → 裸值（**定义必须在 selftest 之前**：shell 顺序执行）

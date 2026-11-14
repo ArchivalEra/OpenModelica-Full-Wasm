@@ -96,7 +96,6 @@ def _selftest():
         badsh = os.path.join(td, "bad.sh")
         with open(badsh, "w", encoding="utf-8") as fh:
             fh.write("#!/bin/sh\nV=$(ls /tmp | head -1)\n[ -n \"$V\" ] && echo yes || echo no\n")
-        f2, m2, _ = scan(REPO, [os.path.relpath(badsh, REPO)]) if False else (None, None, None)
         out = subprocess.run(["shellcheck", "--severity=style", badsh],
                              capture_output=True, text=True, timeout=60)
         t("★ 该报：SC2015 壳必须被 finder 识别（对临时坏壳）", FINDING.search(out.stdout) is not None)
@@ -105,7 +104,6 @@ def _selftest():
         t("★ 空输入：空 shell 面 ⇒ 零 finding 但不得当'通过'（judge 层单独拦）",
           findings == [])
         t("★ 空输入：judge 对空 shell 面 ⇒ 必须红（零值守卫：空面不是供给成功）",
-          (lambda r: r[0] is False)(judge.__wrapped__(td)) if False else
           _judge_empty_dir(td)[0] is False)
     # ④ 环境：shellcheck 不在盘 ⇒ judge 红且摘要点名"环境"（PATH 抽空模拟）
     env_bak = os.environ.get("PATH")
