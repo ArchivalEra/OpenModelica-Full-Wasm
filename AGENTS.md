@@ -13,7 +13,7 @@ acceptance criterion). Glossary: `CONTEXT.md`.
 
 ## Hard rules
 
-1. Client-side only: OpenModelica always runs as wasm in the browser  -  no endpoint may
+1. Client-side only: OpenModelica always runs as wasm in the browser - no endpoint may
    execute code server-side.
 2. Never force-push, delete git objects, rewrite history, or use `--no-verify`.
 3. Whitelist repo: any new file needs a matching `!path` entry in `.gitignore` or
@@ -24,39 +24,31 @@ acceptance criterion). Glossary: `CONTEXT.md`.
 
 Push is per-repo enabled by the owner, default off. Absent an explicit enablement
 notice for this repo, do not push: edit locally, commit locally, and put the change
-description in your final output  -  the owner lands it.
+description in your final output - the owner lands it.
 
 When a push is enabled for this repo:
 
 1. The push request and review conclusion do **not** go through `wo-u` (wo-u carries
    task dispatch and rulings only). Write the change description plus your
-   `code-review` conclusion into the **final output of your session**  -  and into the
-   commit message  -  then stop output. The owner reads session outputs and replies with
+   `code-review` conclusion into the **final output of your session** - and into the
+   commit message - then stop output. The owner reads session outputs and replies with
    consent; push only after that reply.
 2. The write channel is the SSH SK key through the akr FIDO2 agent (phone MFA prompt;
-   the owner taps Allow). The gh tokens are read-only  -  HTTPS push returns 403. Do
+   the owner taps Allow). The gh tokens are read-only - HTTPS push returns 403. Do
    not experiment with the channel; a trial push is a violation.
 3. A push whose commit message lacks the review conclusion and change description is
    ignored, not retried.
-4. Mechanics for this repo:
-   - Remote is split into two URLs (already configured):
-     fetch = `https://github.com/ArchivalEra/OpenModelica-Full-Wasm.git`
-     push  = `ssh://git@github-ArchivalEra/ArchivalEra/OpenModelica-Full-Wasm.git`.
-     Any `ssh://` URL used for fetch triggers a phone MFA prompt - forbidden. Daily
-     `git fetch` / `git pull` are silent; only push rings the phone.
-   - Reading/queries (refs, private repos, issues, PRs, Actions, releases): `gh` CLI
-     with the read-only PATs (`gh api`, `gh repo view`). `gh repo sync` needs write
-     access and fails 403 under a read-only PAT  -  do not use it here.
-   - Fetching actual objects: plain `git fetch` (HTTPS URL above, read-only PAT via
-     gh keyring, silent). `gh api` is preferred for comparisons; `git fetch` is the
-     fallback. Never configure git+SSH for fetch.
-   - Writing is push-only, over SSH: `git push` through the `github-ArchivalEra`
-     alias (locked to the ArchivalEra SK key, `IdentitiesOnly yes` with
-     `~/.ssh/archivalera-main.pub`, akr FIDO2 agent, port 443 via
-     `ProxyCommand socat - PROXY:127.0.0.1:%h:%p,proxyport=2080`). Do not push
-     through the bare `github.com` form.
+4. Mechanics for this repo (remote is already split):
+   - fetch = `https://github.com/ArchivalEra/OpenModelica-Full-Wasm.git` (read-only
+     PAT via gh keyring, silent); push =
+     `ssh://git@github-ArchivalEra/ArchivalEra/OpenModelica-Full-Wasm.git`
+     (`IdentitiesOnly yes`, `~/.ssh/archivalera-main.pub`, port 443 via
+     `ProxyCommand socat - PROXY:127.0.0.1:%h:%p,proxyport=2080`).
+   - Any `ssh://` URL used for fetch triggers a phone MFA prompt - forbidden. Reads
+     go through the `gh` CLI (`gh repo sync` is 403 under a read-only PAT - do not
+     use it); plain `git fetch` over the HTTPS URL is the fallback.
    - Proxies: `export https_proxy=http://127.0.0.1:2080 http_proxy=http://127.0.0.1:2080`.
-   - Knobs: `set -a; . ./Einfacht.env; set +a` before pushing  -  pre-push runs the
+   - Knobs: `set -a; . ./Einfacht.env; set +a` before pushing - pre-push runs the
      local gates, and the three-language README set (`REFLECT_READMES`) is
      conditional: touching any of the three requires all three in the same push.
    - Run the gates under "Before committing" first.
@@ -82,7 +74,7 @@ Executable criterion:
 `python3 build/113/check-lane-purity.py --lane <lane> --host <wasm> --mod <dir...>`
 (host 1, lane modules 2, the site lane-specific directory 3; mismatches are named, rc=1).
 Rationale: mixed builds succeed on both sides, pass all self-checks, and only fail at
-runtime  -  the criterion must be executable, not eyeballed.
+runtime - the criterion must be executable, not eyeballed.
 
 The performance lane (`IllegalPerformance`) was deleted by user order; rebuild it only
 after wasm64 reaches production grade via the official fork pipeline.
@@ -100,7 +92,7 @@ a smoke-only batch once failed the full suite elsewhere.
 1. Numbers/behavior come only from measurement, with the reproducing command written
    next to the assertion; otherwise it is history, not status.
 2. Move criteria into code, not hand-copied commands in docs; a flag that is assigned
-   but never read silently fails  -  flag changes need a self-check that reads from the
+   but never read silently fails - flag changes need a self-check that reads from the
    artifact.
 3. "It compiles" != "it works": anything touching runtime behavior must be tested in the
    browser.
@@ -119,7 +111,7 @@ a smoke-only batch once failed the full suite elsewhere.
    (`Cross-Origin-Opener-Policy: same-origin` +
    `Cross-Origin-Embedder-Policy: require-corp`). Plain `python3 -m http.server` cannot
    send them, and the threaded tier then silently falls back to the base tier.
-4. Three-layer SHA (disk / HTTP / page-instantiated) must all be green  -  "rebuilt the
+4. Three-layer SHA (disk / HTTP / page-instantiated) must all be green - "rebuilt the
    program but served the old artifact" is a repeated pitfall.
 5. Full regression (`PROBES=1`) -> three-way consistency (dev site / production site /
    repo mirror `--strict`) -> gates -> commit -> (push is executed by the owner, see
@@ -142,7 +134,7 @@ sh build/gates-selftest.sh
 
 Gate self-tests: every gate must ship `--selftest` with three case classes
 (normal passes / must-fail cases actually fail / empty input reports). Every new
-repo-specific gate must be registered in `build/gates-selftest.sh`  -  an unregistered
+repo-specific gate must be registered in `build/gates-selftest.sh` - an unregistered
 gate is an unwatched gate. Machine summary line format: `=== N PASS / M fail ===`
 (lowercase `fail`).
 
@@ -160,7 +152,7 @@ gate is an unwatched gate. Machine summary line format: `=== N PASS / M fail ===
 - Verify artifact SHA (three layers) before running tests.
 - Build scripts inside a container are a separate copy; sync repo changes into the
   container before running them.
-- Never guess mount points, versions, paths, or flags  -  read them from artifacts or
+- Never guess mount points, versions, paths, or flags - read them from artifacts or
   config.
 - Self-probes must not run on page boot: a bad artifact hangs the whole page. Trigger
   probes on demand, with a timeout.

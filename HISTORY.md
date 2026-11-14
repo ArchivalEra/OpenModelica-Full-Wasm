@@ -1118,3 +1118,14 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
   （`gate.py commit .` 实测 rc=0）。
 - **平台变化**：gh 账号切 PlumHelper（pull=true/push=false/admin=false），推送路径关闭，
   本批交付改走「diff 报 wo-u-maintainer → 站长落库」。
+
+## 5.hv STATE 精简（活的留 STATE，死的进 HISTORY 不被扫；2026-11-14）
+
+- **口径**（用户点令）：活文档第二轮精简——仍然成立的登记 STATE；已结案/已成历史的段落整段迁入 HISTORY（`REFLECT_DOCS` 六件 = STATE/AGENTS/README×3/CONTEXT 是 facts/stale/retractions 的扫描面，HISTORY 不在其内）。
+- **迁入本条的死段**（原 STATE §133–§268，内容逐字保留在上面各轮对应条目，键引用见各段）：
+  · **74 MB ESM 引擎 boot 分布与缓存头**（mail/027–031 轮）：缓存头缺陷（no-store→ETag+no-cache，重下 `[[omc_boot_revalidate_bytes]]` B）与三档带宽 boot 分布（`[[omc_boot_loopback_ms]]` / `[[omc_boot_64mbit_p50_bucket]]` / `[[omc_boot_slow_ms_bucket]]` / `[[omc_boot_slow_fetch_ms_bucket]]` / `[[omc_boot_loopback_net_bytes]]`）与 serve-coi 自证 `[[omc_serve_coi_selftest_pass]]`——**活值迁 STATE 产物表**（见下）；
+  · **外部验收记录**（mail/006–018 轮，七条全过 / 钓鱼执法轮 / 复验收执 / JS 胶水两键 `[[omc_web_js_sha]]`·`[[omc_web_js_bytes]]` / MSL 出表落位 `[[msl_asset_sha]]`·`[[msl_asset_bytes]]`）——**全链已结案**；
+  · **E 线桥交付缺口**（mail/107→027 轮，MEMFS 装配形态定案、`omc_bridge.js` 扶正、就绪门修复 9/0）——**已装配收口**；
+  · **dylink.0 子段 6 剥离**（mail/008 缺陷 1 当日修复，`[[omc_web_wasm_bytes]]`/`[[omc_web_wasm_sha]]` 活值迁产物表）——**已修已复验结案**。
+- **STATE 保留的活面**：六条需求状态表 / 产物与位置表（含上述迁活的键引用）/ 两线状态 / 悬案 02 / 还差什么 7 条 / 关键约定 / 机器块。STATE 394→约 200 行。
+- **闸门复核**：facts --check / check_facts_replay（键引用迁移后仍逐字绿）/ check_stale（sha 断言出处不变）/ registry commit / 自证台 24/24 全绿。
