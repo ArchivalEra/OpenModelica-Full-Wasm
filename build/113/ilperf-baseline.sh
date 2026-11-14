@@ -22,6 +22,7 @@
 #   bash build/113/ilperf-baseline.sh --selftest # 三类用例自证
 # 退出码：0 = 量到；1 = 量不到（缺产物，点名）；2 = 用法；3 = 环境（工具缺）
 set -uo pipefail
+# shellcheck disable=SC2034  # 守门形状
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 BASE="${OMC_BASE:-/mnt/hdd/openmodelica-wasm-build}"
 WASM="${WASM:-$BASE/build/omc-out-web/web/omc/OpenModelicaCompiler_bg.wasm}"

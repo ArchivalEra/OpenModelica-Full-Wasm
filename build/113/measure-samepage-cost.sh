@@ -22,6 +22,7 @@
 # 用法：bash build/113/measure-samepage-cost.sh [--octave-url URL] [--out FILE]
 # 退出码：0 = 量到了（写 JSON）；1 = 量不到（缺产物，点名）；2 = 环境（无 node/chromium/harness）
 set -uo pipefail
+# shellcheck disable=SC2034  # 守门形状
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 BASE="${OMC_BASE:-/mnt/hdd/openmodelica-wasm-build}"
 OM_WEB="$BASE/build/omc-out-wasm32/web"
@@ -62,7 +63,9 @@ done
 # ① 体积（不需要浏览器）
 OM_BYTES=0; [ -f "$OM_WASM" ] && OM_BYTES="$(stat -c%s "$OM_WASM")"
 OCT_BYTES=0
+# shellcheck disable=SC2034  # 广播给下游 NODE 段的语义变量；empty=尚未读出
 OCT_SHA=""
+# shellcheck disable=SC2012  # 固定单一路径，无通配展开风险
 OCT_LOCAL="$(ls /mnt/hdd/octave-wasm-build/site/octave.wasm 2>/dev/null | head -1)"
 if [ -n "$OCT_LOCAL" ] && [ -f "$OCT_LOCAL" ]; then
   OCT_BYTES="$(stat -c%s "$OCT_LOCAL")"

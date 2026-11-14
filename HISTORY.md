@@ -1087,3 +1087,45 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
 - **§4 开放观察**（8761 停在 omc-not-ready）归我方：74MB ESM 引擎 boot 耗时/失败率，
   待测分布后回信。
 - 回的 028 已过宿主 check-mail-boundary（To: host ✓）。
+
+## 5.hu shellcheck 落实批次：37 finding 清零 + 新闸门 check-shellcheck（2026-11-14）
+
+- **起因**：电话网二轮广播点名 omc「gates/selftest 的 sh 壳跑 shellcheck，进
+  `build/gates-selftest.sh` 名单并补 --selftest 三类用例」（站长明令：能落地的现在落地）。
+- **shell 面**（`git ls-files '*.sh'` 23 件 + 无后缀钩子壳 2 件 = 25 件，style 级）：
+  首轮 **37 条 finding**，十类码（SC2034×10 / SC1007×7 / SC2086×5 / SC2015×5 /
+  SC1090×3 / SC2164×2 / SC2140×2 / SC2155 / SC2016 / SC2012 各 1）。
+- **判读与处置**：27 条**真问题当场修**（`cd || exit` ×2、SC2140 嵌套引号破坏文案、
+  SC2155 mask 返回值、SC1007 `CDPATH=` 六处改 `CDPATH=''`、SC2015 有真风险处改 if）；10 条
+  **有意为之**加 `# shellcheck disable=` 上一行式留痕（守门形状 REPO、A&&B||C 配 log 恒成功、
+  动态 source、目标清单逐词展开、假钩子单引原样落盘）。踩坑：行尾式 disable 会吃掉
+  `\` 续行并触发 SC1126/SC1073，**指令必须在命令上一行**。
+- **常驻闸门**：新 `build/113/check-shellcheck.py`（25 面 × style 级，零 finding 基线；
+  finder 正则 `SC\d+ \(`）。--selftest 6 条（正常不报 / 临时坏壳必红 / 空面必红 /
+  shellcheck 不在盘必红 / finder 反向不误报），另做**对抗验证**：临时弄脏
+  promote-site.sh ⇒ 闸门红（rc=1），还原 ⇒ 绿（rc=0）。登记进 `build/gates-selftest.sh`
+  名单（自证台 23→**24 件**）；白名单无需改（`!build/113/*` 已放行）。
+- **验证全绿**：shellcheck 25 面 0 finding；`sh build/gates-selftest.sh` 24/24；
+  `facts --check` / `check_facts_replay` / `registry --run commit` / whitelist /
+  witness 全 rc=0。
+- **★ 存量缺陷（与本次无关，干净树同样红，已隔离验证：`git stash` 后 HEAD 复跑同样 rc=1）**：
+  `zreflect/next.py` 自证 `next.resolved_question_is_dropped` **带本仓 env 必红**
+  （`=== 7 PASS / 1 FAIL ===`）。根因：夹具造的是 `<tmp>/questions/`，而
+  `knobs.questions_path()` 拼的是 `REFLECT_QUESTIONS`（本仓 = `.scratch/open-questions/issues`）
+  ⇒ 夹具目录被解析到不存在处 ⇒ `_open_question_names` 返回 `[]` ≠ 期望 `['02-open.md']`。
+  `env -u REFLECT_QUESTIONS` 下直跑函数 = True（绿）。这是**平台层测试的 env 隔离缺失**，
+  属 Einfacht 侧（上游 vendored b815cd1），待整层对齐时一并修；不影响 pre-commit/pre-push
+  （`gate.py commit .` 实测 rc=0）。
+- **平台变化**：gh 账号切 PlumHelper（pull=true/push=false/admin=false），推送路径关闭，
+  本批交付改走「diff 报 wo-u-maintainer → 站长落库」。
+
+## 5.hv STATE 精简（活的留 STATE，死的进 HISTORY 不被扫；2026-11-14）
+
+- **口径**（用户点令）：活文档第二轮精简——仍然成立的登记 STATE；已结案/已成历史的段落整段迁入 HISTORY（`REFLECT_DOCS` 六件 = STATE/AGENTS/README×3/CONTEXT 是 facts/stale/retractions 的扫描面，HISTORY 不在其内）。
+- **迁入本条的死段**（原 STATE §133–§268，内容逐字保留在上面各轮对应条目，键引用见各段）：
+  · **74 MB ESM 引擎 boot 分布与缓存头**（mail/027–031 轮）：缓存头缺陷（no-store→ETag+no-cache，重下 `[[omc_boot_revalidate_bytes]]` B）与三档带宽 boot 分布（`[[omc_boot_loopback_ms]]` / `[[omc_boot_64mbit_p50_bucket]]` / `[[omc_boot_slow_ms_bucket]]` / `[[omc_boot_slow_fetch_ms_bucket]]` / `[[omc_boot_loopback_net_bytes]]`）与 serve-coi 自证 `[[omc_serve_coi_selftest_pass]]`——**活值迁 STATE 产物表**（见下）；
+  · **外部验收记录**（mail/006–018 轮，七条全过 / 钓鱼执法轮 / 复验收执 / JS 胶水两键 `[[omc_web_js_sha]]`·`[[omc_web_js_bytes]]` / MSL 出表落位 `[[msl_asset_sha]]`·`[[msl_asset_bytes]]`）——**全链已结案**；
+  · **E 线桥交付缺口**（mail/107→027 轮，MEMFS 装配形态定案、`omc_bridge.js` 扶正、就绪门修复 9/0）——**已装配收口**；
+  · **dylink.0 子段 6 剥离**（mail/008 缺陷 1 当日修复，`[[omc_web_wasm_bytes]]`/`[[omc_web_wasm_sha]]` 活值迁产物表）——**已修已复验结案**。
+- **STATE 保留的活面**：六条需求状态表 / 产物与位置表（含上述迁活的键引用）/ 两线状态 / 悬案 02 / 还差什么 7 条 / 关键约定 / 机器块。STATE 394→约 200 行。
+- **闸门复核**：facts --check / check_facts_replay（键引用迁移后仍逐字绿）/ check_stale（sha 断言出处不变）/ registry commit / 自证台 24/24 全绿。
