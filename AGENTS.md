@@ -19,6 +19,15 @@
 3. **白名单仓库**：新增文件必须同步 `!路径` 进 `.gitignore`，否则 pre-commit 直接拒。
    （本仓是 private，但仍用白名单 —— 黑名单是"忘了就提交"，白名单是"忘了就报错"。）
 
+## 推送路径已永久关闭（终态，不是临时故障；2026-11-14 站长裁定）
+本仓的 GitHub 写路径**永久（permanently）关闭**：节点侧 gh 账号是 `PlumHelper`
+（pull=true / push=false / admin=false），`ArchivalEra` 的 token **不会再次下发** ——
+这是终态，不是权限收紧的过渡，**不要等待凭据恢复、不要尝试 push / fork / 提 PR**
+（这些路径已确认关闭，再测就是浪费轮次）。
+**交付路径（第 3 条）**：本地修改 → 本地 commit → diff 摘要 / finding 清单 / 证据经
+`wo-u send wo-u-maintainer` 报告 → **站长侧落库**（合入或代提 PR）。批次收尾里
+"提交 → 推镜像"的"推"字由站长代执行；本地闸门与提交照常跑。
+
 ## 这个仓是什么（与姊妹仓的关系）
 `Octave-Full-Wasm` = MATLAB **语言**那一侧的引擎（轴 ① 语言 + 轴 ② Simulink 块图）。
 **本仓** = **轴 ③（Simscape 非因果物理建模）**的引擎：Modelica 语言 + 符号化 + 指标约简 +
