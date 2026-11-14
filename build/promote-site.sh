@@ -63,7 +63,8 @@ case "${1:-}" in
     log "  站点 : $SITE"
     log "  服务 : python3 $COI $PORT $SITE（带 COOP/COEP）"
     log "  要做的: rsync 产物 → 站点；拷本仓页面资产（bridge/*.js）；写 .build-sha（三层 SHA 的磁盘层）"
-    V="$(gate_ok "$WEB" "$SITE")"; [ "$V" = ok ] && log "  ✅ 自查通过" || { log "  （首发布时站点还没建 ⇒ 正常）"; }
+    V="$(gate_ok "$WEB" "$SITE")"
+    if [ "$V" = ok ]; then log "  ✅ 自查通过"; else log "  （首发布时站点还没建 ⇒ 正常）"; fi
     exit 0 ;;
   --verify)
     [ -f "$SITE/.build-sha" ] || { err "FATAL: 站点没有 .build-sha（没发布过？）"; exit 1; }

@@ -1087,3 +1087,34 @@ whitelist_rules（79→81，新验收件+剥离器）、omc_web_atomic_ops（wit
 - **§4 开放观察**（8761 停在 omc-not-ready）归我方：74MB ESM 引擎 boot 耗时/失败率，
   待测分布后回信。
 - 回的 028 已过宿主 check-mail-boundary（To: host ✓）。
+
+## 5.hu shellcheck 落实批次：37 finding 清零 + 新闸门 check-shellcheck（2026-11-14）
+
+- **起因**：电话网二轮广播点名 omc「gates/selftest 的 sh 壳跑 shellcheck，进
+  `build/gates-selftest.sh` 名单并补 --selftest 三类用例」（站长明令：能落地的现在落地）。
+- **shell 面**（`git ls-files '*.sh'` 23 件 + 无后缀钩子壳 2 件 = 25 件，style 级）：
+  首轮 **37 条 finding**，十类码（SC2034×10 / SC1007×7 / SC2086×5 / SC2015×5 /
+  SC1090×3 / SC2164×2 / SC2140×2 / SC2155 / SC2016 / SC2012 各 1）。
+- **判读与处置**：27 条**真问题当场修**（`cd || exit` ×2、SC2140 嵌套引号破坏文案、
+  SC2155 mask 返回值、SC1007 `CDPATH=` 六处改 `CDPATH=''`、SC2015 有真风险处改 if）；10 条
+  **有意为之**加 `# shellcheck disable=` 上一行式留痕（守门形状 REPO、A&&B||C 配 log 恒成功、
+  动态 source、目标清单逐词展开、假钩子单引原样落盘）。踩坑：行尾式 disable 会吃掉
+  `\` 续行并触发 SC1126/SC1073，**指令必须在命令上一行**。
+- **常驻闸门**：新 `build/113/check-shellcheck.py`（25 面 × style 级，零 finding 基线；
+  finder 正则 `SC\d+ \(`）。--selftest 6 条（正常不报 / 临时坏壳必红 / 空面必红 /
+  shellcheck 不在盘必红 / finder 反向不误报），另做**对抗验证**：临时弄脏
+  promote-site.sh ⇒ 闸门红（rc=1），还原 ⇒ 绿（rc=0）。登记进 `build/gates-selftest.sh`
+  名单（自证台 23→**24 件**）；白名单无需改（`!build/113/*` 已放行）。
+- **验证全绿**：shellcheck 25 面 0 finding；`sh build/gates-selftest.sh` 24/24；
+  `facts --check` / `check_facts_replay` / `registry --run commit` / whitelist /
+  witness 全 rc=0。
+- **★ 存量缺陷（与本次无关，干净树同样红，已隔离验证：`git stash` 后 HEAD 复跑同样 rc=1）**：
+  `zreflect/next.py` 自证 `next.resolved_question_is_dropped` **带本仓 env 必红**
+  （`=== 7 PASS / 1 FAIL ===`）。根因：夹具造的是 `<tmp>/questions/`，而
+  `knobs.questions_path()` 拼的是 `REFLECT_QUESTIONS`（本仓 = `.scratch/open-questions/issues`）
+  ⇒ 夹具目录被解析到不存在处 ⇒ `_open_question_names` 返回 `[]` ≠ 期望 `['02-open.md']`。
+  `env -u REFLECT_QUESTIONS` 下直跑函数 = True（绿）。这是**平台层测试的 env 隔离缺失**，
+  属 Einfacht 侧（上游 vendored b815cd1），待整层对齐时一并修；不影响 pre-commit/pre-push
+  （`gate.py commit .` 实测 rc=0）。
+- **平台变化**：gh 账号切 PlumHelper（pull=true/push=false/admin=false），推送路径关闭，
+  本批交付改走「diff 报 wo-u-maintainer → 站长落库」。

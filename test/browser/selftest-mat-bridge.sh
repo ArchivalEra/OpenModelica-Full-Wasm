@@ -11,6 +11,7 @@
 # 用法：sh test/browser/selftest-mat-bridge.sh [URL]
 # 退出码：0 = 全过；1 = 有 fail；2 = 环境
 set -eu
+# shellcheck disable=SC2034  # shell 侧身份常量；实际读取发生在内嵌 NODE 段 process.env.OMC_REPO
 REPO="${OMC_REPO:-/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm}"
 H="${HARNESS:-/mnt/hdd/octave-wasm-build/harness}"
 URL="${1:-http://127.0.0.1:8761/}"

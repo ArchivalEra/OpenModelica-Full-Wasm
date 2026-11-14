@@ -33,7 +33,7 @@ if [ "${1:-}" = "--selftest" ] && [ "$(basename -- "$0")" = "einfacht-env.sh" ];
   _bad=0
   # 文案走语言包：本文件**必须**是 shell（被钩子 `source` 以导出变量），
   # 但输出是用户可见文本 ⇒ 经 `M()` 取。`_say <code> key=value…`。
-  _PY="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/zreflect"
+  _PY="$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)/zreflect"
   _say() {
     _code="$1"; shift
     python3 -c "
@@ -55,6 +55,7 @@ print(M(code, **params))
   mkdir -p "$_t/h"
   cp "$(dirname -- "$0")/einfacht-env.sh" "$_t/h/"
   # 假钩子：与真钩子同款的两行（带守卫的 source）后报出 REFLECT_DOC
+  # shellcheck disable=SC2016  # 有意单引：假钩子内容须原样落盘，$0 展开由假钩子自己运行时做
   printf '#!/bin/sh\nHERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)\n[ -f "$HERE/einfacht-env.sh" ] && . "$HERE/einfacht-env.sh"\necho "DOC=${REFLECT_DOC:-STATE.md}"\n' > "$_t/h/fake"
   chmod +x "$_t/h/fake"
   # _chk <标签> <期望> <实测>
@@ -96,12 +97,14 @@ fi
 # （实测：`env -0` 里一个 REFLECT_* 都没有）。调用方可以用
 # `EINFACHT_PLUGIN_DIR` 显式告诉它 —— 有就用它，没有才回落 `$0`（直接跑本文件
 # 或旧的 `source` 用法都走这条）。
-_ENV_DIR=${EINFACHT_PLUGIN_DIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
-_ENV_REPO=$(CDPATH= cd -- "$_ENV_DIR/.." && pwd)
+_ENV_DIR=${EINFACHT_PLUGIN_DIR:-$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)}
+_ENV_REPO=$(CDPATH='' cd -- "$_ENV_DIR/.." && pwd)
 _ENV_FILE=${REFLECT_ENV_FILE:-Einfacht.env}
 if [ -f "$_ENV_DIR/$_ENV_FILE" ]; then
+  # shellcheck disable=SC1090  # 动态插件路径；值由本仓 zreflect/check_envfile.py 闸门管
   . "$_ENV_DIR/$_ENV_FILE"
 elif [ -f "$_ENV_REPO/$_ENV_FILE" ]; then
+  # shellcheck disable=SC1090  # 同上
   . "$_ENV_REPO/$_ENV_FILE"
 fi
 unset _ENV_DIR _ENV_REPO _ENV_FILE

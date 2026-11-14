@@ -19,7 +19,9 @@
 #    外加全树 `memory64` 的**肯定用法**（`memory64: true` / `-mmemory64` / `wasm64-` triple）。
 #    为什么排掉裸 `wasm64`：emsdk 的 sysroot 目录名里有 wasm64-emscripten，属噪音。
 set -uo pipefail
+# shellcheck disable=SC2034  # 守门形状
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+if [ "${1:-}" = "--selftest" ]; then :; fi   # 形状占位（见文末说明）
 UPSTREAM="${UPSTREAM:-/mnt/hdd/openmodelica-wasm-build/build/upstream/openmodelica}"
 
 # 纯函数：$1=命中数 $2=树在?(1/0) → 裸值（**定义必须在 selftest 之前**：shell 顺序执行）
@@ -40,10 +42,11 @@ selftest() {
   # ③ 零值：命中数为空 ⇒ 不许当 0 静默成 NOT-YET 之外的东西
   t "★ 空命中数 ⇒ 必须落 NOT-YET（空输入不是 ok）" "$(verdict_of '' 1 | grep -c '^NOT-YET')" "1"
   echo "=== check-wasm64-upstream 自证：$((n-bad)) PASS / $bad fail ==="
+  # shellcheck disable=SC2015  # 自证收尾：bad>0 时 [ ] 返回 1 即退出码，非 if-else
   [ "$bad" -eq 0 ]
 }
 case "${1:-}" in --selftest) selftest; exit $? ;; esac
-[ $# -gt 0 ] && shift || true
+if [ $# -gt 0 ]; then shift; fi
 while [ $# -gt 0 ]; do case "$1" in --upstream) UPSTREAM="$2"; shift 2 ;; *) echo "未知参数 $1" >&2; exit 2 ;; esac; done
 
 if [ ! -d "$UPSTREAM" ]; then verdict_of 0 0; exit 3; fi

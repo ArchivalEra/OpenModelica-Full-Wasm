@@ -15,6 +15,7 @@
 #   bash build/113/build-clang24-builtins.sh --dry-run
 #   bash build/113/build-clang24-builtins.sh --selftest   # 三类用例自证
 set -uo pipefail
+# shellcheck disable=SC2034  # 守门形状（姊妹仓五脚本同款）
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 # clang 24（LLVM-wasm 仓的 emsdk 内置；路径可覆盖）
 C24="${C24:-/mnt/hdd/zcode-projects/LLVM-wasm/toolchain/emsdk/upstream/bin/clang}"
@@ -22,6 +23,7 @@ LD24="${LD24:-/mnt/hdd/zcode-projects/LLVM-wasm/toolchain/emsdk/upstream/bin/was
 AR24="${AR24:-/mnt/hdd/zcode-projects/LLVM-wasm/toolchain/emsdk/upstream/bin/llvm-ar}"
 LLVM_SRC="${LLVM_SRC:-/mnt/hdd/zcode-projects/LLVM-wasm/toolchain/llvm-project}"
 TOOLS="${TOOLS:-/mnt/hdd/openmodelica-wasm-build/tools}"
+# shellcheck disable=SC2034  # status 模式语义常量（本仓 print 段约定，姊妹仓同形）
 OVERLAY="$TOOLS/clang-resource"          # clang24 的 resource-dir overlay
 OUT="${OUT:-$TOOLS/clang-resource/lib/wasi}"
 WORK="${WORK:-$TOOLS/builtins-build}"
@@ -91,7 +93,7 @@ mkdir -p "$WORK/obj" "$OUT"
 sources_of "$CM" > "$SRC_LIST"
 NSRC="$(wc -l < "$SRC_LIST")"
 step "编 $NSRC 个 builtins 源（$TARGET）"
-cd "$WORK/obj"
+cd "$WORK/obj" || exit 1
 NOBJ=0; FAILED=""
 while read -r s; do
   [ -n "$s" ] || continue

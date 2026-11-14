@@ -145,6 +145,7 @@ do_build() {
     -DRUST_OMC_ENABLE_SUNDIALS=ON \
     -DOM_USE_CCACHE=ON -DOM_COMPILER_CACHE=ccache \
     > "$OUT/stage1.configure.log" 2>&1 || { err "FATAL: stage1 configure 失败（tail $OUT/stage1.configure.log）"; tail -30 "$OUT/stage1.configure.log" >&2; return 1; }
+  # shellcheck disable=SC2086  # 目标清单必须逐词拆开（多个 target 名）
   cmake --build "$S1" --parallel "$JOBS" --target $STAGE1_TARGETS \
     > "$OUT/stage1.build.log" 2>&1 || { err "FATAL: stage1 build 失败（tail $OUT/stage1.build.log）"; tail -30 "$OUT/stage1.build.log" >&2; return 1; }
   # ★ 剥离点 1/2：交接件 blobs（stage2 的 rust build.rs 会把 $ART/blobs 拷进 OUT_DIR
@@ -326,7 +327,8 @@ do_verify() {
   local sha16; sha16="$(printf '%s' "$sha" | cut -c1-16)"
   log "   产物: $wasm ($bytes 字节, sha256=$sha16…)"
   # ③ 架构纯度（一线一架构；本档 = wasm32）
-  local NVER=$([ "$bad" = 0 ] && echo 0 || echo 1)
+  local NVER
+  NVER=$([ "$bad" = 0 ] && echo 0 || echo 1)
   local V; V="$(verdict_of 0 "$NVER")"
   local IC; IC="$(id_check "$V" "${bytes:-0}" "$(find "$OUT/web" -type f 2>/dev/null | wc -l)")"
   if [ "$IC" != ok ]; then err "   FATAL: 身份证判据不过：$IC"; bad=1; fi

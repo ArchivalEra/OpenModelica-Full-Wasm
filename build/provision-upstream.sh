@@ -78,6 +78,7 @@ selftest() {
 }
 if [ "$MODE" = selftest ]; then selftest; exit $?; fi
 
+# shellcheck disable=SC2034  # 广播给下游段的语义变量（HOST_BASE 可覆盖；下游 rsync/ssh 段消费）
 HOST=${HOST_BASE:-$(python3 -c "import json,sys;d=json.load(open('$PINS'));print(d.get('_host_base','/mnt/hdd/openmodelica-wasm-build/build/upstream'))" 2>/dev/null || echo /mnt/hdd/openmodelica-wasm-build/build/upstream)}
 
 LIST=$(mktemp); trap 'rm -f "$LIST"' EXIT

@@ -13,7 +13,7 @@
 # 用法：sh build/gates-selftest.sh        # 全绿 exit 0；任一闸门自证不完整 exit 1
 set -u
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$REPO"
+cd "$REPO" || exit 1
 
 # ⚠️ 新增闸门时**必须**在这里登记，并在自己的 `--selftest` 里写"该红"用例。
 #    名单外的闸门 = 没人盯着的闸门。
@@ -31,6 +31,7 @@ build/113/check-msl-content-list.py --selftest
 build/113/check-bridge-manifest.py --selftest
 build/113/check-release-inputs.py --selftest
 build/113/check-online-digest.py --selftest
+build/113/check-shellcheck.py --selftest
 build/113/check-workflows.py --selftest
 build/113/check-omc-bridge.mjs
 build/serve-coi.py --selftest
@@ -58,6 +59,7 @@ while IFS= read -r line; do
   [ "$args" = "$script" ] && args=""
   [ -f "$script" ] || { echo "  ❌ 闸门不存在：$script"; bad=$((bad + 1)); badlist="$badlist $script"; continue; }
   n=$((n + 1))
+  # shellcheck disable=SC2086  # args 是空格分隔参数串，必须逐词拆开（引号包裹反破坏多参闸门）
   case "$script" in
     *.py) out=$(python3 "$script" $args 2>&1) ;;
     *.sh) out=$(sh "$script" $args 2>&1) ;;

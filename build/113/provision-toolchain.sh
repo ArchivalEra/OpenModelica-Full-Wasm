@@ -165,6 +165,7 @@ else
     else
       log "   ⚠️ 代理不可达 ⇒ 直连（可能很慢）"
     fi
+    # shellcheck disable=SC2086  # RUSTUP_ENV 是多对 KEY=VALUE 代理项，必须逐词展开
     env $RUSTUP_ENV rustup toolchain install "$CHANNEL" --profile minimal \
       --component rustc-codegen-cranelift-preview --component clippy --component rustfmt --component rust-src \
       --target wasm32-unknown-unknown --target wasm32-wasip1 || { echo "FATAL: rustup 失败" >&2; exit 3; }
@@ -184,8 +185,10 @@ if [ "${1:-}" = status ]; then
   log "  clang          = $("$BIN/clang" --version 2>/dev/null | head -1)"
   RES="$("$BIN/clang" -print-resource-dir 2>/dev/null || echo '(跑不通)')"
   log "  resource-dir   = $RES"
+  # shellcheck disable=SC2015  # log 恒成功，非 if-else 场景；收尾已由 [ -f 产物 ] 与 rc 判定
   [ "$RES" = "$OVERLAY" ] && log "  ✅ 指向 overlay" || log "  ❌ 没指向 overlay"
   B="$OVERLAY/lib/wasi/libclang_rt.builtins-wasm32.a"
+  # shellcheck disable=SC2015  # log 恒成功
   [ -s "$B" ] && log "  ✅ builtins $(( $(stat -c%s "$B") )) 字节" || log "  ❌ 缺 builtins"
   # wasm32 两大目标实编 + 实链（含需要 builtins 的 __udivti3 用例）
   T="$(mktemp -d)"
@@ -200,6 +203,7 @@ if [ "${1:-}" = status ]; then
   fi
   printf 'unsigned __int128 g(unsigned __int128 a){return a/3;}\n' > "$T/need.c"
   for tgt in wasm32-unknown-unknown wasm32-wasip1; do
+    # shellcheck disable=SC2015  # log 恒成功，非 if-else 场景
     "$BIN/clang" --target=$tgt -c "$T/a.c" -o "$T/a.o" 2>/dev/null \
       && log "  ✅ 实编 $tgt" || log "  ❌ 实编 $tgt 失败"
   done
@@ -208,6 +212,7 @@ if [ "${1:-}" = status ]; then
   #    ⚠️ 别指望 clang 自己去 `<rd>/lib/wasi/` 找它：上游是把路径当 `-DBUILTINS_LIB=`
   #    传给 wasi-libc 的 CMake（rust_omc.cmake:375-391），**不是**靠编译器默认搜索。
   #    （本脚本第一版就是错在这：期望值写成了"系统里有 wasi sysroot"，于是恒红。）
+  # shellcheck disable=SC2015  # 有意 A&&B||C：log 恒成功，rc 语义不受影响（status 模式打印段）
   "$BIN/clang" --target=wasm32-wasip1 -nostdlib -Wl,--no-entry -Wl,--export-all \
       "$OVERLAY/lib/wasi/libclang_rt.builtins-wasm32.a" "$T/need.c" -o "$T/n.wasm" 2>/dev/null \
     && log "  ✅ builtins 实链（__udivti3 解得开 ⇒ 这个 .a 真能用）" || log "  ❌ builtins 实链失败"

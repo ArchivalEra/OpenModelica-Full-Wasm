@@ -28,6 +28,7 @@
 #   bash build/113/gen-runtime-sources-mo.sh --dry-run
 #   bash build/113/gen-runtime-sources-mo.sh --selftest
 set -uo pipefail
+# shellcheck disable=SC2034  # 守门形状
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 UPSTREAM="${UPSTREAM:-/mnt/hdd/openmodelica-wasm-build/build/upstream/openmodelica}"
 WORK="${WORK:-/mnt/hdd/openmodelica-wasm-build/build/runtime-sources-mo}"
@@ -67,10 +68,11 @@ EOF
   t "★ 空路径 ⇒ 必须报"                      "$(content_ok '' | grep -c '不存在或为空')" "1"
   rm -rf "$D"
   echo "=== gen-runtime-sources-mo 自证：$((n-bad)) PASS / $bad fail ==="
+  # shellcheck disable=SC2015  # 自证收尾：bad>0 时 [ ] 返回 1 即退出码，非 if-else
   [ "$bad" -eq 0 ]
 }
 case "${1:-}" in --selftest) selftest; exit $? ;; esac
-[ $# -gt 0 ] && shift || true
+if [ $# -gt 0 ]; then shift; fi
 while [ $# -gt 0 ]; do case "$1" in --upstream) UPSTREAM="$2"; shift 2 ;; *) echo "未知参数 $1" >&2; exit 2 ;; esac; done
 
 SRC="$UPSTREAM/OMCompiler/SimulationRuntime/c"
