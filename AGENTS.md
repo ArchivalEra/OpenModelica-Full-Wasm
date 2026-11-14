@@ -1,130 +1,187 @@
-# AGENTS.md · OpenModelica-Full-Wasm
+# AGENTS.md - OpenModelica-Full-Wasm
 
-> **接续先读三份**：`maintaince.md`（**方向与地图**，只指方向不抄数字）+
-> `STATE.md`（活状态：现在是什么 + 文末机器块）+
-> `docs/REQUIREMENTS.md`（**需求书**：要做什么、每条带验收判据）。
-> 三条经验文档在 `docs/`：`EINFACHT-INTEGRATION.md`（事实系统接入）、
-> `FORK-PIPELINE-AND-LESSONS.md`（**fork 管线与全部经验**）。
-> 黑话看不懂就读 `CONTEXT.md`（术语表）。
+Read before working here: `maintaince.md` (direction and map), `STATE.md` (live state,
+machine block at the end), `docs/REQUIREMENTS.md` (requirements, each with an
+acceptance criterion). Glossary: `CONTEXT.md`.
 
-## 路径铁律
-- 仓库：`/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm`（**本仓，private**）
-- 姊妹仓（**只读，绝不改**）：`/mnt/hdd/zcode-projects/Octave-Full-Wasm`（Octave 引擎，平级）
-- 上游源码/产物：`/mnt/hdd/openmodelica-wasm-build/`（**待建**）
-- **禁止**碰课程仓 `/mnt/hdd/zcode-projects/GONGCHENGSHUXUE20260917`
+## Paths
 
-## 三条不可违背
-1. **纯客户端计算**：OpenModelica 恒跑在浏览器 wasm 内 —— 禁止任何服务端执行代码的端点。
-2. 不 force-push / 不删 git 对象 / 不改历史；**禁用 `--no-verify`**。
-3. **白名单仓库**：新增文件必须同步 `!路径` 进 `.gitignore`，否则 pre-commit 直接拒。
-   （本仓是 private，但仍用白名单 —— 黑名单是"忘了就提交"，白名单是"忘了就报错"。）
+- This repo: `/mnt/hdd/zcode-projects/OpenModelica-Full-Wasm` (private).
+- Sister repo (read-only, never modify): `/mnt/hdd/zcode-projects/Octave-Full-Wasm`.
+- Upstream source/build tree: `/mnt/hdd/openmodelica-wasm-build/`.
+- Never touch `/mnt/hdd/zcode-projects/GONGCHENGSHUXUE20260917`.
 
-## 推送路径已永久关闭（终态，不是临时故障；2026-11-14 站长裁定）
-本仓的 GitHub 写路径**永久（permanently）关闭**：节点侧 gh 账号是 `PlumHelper`
-（pull=true / push=false / admin=false），`ArchivalEra` 的 token **不会再次下发** ——
-这是终态，不是权限收紧的过渡，**不要等待凭据恢复、不要尝试 push / fork / 提 PR**
-（这些路径已确认关闭，再测就是浪费轮次）。
-**交付路径（第 3 条）**：本地修改 → 本地 commit → diff 摘要 / finding 清单 / 证据经
-`wo-u send wo-u-maintainer` 报告 → **站长侧落库**（合入或代提 PR）。批次收尾里
-"提交 → 推镜像"的"推"字由站长代执行；本地闸门与提交照常跑。
+## Hard rules
 
-## 这个仓是什么（与姊妹仓的关系）
-`Octave-Full-Wasm` = MATLAB **语言**那一侧的引擎（轴 ① 语言 + 轴 ② Simulink 块图）。
-**本仓** = **轴 ③（Simscape 非因果物理建模）**的引擎：Modelica 语言 + 符号化 + 指标约简 +
-跨域物理库（MSL）。
+1. Client-side only: OpenModelica always runs as wasm in the browser  -  no endpoint may
+   execute code server-side.
+2. Never force-push, delete git objects, rewrite history, or use `--no-verify`.
+3. Whitelist repo: any new file needs a matching `!path` entry in `.gitignore` or
+   pre-commit rejects it. Do not put `#` comments at the end of `.gitignore` lines  - 
+   the comment becomes part of the value (this has bitten three times).
 
-**两仓平级、互不引用**：
-- 工具链不同（姊妹仓 emsdk 6.0.12；**本仓 Rust + wasm32-wasip1**）⇒ **不互相 submodule**
-  （混编是明文禁止的失败模式）；
-- **集成点在上游层的 `Octave-UI`**（第三个引擎档），中间用 **`.mat` 握手**。
+## Push discipline (owner-ruled; per-repo enablement, default off)
 
-## 线划分 = 一线一架构（沿用姊妹仓用户点令 2026-10-12）
+Push is per-repo enabled by the owner, default off. Absent an explicit enablement
+notice for this repo, do not push: edit locally, commit locally, and put the change
+description in your final output  -  the owner lands it.
 
-    master 线              → 产物 wasm64，**只编 wasm64**（⚠️ 上游未接路径，暂出 wasm32 产物）
-    wasm32 线              → 产物 wasm32，**只编 wasm32**
+When a push is enabled for this repo:
 
-★ **性能线（`IllegalPerformance`）已按用户点令删除**（2026-10-14）：它**只有 wasm64 目标
-按官方 fork 管线做到生产级之后**才是"脱离官方树的开发"；在那之前开线没有用。
-⇒ 本仓当前**两线**；wasm64 生产级后**重建**该线（原线对象钉在 tag `archive/ilperf-f283610`）。
+1. The push request and review conclusion do **not** go through `wo-u` (wo-u carries
+   task dispatch and rulings only). Write the change description plus your
+   `code-review` conclusion into the **final output of your session**  -  and into the
+   commit message  -  then stop output. The owner reads session outputs and replies with
+   consent; push only after that reply.
+2. The write channel is the SSH SK key through the akr FIDO2 agent (phone MFA prompt;
+   the owner taps Allow). The gh tokens are read-only  -  HTTPS push returns 403. Do
+   not experiment with the channel; a trial push is a violation.
+3. A push whose commit message lacks the review conclusion and change description is
+   ignored, not retried.
+4. Mechanics for this repo:
+   - Remote is split into two URLs (already configured):
+     fetch = `https://github.com/ArchivalEra/OpenModelica-Full-Wasm.git`
+     push  = `ssh://git@github-ArchivalEra/ArchivalEra/OpenModelica-Full-Wasm.git`.
+     Any `ssh://` URL used for fetch triggers a phone MFA prompt - forbidden. Daily
+     `git fetch` / `git pull` are silent; only push rings the phone.
+   - Reading/queries (refs, private repos, issues, PRs, Actions, releases): `gh` CLI
+     with the read-only PATs (`gh api`, `gh repo view`). `gh repo sync` needs write
+     access and fails 403 under a read-only PAT  -  do not use it here.
+   - Fetching actual objects: plain `git fetch` (HTTPS URL above, read-only PAT via
+     gh keyring, silent). `gh api` is preferred for comparisons; `git fetch` is the
+     fallback. Never configure git+SSH for fetch.
+   - Writing is push-only, over SSH: `git push` through the `github-ArchivalEra`
+     alias (locked to the ArchivalEra SK key, `IdentitiesOnly yes` with
+     `~/.ssh/archivalera-main.pub`, akr FIDO2 agent, port 443 via
+     `ProxyCommand socat - PROXY:127.0.0.1:%h:%p,proxyport=2080`). Do not push
+     through the bare `github.com` form.
+   - Proxies: `export https_proxy=http://127.0.0.1:2080 http_proxy=http://127.0.0.1:2080`.
+   - Knobs: `set -a; . ./Einfacht.env; set +a` before pushing  -  pre-push runs the
+     local gates, and the three-language README set (`REFLECT_READMES`) is
+     conditional: touching any of the three requires all three in the same push.
+   - Run the gates under "Before committing" first.
 
-**判据可执行**：`python3 build/113/check-lane-purity.py --lane <档> --host <wasm> --mod <目录…>`
-（① 宿主 ② 车道模块 ③ 站点**本档专属**目录；错档逐条点名、rc=1）。
-**为什么成文**：混编的失败模式是"**两边都建成功、自检全绿、运行期才炸**"
-（姊妹仓实测三次）⇒ 必须有可执行的判据，不能靠人眼。
+## What this repo is
 
-## 验收底线
-**开发站点永远是最近一次通过浏览器实测的构建。** 新实验失败**不许**让它退化：
-失败就丢弃独立车道目录 + 记档 + 继续下一批。
+Sister repo `Octave-Full-Wasm` covers axis 1 (MATLAB language) and 2) (Simulink causal
+block diagrams). This repo covers axis 3: Simscape-style non-causal physical modeling  - 
+Modelica language, symbolic processing, index reduction, cross-domain MSL libraries.
 
-★ **上站候选必须过「全量」才叫候选**：只跑几个"冒烟套件"就发运，曾在全量里炸
-（姊妹仓的教训：唯一大量压 `dlopen` 的套件 71/0→44/27）。⇒ 换产物/改线程数/改 GL/改资源
-的批次，进件前必须跑一次**全量**（`PROBES=1`）。
+The two repos are peers and must not reference each other: different toolchains
+(sister: emsdk; here: Rust + wasm32-wasip1), so no cross-submodules. Mixed builds are a
+known failure mode. Integration happens in `Octave-UI` via a `.mat` handshake.
 
-## 事实纪律（每句"现在如此"都要能被复跑的命令证明）
-**照抄旧话是文档说假话的唯一来源**。五条（详见 `docs/FORK-PIPELINE-AND-LESSONS.md` §5）：
-1. **数值/行为只认实测**，复跑方式写在断言旁边；写不出 ⇒ 只能当历史。
-2. **口径搬进代码**，别在文档里手抄命令；**"赋值了但没被引用"的旗标会静默失效**
-   ⇒ 改旗标组后必须有**从产物里读出来**的自检。
-3. **"能编过 ≠ 能用了"**：碰运行期行为必须**浏览器侧**实测。
-4. **断言要能证伪**：新契约至少配一条**反向**断言；行为变了就**翻面**（改断言，不改检查器）。
-5. **断言有生命周期：实测 / 推断 / 翻案**：活状态只写实测；推断进 NOTES 并注明结案实验；
-   被推翻的进 `build/retractions.json`。
+## Lanes (one lane, one architecture)
 
-## 批次收尾（固定动作，缺一步等于没做完）
-★ **开工预检**：每批先跑环境检查（`doctor`）—— 不过就**不开工**。
-★ **开发站点只由受管辖入口改**（`build/promote-*.sh`，三件必备 `--dry-run`/`--verify`/`--selftest`，
-  且带"不许夹带别的改动"的反向断言）。实验只写独立站点目录。
-★ **服务方式**：wasm 多线程档**必须带头**起（`Cross-Origin-Opener-Policy: same-origin` +
-  `Cross-Origin-Embedder-Policy: require-corp`）—— 普通 `python3 -m http.server` 发不了这两个头
-  ⇒ 线程档**静默**落回基础档（不报错）。
-★ **三层 SHA**（磁盘 / HTTP / 页面实例化）不全绿就停 ——"改完程序用老产物跑"是反复踩的坑。
-★ **全量回归**（`PROBES=1`）→ **三处一致**（开发站 / 生产站 / 仓库镜像 `--strict`）→ 六道闸门
-  → 提交 → 推镜像。
+```
+master   -> wasm64 artifacts (upstream has no wasm64 path yet; currently emits wasm32)
+wasm32   -> wasm32 artifacts only
+```
 
-## 提交前（事实系统 = Einfacht 平台 + 本仓专属闸门）
+Executable criterion:
+`python3 build/113/check-lane-purity.py --lane <lane> --host <wasm> --mod <dir...>`
+(host 1, lane modules 2, the site lane-specific directory 3; mismatches are named, rc=1).
+Rationale: mixed builds succeed on both sides, pass all self-checks, and only fail at
+runtime  -  the criterion must be executable, not eyeballed.
+
+The performance lane (`IllegalPerformance`) was deleted by user order; rebuild it only
+after wasm64 reaches production grade via the official fork pipeline.
+
+## Acceptance floor
+
+The dev site is always the last build that passed browser testing. A failed experiment
+must not regress it: discard the lane directory, record it, move on.
+
+A deployment candidate must pass the full suite (`PROBES=1`), not just smoke tests  - 
+a smoke-only batch once failed the full suite elsewhere.
+
+## Fact discipline (every "this is currently true" needs a re-runnable command)
+
+1. Numbers/behavior come only from measurement, with the reproducing command written
+   next to the assertion; otherwise it is history, not status.
+2. Move criteria into code, not hand-copied commands in docs; a flag that is assigned
+   but never read silently fails  -  flag changes need a self-check that reads from the
+   artifact.
+3. "It compiles" != "it works": anything touching runtime behavior must be tested in the
+   browser.
+4. Assertions must be falsifiable: every new contract ships with at least one negative
+   assertion; when behavior changes, flip the assertion (edit the test, not the checker).
+5. Assertions have lifecycles: measured (live state) / inferred (NOTES + closing
+   experiment) / retracted (`build/retractions.json`).
+
+## Batch closeout (fixed steps)
+
+1. Preflight: run the environment check (`doctor`); if it fails, do not start.
+2. The dev site changes only through the governed entry points (`build/promote-*.sh`,
+   each with `--dry-run` / `--verify` / `--selftest` and a no-extra-changes negative
+   assertion). Experiments write to separate site directories only.
+3. Serving: the wasm multithreading tier requires COI headers
+   (`Cross-Origin-Opener-Policy: same-origin` +
+   `Cross-Origin-Embedder-Policy: require-corp`). Plain `python3 -m http.server` cannot
+   send them, and the threaded tier then silently falls back to the base tier.
+4. Three-layer SHA (disk / HTTP / page-instantiated) must all be green  -  "rebuilt the
+   program but served the old artifact" is a repeated pitfall.
+5. Full regression (`PROBES=1`) -> three-way consistency (dev site / production site /
+   repo mirror `--strict`) -> gates -> commit -> (push is executed by the owner, see
+   push-path section).
+
+## Before committing
+
 ```bash
-# 平台层（**执行面唯一产地**；别 glob、别手写清单）：机器块 + 闸门 + 自证
-python3 zreflect/facts.py --render-doc STATE.md --check   # 机器块新鲜
-python3 zreflect/registry.py --run commit                 # ran/off/failed 三档
-sh gates-selftest.sh                                      # 平台闸门自证
-# 本仓专属层：白名单 + pin 见证 + 一致性 + 架构纯度
+# Platform layer (Einfacht; source the env carrier first: set -a; . ./Einfacht.env; set +a)
+python3 zreflect/facts.py --render-doc STATE.md --check
+python3 zreflect/registry.py --run commit
+sh gates-selftest.sh
+# Repo-specific layer
 python3 .githooks/check-whitelist.py
 python3 .githooks/witness-upstream-pin.py
-python3 zreflect/check_facts_replay.py                    # 每条 cmd 逐字复跑
+python3 zreflect/check_facts_replay.py
 python3 build/113/check-lane-purity.py --selftest
-sh build/gates-selftest.sh                                # 本仓专属闸门自证台
+sh build/gates-selftest.sh
 ```
-**★ 闸门自证**：每个闸门必须带 `--selftest`，三类用例齐备：
-**正常不报 / 该报的必须报 / 空输入必须报**。新增本仓专属闸门**必须**在
-`build/gates-selftest.sh` 名单里登记 —— **名单外的闸门 = 没人盯着的闸门**。
-⚠️ **闸门有盲区**：`check-whitelist.py` 只看**已暂存**的文件 ⇒ 新增目录后主动看一眼
-`git status --short --ignored <目录>`。
 
-## 操作习惯与硬坑（踩过的，别再来一次）
-- ★ **禁止使用 `sleep`**（用户点名）。任何形式都不行。
-  **长任务用 `run_in_background: true` 起**（后台任务没有超时），起完就返回、去干别的、
-  **等完成通知**；盯已有进程用 `tail -f --pid=<pid>`。
-  **已经后台化的任务绝不重跑**（重跑 = 双倍工作 + 两份打架的日志）。
-- **重活用 `setsid nohup … &` 起、输出只 `tail -n`/`grep`**；跑验收时**别并行干重活**。
-- **测试用例从仓库原路径直跑**，别 `cp` 一份到 harness 再跑（改完仓库用旧副本，断言全错位）。
-- **跑测试前先验产物 SHA**（三层）。
-- **容器里的构建脚本/源码是另一份拷贝**：改完仓库必须同步进容器，否则跑的是旧的。
-- **别猜挂载点/版本号/路径/旗标** —— 一律从产物或配置里**读出来**。
-- **探测/自检不许放在开机路径上**：坏产物会让**整页卡死**。探测器按需触发 + 带超时。
-- **shell 陷阱**：`pkill -f 'x'` 会匹配自己（用 `'x[y]'`）；`rc=$?` 接管道后拿的是最后一个
-  命令的状态；`&&` 放在 `&` 前会把整条链后台化；`echo` 里的反引号会被当命令替换；
-  `grep -c` 零命中**退出 1**；正则字符类漏数字。
-- 结论只认**产物**：`sha256sum`、日志目录、探针输出；不认印象。
+Gate self-tests: every gate must ship `--selftest` with three case classes
+(normal passes / must-fail cases actually fail / empty input reports). Every new
+repo-specific gate must be registered in `build/gates-selftest.sh`  -  an unregistered
+gate is an unwatched gate. Machine summary line format: `=== N PASS / M fail ===`
+(lowercase `fail`).
+
+`check-whitelist.py` only sees staged files; after adding a directory, check
+`git status --short --ignored <dir>` yourself.
+
+## Operational pitfalls (measured; do not repeat)
+
+- Never use `sleep` (user-ordered, any form). Run long tasks with
+  `run_in_background: true` and wait for the completion notification; follow a live
+  process with `tail -f --pid=<pid>`. Never re-run an already-backgrounded task.
+- Start heavy work with `setsid nohup ... &`, read its output only via `tail -n`/`grep`;
+  do not run other heavy work in parallel with acceptance runs.
+- Run test cases from their original repo paths; do not copy them into a harness.
+- Verify artifact SHA (three layers) before running tests.
+- Build scripts inside a container are a separate copy; sync repo changes into the
+  container before running them.
+- Never guess mount points, versions, paths, or flags  -  read them from artifacts or
+  config.
+- Self-probes must not run on page boot: a bad artifact hangs the whole page. Trigger
+  probes on demand, with a timeout.
+- Shell traps: `pkill -f 'x'` matches itself (use `'x[y]'`); `rc=$?` after a pipe takes
+  the last command's status; `&&` before `&` backgrounds the whole chain; backticks in
+  `echo` are command substitution; `grep -c` exits 1 on zero matches; character classes
+  in regexes must include digits if digits are expected.
+- Conclusions come only from artifacts (`sha256sum`, log directories, probe output),
+  never from impressions.
 
 ## Agent skills
 
 ### Issue tracker
-工单是本仓的 markdown 文件，在 `.scratch/open-questions/issues/NN-*.md` 下 —— **本地 tracker**。
-每条挂**可跑的结算件**（头部 `**Settling:**` 行）。见 `docs/agents/issue-tracker.md`。
+Issues are markdown files in `.scratch/open-questions/issues/NN-*.md` (local tracker).
+Each carries a runnable settling command in a `**Settling:**` header line. See
+`docs/agents/issue-tracker.md`.
 
 ### Triage labels
-五个规范角色写成工单头部 `**Status:**` 行（`needs-triage` / `needs-info` / `ready-for-agent` /
-`ready-for-human` / `wontfix`）。`wontfix` **不是删除**。见 `docs/agents/triage-labels.md`。
+Five canonical roles written as a `**Status:**` header line (`needs-triage` /
+`needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`). `wontfix` is not
+deletion. See `docs/agents/triage-labels.md`.
 
 ### Domain docs
-单上下文：根 `CONTEXT.md`。见 `docs/agents/domain.md`。
+Single context: root `CONTEXT.md`. See `docs/agents/domain.md`.
